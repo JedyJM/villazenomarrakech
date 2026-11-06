@@ -4,6 +4,9 @@ Allow: /
 User-agent: GPTBot
 Allow: /
 
+User-agent: OAI-SearchBot
+Allow: /
+
 User-agent: ChatGPT-User
 Allow: /
 
@@ -31,4 +34,5 @@ Allow: /
 User-agent: Applebot-Extended
 Allow: /
 
+# Extra context for assistants: https://www.villazenomarrakech.com/llms.txt
 Sitemap: https://www.villazenomarrakech.com/sitemap.xml

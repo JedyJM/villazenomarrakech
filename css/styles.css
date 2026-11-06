@@ -190,6 +190,10 @@ p { margin: 0 0 1em; }
 .gallery a {
   display: block; overflow: hidden; border-radius: 14px; height: 180px; cursor: zoom-in;
 }
+@media (max-width: 759px) {
+  /* 5 tiles: hero full-width + 2×2, so no leftover empty cell on phones */
+  .gallery a:first-child { grid-column: span 2; height: 220px; }
+}
 @media (min-width: 760px) {
   .gallery a { height: 100%; }
   .gallery a:first-child { height: auto; }

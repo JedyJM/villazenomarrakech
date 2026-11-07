@@ -109,6 +109,7 @@ p { margin: 0 0 1em; }
 
 @media (min-width: 901px) {
   .header-inner {
+    position: relative;
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
@@ -116,6 +117,12 @@ p { margin: 0 0 1em; }
   .header-inner > .logo { justify-self: start; }
   .header-inner > .nav { justify-self: center; }
   .header-inner::after { content: ""; }
+  .nav .lang-switch {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
 }
 
 /* Hero — desktop matches 16:9 video; mobile fills viewport; cover = no black bars */

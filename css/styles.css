@@ -116,6 +116,7 @@ p { margin: 0 0 1em; }
   }
   .header-inner > .logo { justify-self: start; }
   .header-inner > .nav { justify-self: center; }
+  .header-inner > .lang-switch { grid-column: 3; justify-self: end; }
   .header-inner::after { content: ""; }
   .nav .lang-switch {
     position: absolute;

@@ -84,6 +84,21 @@
     if (e.key === "ArrowRight") show(index + 1);
   });
 
+  if (lb) {
+    var touchX = null;
+    lb.addEventListener("touchstart", function (e) {
+      if (e.changedTouches && e.changedTouches[0]) touchX = e.changedTouches[0].clientX;
+    }, { passive: true });
+    lb.addEventListener("touchend", function (e) {
+      if (touchX == null || !e.changedTouches || !e.changedTouches[0]) return;
+      var dx = e.changedTouches[0].clientX - touchX;
+      touchX = null;
+      if (Math.abs(dx) < 48) return;
+      if (dx < 0) show(index + 1);
+      else show(index - 1);
+    }, { passive: true });
+  }
+
   var toggle = document.querySelector(".nav-toggle");
   var nav = document.getElementById("site-nav");
   if (toggle && nav) {

@@ -11,7 +11,6 @@
   --olive: #3a4538;
   --gold: #c4a46a;
   --whatsapp: #1f9c48;
-  --whatsapp-bg: #25d366;
   --shadow: 0 16px 40px rgba(28, 25, 22, 0.12);
   --radius: 18px;
   --max: 1160px;
@@ -300,21 +299,9 @@ p { margin: 0 0 1em; }
   padding: 0.65rem 0 calc(0.65rem + env(safe-area-inset-bottom));
 }
 .sticky-inner { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; }
-.sticky-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end; }
-.sticky-actions .btn { padding: 0.62rem 0.9rem; font-size: 0.72rem; letter-spacing: 0.1em; }
+.sticky-actions { display: flex; flex-wrap: nowrap; gap: 0.45rem; justify-content: flex-end; align-items: center; }
 .sticky-info { display: none; }
 @media (min-width: 700px) { .sticky-info { display: block; } }
-
-/* Floating WhatsApp */
-.wa-float {
-  position: fixed; right: 1.1rem; bottom: 5.4rem; z-index: 36;
-  width: 58px; height: 58px; border-radius: 50%;
-  background: var(--whatsapp-bg); color: #fff !important;
-  display: grid; place-items: center;
-  box-shadow: 0 10px 24px rgba(31,156,72,.35);
-}
-.wa-float:hover { color: #fff !important; transform: translateY(-2px); }
-.wa-float svg { width: 30px; height: 30px; fill: currentColor; }
 
 /* Lightbox */
 .lightbox {
@@ -400,11 +387,12 @@ p { margin: 0 0 1em; }
 
 .btn-short { display: none; }
 @media (max-width: 720px) {
-  .sticky-actions { display: grid; grid-template-columns: 1fr 1fr auto; width: 100%; gap: 0.35rem; }
-  .sticky-actions .btn { font-size: 0.62rem; letter-spacing: 0.08em; padding: 0.62rem 0.4rem; width: 100%; }
-  .sticky-actions .btn-full { display: none; }
-  .sticky-actions .btn-short { display: inline; }
-  .wa-float { bottom: 5.8rem; }
+  .sticky-bar { padding: 0.45rem 0 calc(0.45rem + env(safe-area-inset-bottom)); }
+  .sticky-actions {
+    width: auto;
+    margin-left: auto;
+    gap: 0.4rem;
+  }
 }
 
 @media (max-width: 900px) {
@@ -737,54 +725,37 @@ p { margin: 0 0 1em; }
 .policy-card span { color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
 .policy-card .ico { color: var(--terracotta); margin-top: 0.15rem; }
 
-/* Hero: compact brand logos in the bottom-left, clear of the video centre */
+/* Video stays clear; the hidden H1 does not cover it */
 .hero-content {
-  inset: auto auto 0 0;
-  top: auto;
-  right: auto;
+  position: static;
+  inset: auto;
   width: auto;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-start;
-  padding: 0 0 calc(5.4rem + env(safe-area-inset-bottom)) 1.15rem;
+  padding: 0;
   pointer-events: none;
 }
-.hero-actions {
-  pointer-events: auto;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.5rem;
-  width: auto;
-}
-.hero-logo {
-  width: 44px;
-  height: 44px;
+
+/* Round brand logos, only in the sticky bar */
+.bar-logo {
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  box-shadow: 0 8px 18px rgba(20, 16, 12, 0.28);
+  box-shadow: 0 6px 14px rgba(20, 16, 12, 0.18);
   text-decoration: none !important;
-  transition: transform .15s ease;
 }
-.hero-logo:hover { transform: translateY(-1px); }
-.hero-logo svg { width: 24px; height: 24px; display: block; fill: #fff; }
-.hero-logo-airbnb { background: #ff5a5f; }
-.hero-logo-booking { background: #003580; }
-.hero-logo-booking svg { width: 26px; height: 26px; }
-.hero-logo-wa { background: #25d366; }
-@media (max-width: 767px) {
-  .hero-content {
-    padding: 0 0 calc(5.55rem + env(safe-area-inset-bottom)) 0.7rem;
-  }
-  .hero-actions { gap: 0.4rem; }
-  .hero-logo { width: 36px; height: 36px; }
-  .hero-logo svg { width: 20px; height: 20px; }
-  .hero-logo-booking svg { width: 22px; height: 22px; }
+.bar-logo:hover { transform: translateY(-1px); }
+.bar-logo svg { width: 22px; height: 22px; display: block; fill: #fff; }
+.bar-logo-airbnb { background: #ff5a5f; }
+.bar-logo-booking { background: #003580; }
+.bar-logo-booking svg { width: 24px; height: 24px; }
+.bar-logo-wa { background: #25d366; }
+@media (max-width: 720px) {
+  .bar-logo { width: 40px; height: 40px; }
+  .bar-logo svg { width: 20px; height: 20px; }
+  .bar-logo-booking svg { width: 22px; height: 22px; }
 }
 
 /* Gallery tagline */
@@ -797,9 +768,10 @@ p { margin: 0 0 1em; }
 
 .lightbox-caption {
   font-size: 0.95rem;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.01em;
   line-height: 1.45;
   padding: 0 0.5rem 0.2rem;
+  text-transform: none;
 }
 
 /* Reviews */

@@ -107,6 +107,24 @@ p { margin: 0 0 1em; }
   .nav.is-open { display: flex; }
 }
 
+@media (min-width: 901px) {
+  .header-inner {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+  }
+  .header-inner > .logo { justify-self: start; }
+  .header-inner > .nav { justify-self: center; }
+  .header-inner::after { content: ""; }
+  .nav .lang-switch {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+}
+
 /* Hero — desktop matches 16:9 video; mobile fills viewport; cover = no black bars */
 .hero { position: relative; min-height: min(86vh, 820px); color: #fff; }
 @media (min-width: 768px) {

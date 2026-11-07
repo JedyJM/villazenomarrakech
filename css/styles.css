@@ -91,14 +91,6 @@ p { margin: 0 0 1em; }
 .btn-outline { background: transparent; border-color: var(--ink); color: var(--ink) !important; }
 .btn-wa { background: var(--whatsapp); color: #fff !important; }
 .btn-wa:hover { background: #18853c; color: #fff !important; }
-.header-cta {
-  display: none;
-  align-items: center;
-  gap: 0.4rem;
-}
-.header-cta .bar-logo { width: 34px; height: 34px; }
-.header-cta .bar-logo svg { width: 18px; height: 18px; }
-.header-cta .bar-logo-booking svg { width: 20px; height: 20px; }
 .nav-toggle {
   display: none; background: none; border: 0; padding: 0.4rem; cursor: pointer;
 }
@@ -113,10 +105,6 @@ p { margin: 0 0 1em; }
     border-bottom: 1px solid var(--line); gap: 0.85rem;
   }
   .nav.is-open { display: flex; }
-}
-
-@media (min-width: 901px) {
-  .header-cta { display: inline-flex; }
 }
 
 /* Hero — desktop matches 16:9 video; mobile fills viewport; cover = no black bars */

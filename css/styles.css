@@ -296,6 +296,15 @@ p { margin: 0 0 1em; }
 .footer-social svg { width: 24px; height: 24px; display: block; }
 .footer-social a.social-glyph svg { width: 20px; height: 20px; }
 
+.footer-legal {
+  grid-column: 1 / -1;
+  margin: 0.4rem 0 0;
+  text-align: center;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+.footer-legal a { color: rgba(243, 230, 200, 0.8); text-decoration: none; }
+.footer-legal a:hover, .footer-legal a:focus-visible { color: #fff; text-decoration: underline; }
 .fineprint { opacity: .8; font-size: 0.88rem; }
 .footer-blurb { max-width: 34rem; margin: 0.65rem 0 0; line-height: 1.55; }
 

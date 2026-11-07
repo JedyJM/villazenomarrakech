@@ -138,7 +138,7 @@ p { margin: 0 0 1em; }
 }
 .hero-overlay {
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(20,16,12,.18) 0%, rgba(20,16,12,.18) 40%, rgba(20,16,12,.72) 100%);
+  background: linear-gradient(180deg, rgba(20,16,12,.16) 0%, rgba(20,16,12,.04) 42%, rgba(20,16,12,.28) 100%);
 }
 .hero-content {
   position: absolute; left: 0; right: 0; bottom: 0;
@@ -737,38 +737,54 @@ p { margin: 0 0 1em; }
 .policy-card span { color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
 .policy-card .ico { color: var(--terracotta); margin-top: 0.15rem; }
 
-/* Hero: booking buttons only, centered and readable over the video */
+/* Hero: compact brand logos in the bottom-left, clear of the video centre */
 .hero-content {
-  inset: 0;
+  inset: auto auto 0 0;
+  top: auto;
+  right: auto;
+  width: auto;
   display: flex;
   align-items: flex-end;
+  justify-content: flex-start;
+  padding: 0 0 calc(5.4rem + env(safe-area-inset-bottom)) 1.15rem;
+  pointer-events: none;
+}
+.hero-actions {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  width: auto;
+}
+.hero-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  /* Clear the fixed booking bar so the buttons stay readable. */
-  padding: 1.25rem 0 5.8rem;
+  flex: 0 0 auto;
+  box-shadow: 0 8px 18px rgba(20, 16, 12, 0.28);
+  text-decoration: none !important;
+  transition: transform .15s ease;
 }
-.hero-actions { justify-content: center; width: min(1080px, 100%); }
-.hero .btn { box-shadow: 0 10px 24px rgba(20, 16, 12, 0.22); }
-.hero .btn-outline {
-  color: #fff !important;
-  border-color: rgba(255, 255, 255, 0.92);
-  background: rgba(20, 16, 12, 0.42);
-  backdrop-filter: blur(8px);
-}
+.hero-logo:hover { transform: translateY(-1px); }
+.hero-logo svg { width: 24px; height: 24px; display: block; fill: #fff; }
+.hero-logo-airbnb { background: #ff5a5f; }
+.hero-logo-booking { background: #003580; }
+.hero-logo-booking svg { width: 26px; height: 26px; }
+.hero-logo-wa { background: #25d366; }
 @media (max-width: 767px) {
   .hero-content {
-    padding: 1rem 0 calc(6.7rem + env(safe-area-inset-bottom));
+    padding: 0 0 calc(5.55rem + env(safe-area-inset-bottom)) 0.7rem;
   }
-  .hero-actions {
-    flex-direction: column;
-    align-items: stretch;
-    width: min(420px, 100%);
-  }
-  .hero-actions .btn {
-    width: 100%;
-    letter-spacing: 0.08em;
-    font-size: 0.74rem;
-    padding: 0.86rem 0.85rem;
-  }
+  .hero-actions { gap: 0.4rem; }
+  .hero-logo { width: 36px; height: 36px; }
+  .hero-logo svg { width: 20px; height: 20px; }
+  .hero-logo-booking svg { width: 22px; height: 22px; }
 }
 
 /* Gallery tagline */
@@ -779,33 +795,11 @@ p { margin: 0 0 1em; }
   line-height: 1.35;
 }
 
-/* Visible photo captions */
-.gallery a, .thumbs a { position: relative; }
-.media-caption {
-  position: absolute;
-  z-index: 1;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  margin: 0;
-  padding: 1.55rem 0.6rem 0.5rem;
-  background: linear-gradient(to top, rgba(20, 16, 12, 0.86), rgba(20, 16, 12, 0));
-  color: #fff;
-  font-size: 0.62rem;
-  font-weight: 400;
-  letter-spacing: 0.07em;
-  line-height: 1.35;
-  text-transform: uppercase;
-  pointer-events: none;
-}
-.room-caption {
-  margin: 0 0 0.75rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
+.lightbox-caption {
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
   line-height: 1.45;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 400;
+  padding: 0 0.5rem 0.2rem;
 }
 
 /* Reviews */
@@ -815,23 +809,8 @@ p { margin: 0 0 1em; }
   margin-top: 1.5rem;
   grid-template-columns: 1fr;
 }
-@media (min-width: 720px) {
-  .reviews-grid { grid-template-columns: 1fr 1fr; }
-  .reviews-grid .review-card:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
-    max-width: calc(50% - 0.45rem);
-    justify-self: center;
-  }
-}
-@media (min-width: 1100px) {
-  .reviews-grid { grid-template-columns: repeat(6, 1fr); }
-  .reviews-grid .review-card { grid-column: span 2; }
-  .reviews-grid .review-card:nth-child(4) { grid-column: 2 / span 2; }
-  .reviews-grid .review-card:last-child:nth-child(odd) {
-    grid-column: 4 / span 2;
-    max-width: none;
-    justify-self: stretch;
-  }
+@media (min-width: 800px) {
+  .reviews-grid { grid-template-columns: repeat(3, 1fr); align-items: stretch; }
 }
 .review-card {
   background: var(--paper);

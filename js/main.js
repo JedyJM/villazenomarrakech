@@ -107,4 +107,45 @@
   onScroll();
 
   applyCtas();
+
+  var faqBtn = document.querySelector(".faq-toggle");
+  if (faqBtn) {
+    var more = document.getElementById(faqBtn.getAttribute("aria-controls"));
+    faqBtn.addEventListener("click", function () {
+      var open = faqBtn.getAttribute("aria-expanded") === "true";
+      faqBtn.setAttribute("aria-expanded", open ? "false" : "true");
+      if (more) more.hidden = open;
+      faqBtn.textContent = open
+        ? faqBtn.getAttribute("data-label-more")
+        : faqBtn.getAttribute("data-label-less");
+    });
+  }
+
+  function setupReviewToggles() {
+    document.querySelectorAll(".review-card").forEach(function (card) {
+      var text = card.querySelector(".review-text");
+      var btn = card.querySelector(".review-more");
+      if (!text || !btn) return;
+      if (btn.getAttribute("aria-expanded") !== "true") {
+        text.classList.add("is-clamped");
+        var overflow = text.scrollHeight > text.clientHeight + 2;
+        text.classList.toggle("is-clamped", overflow);
+        btn.hidden = !overflow;
+      }
+      if (btn.getAttribute("data-ready") === "1") return;
+      btn.setAttribute("data-ready", "1");
+      btn.addEventListener("click", function () {
+        var open = btn.getAttribute("aria-expanded") === "true";
+        text.classList.toggle("is-clamped", open);
+        btn.setAttribute("aria-expanded", open ? "false" : "true");
+        btn.textContent = open ? btn.getAttribute("data-more") : btn.getAttribute("data-less");
+      });
+    });
+  }
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(setupReviewToggles);
+  }
+  window.addEventListener("load", setupReviewToggles);
+  setupReviewToggles();
 })();

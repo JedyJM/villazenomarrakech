@@ -287,6 +287,7 @@ p { margin: 0 0 1em; }
   transform: translateY(-1px);
 }
 .footer-social svg { width: 24px; height: 24px; display: block; }
+.footer-social a.social-glyph svg { width: 20px; height: 20px; }
 
 .fineprint { opacity: .8; font-size: 0.88rem; }
 .footer-blurb { max-width: 34rem; margin: 0.65rem 0 0; line-height: 1.55; }
@@ -735,3 +736,176 @@ p { margin: 0 0 1em; }
 .policy-card strong { display: block; font-weight: 500; margin-bottom: 0.25rem; }
 .policy-card span { color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
 .policy-card .ico { color: var(--terracotta); margin-top: 0.15rem; }
+
+/* Hero: booking buttons only, centered and readable over the video */
+.hero-content {
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  /* Clear the fixed booking bar so the buttons stay readable. */
+  padding: 1.25rem 0 5.8rem;
+}
+.hero-actions { justify-content: center; width: min(1080px, 100%); }
+.hero .btn { box-shadow: 0 10px 24px rgba(20, 16, 12, 0.22); }
+.hero .btn-outline {
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.92);
+  background: rgba(20, 16, 12, 0.42);
+  backdrop-filter: blur(8px);
+}
+@media (max-width: 767px) {
+  .hero-content {
+    padding: 1rem 0 calc(6.7rem + env(safe-area-inset-bottom));
+  }
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: min(420px, 100%);
+  }
+  .hero-actions .btn {
+    width: 100%;
+    letter-spacing: 0.08em;
+    font-size: 0.74rem;
+    padding: 0.86rem 0.85rem;
+  }
+}
+
+/* Gallery tagline */
+.gallery-tagline {
+  letter-spacing: 0.14em;
+  font-weight: 500;
+  font-size: clamp(1.2rem, 2.5vw, 1.85rem);
+  line-height: 1.35;
+}
+
+/* Visible photo captions */
+.gallery a, .thumbs a { position: relative; }
+.media-caption {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 1.55rem 0.6rem 0.5rem;
+  background: linear-gradient(to top, rgba(20, 16, 12, 0.86), rgba(20, 16, 12, 0));
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  line-height: 1.35;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.room-caption {
+  margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  line-height: 1.45;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Reviews */
+.reviews-grid {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1.5rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 720px) {
+  .reviews-grid { grid-template-columns: 1fr 1fr; }
+  .reviews-grid .review-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    max-width: calc(50% - 0.45rem);
+    justify-self: center;
+  }
+}
+@media (min-width: 1100px) {
+  .reviews-grid { grid-template-columns: repeat(6, 1fr); }
+  .reviews-grid .review-card { grid-column: span 2; }
+  .reviews-grid .review-card:nth-child(4) { grid-column: 2 / span 2; }
+  .reviews-grid .review-card:last-child:nth-child(odd) {
+    grid-column: 4 / span 2;
+    max-width: none;
+    justify-self: stretch;
+  }
+}
+.review-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1.15rem 1.2rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+.review-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+.review-name {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.28rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.review-date { color: var(--muted); font-size: 0.82rem; white-space: nowrap; }
+.review-note {
+  margin: -0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.review-stars {
+  margin: 0;
+  color: #a6843c;
+  letter-spacing: 0.16em;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.review-text { margin: 0; font-size: 0.98rem; line-height: 1.55; }
+.review-text.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.review-more {
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: var(--terracotta-dark);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.review-more:hover { color: var(--terracotta); }
+.review-more[hidden] { display: none; }
+.review-source {
+  margin: auto 0 0;
+  padding-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* FAQ disclosure */
+.faq-toggle { margin-top: 0.35rem; }
+.faq-more[hidden] { display: none !important; }
+
+/* Closing band without duplicated booking buttons */
+.cta-close { max-width: 40rem; text-align: center; }

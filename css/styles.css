@@ -93,11 +93,12 @@ p { margin: 0 0 1em; }
 .btn-wa:hover { background: #18853c; color: #fff !important; }
 .header-cta {
   display: none;
-  padding: 0.65rem 0.95rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
-  white-space: nowrap;
+  align-items: center;
+  gap: 0.4rem;
 }
+.header-cta .bar-logo { width: 34px; height: 34px; }
+.header-cta .bar-logo svg { width: 18px; height: 18px; }
+.header-cta .bar-logo-booking svg { width: 20px; height: 20px; }
 .nav-toggle {
   display: none; background: none; border: 0; padding: 0.4rem; cursor: pointer;
 }

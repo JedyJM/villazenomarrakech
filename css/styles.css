@@ -41,7 +41,7 @@ h1, h2, h3, .logo, .hero-title {
 }
 h2 { font-size: clamp(1.9rem, 3vw, 2.6rem); margin: 0 0 0.6em; }
 h3 { font-size: 1.45rem; margin: 1.4em 0 0.4em; }
-p { margin: 0 0 1em; }
+p { margin: 0 0 1em; text-align: justify;}
 .lead { font-size: 1.18rem; color: var(--muted); font-weight: 300; }
 .wrap { width: min(var(--max), calc(100% - 2rem)); margin-inline: auto; }
 .skip-link {

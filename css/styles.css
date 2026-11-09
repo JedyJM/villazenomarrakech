@@ -1178,3 +1178,28 @@ p,
     font-size: .72rem;
   }
 }
+
+
+/* Desktop full-gallery balance: five columns on wide screens, four on medium screens */
+@media (min-width: 760px) and (max-width: 1099px) {
+  .thumbs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: clamp(135px, 15vw, 165px);
+  }
+
+  /* Fill the last two cells instead of leaving a single isolated thumbnail. */
+  .thumbs > a:last-child {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 1100px) {
+  .thumbs {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-auto-rows: clamp(145px, 12vw, 175px);
+  }
+
+  .thumbs > a:last-child {
+    grid-column: auto;
+  }
+}

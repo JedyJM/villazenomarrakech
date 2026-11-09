@@ -877,3 +877,152 @@ p { margin: 0 0 1em; text-align: justify;}
 
 /* Closing band without duplicated booking buttons */
 .cta-close { max-width: 40rem; text-align: center; }
+
+/* ===== FAQ — Elegant hotel-style presentation ===== */
+
+.faq > .wrap > h2 {
+  margin-bottom: 1.8rem;
+}
+
+/* Main questions and additional questions */
+
+.faq details {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 1.05rem 0.2rem;
+  margin: 0;
+}
+
+.faq-main details:first-child {
+  border-top: 1px solid var(--line);
+}
+
+.faq details[open] {
+  border-bottom-color: rgba(140, 63, 42, 0.35);
+}
+
+/* Question title */
+
+.faq summary {
+  position: relative;
+  cursor: pointer;
+  list-style: none;
+  padding-right: 2.5rem;
+  font-family: var(--serif);
+  font-size: 1.12rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq summary::after {
+  content: "+";
+  position: absolute;
+  right: 0.3rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--sans);
+  font-size: 1.35rem;
+  font-weight: 300;
+  color: var(--terracotta);
+  transition: transform 0.2s ease;
+}
+
+.faq details[open] summary::after {
+  content: "−";
+}
+
+.faq summary:hover {
+  color: var(--terracotta-dark);
+}
+
+.faq summary:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 5px;
+}
+
+/* Answers */
+
+.faq details p,
+.faq details ul {
+  max-width: 850px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.75;
+  margin-top: 0.8rem;
+  margin-bottom: 0.3rem;
+  text-align: left;
+}
+
+.faq details ul {
+  padding-left: 1.3rem;
+}
+
+.faq details li {
+  padding-left: 0.2rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Additional FAQ categories */
+
+.faq-group {
+  margin-top: 2rem;
+}
+
+.faq-group h3 {
+  font-family: var(--sans);
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--terracotta);
+  margin: 0 0 0.8rem;
+}
+
+/* More questions visibility */
+
+.faq-more[hidden] {
+  display: none !important;
+}
+
+.faq-toggle {
+  margin-top: 1.5rem;
+  min-width: 220px;
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+  .faq > .wrap > h2 {
+    margin-bottom: 1.4rem;
+  }
+
+  .faq details {
+    padding: 0.95rem 0.1rem;
+  }
+
+  .faq summary {
+    font-size: 1.05rem;
+    padding-right: 2rem;
+  }
+
+  .faq details p,
+  .faq details ul {
+    font-size: 0.92rem;
+  }
+
+  .faq-group {
+    margin-top: 1.7rem;
+  }
+
+  .faq-toggle {
+    width: 100%;
+  }
+}
+

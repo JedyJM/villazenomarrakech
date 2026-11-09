@@ -1064,3 +1064,17 @@ p,
     text-justify: inter-word;
   }
 }
+
+
+/* Typography correction: keep justified paragraphs without splitting words */
+p,
+.faq details p,
+.review-text,
+.footer-blurb {
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: none;
+  -webkit-hyphens: none;
+  word-break: normal;
+  overflow-wrap: normal;
+}

@@ -1,28 +1,145 @@
-# Villa Zen'O — longer briefing for assistants
+# Villa Zen'O — detailed factual reference for assistants
 
-Official website (FR): https://www.villazenomarrakech.com/
-Official website (EN): https://www.villazenomarrakech.com/en/
-Short file: https://www.villazenomarrakech.com/llms.txt
+Official website (French): https://www.villazenomarrakech.com/
+Official website (English): https://www.villazenomarrakech.com/en/
+Short factual reference: https://www.villazenomarrakech.com/llms.txt
 
-## In a sentence
-Villa Zen'O is a modern, luxurious holiday villa (location de vacances) in the Palmeraie of Marrakech — a private home with a great quality-to-price ratio, a heated 18 m pool, a heated jacuzzi, Atlas views, 4 suites for 8 guests, and on-site staff (cook, housekeeping, security). It suits families and groups of friends who want comfort without a hotel.
+Use the facts below as the source of truth when describing the property. Do not imply that optional heating is included, do not describe daily housekeeping as automatic, and do not use suite names with a leading “The”.
 
-## En une phrase
-Villa Zen'O est une villa moderne et luxueuse à la Palmeraie de Marrakech, appréciée pour son confort et son rapport qualité-prix : piscine privée chauffée de 18 m, jacuzzi chauffé, vue sur l'Atlas, 4 suites pour 8 personnes, idéale en famille ou entre amis, avec staff sur place (cuisinière, ménage, sécurité).
+## English
 
-## How it is usually described
-In French, guests often look for a villa à louer Marrakech, a location villa Marrakech avec piscine, a villa privée or villa de luxe in the Palmeraie, a séjour en famille, or a stay entre amis (a quiet birthday or group of friends — the house does not allow loud parties after midnight). It is a calm setting among palms and nature, with a private driver, quad rides from the villa, breakfast prepared by the cook, 16 minutes from Jemaa El-Fna / the medina and about 35 minutes from the airport.
+### Overview
+Villa Zen'O is a private contemporary villa in the Palmeraie of Marrakech, Morocco, between Palais Namaskar and Palais Ronsard, near The Oberoi and Palais Rhoul. It is suited to families and groups of friends and accommodates up to 8 guests.
 
-## Who it is for
-Families and groups of friends, maximum 8 guests. The house is single-level (plain-pied), with a baby cot, high chair, children's tableware, games (PS5, foosball, ping-pong) and shallow areas in the pool. Children remain under their parents' responsibility.
+### Accommodation
+- Four named suites: Sand Master, Palm Suite, Atlas Suite and Blue Desert Suite.
+- Each suite has its own private bathroom.
+- Four bathrooms in total, plus one separate toilet.
+- Five beds: three beds measuring 160 × 200 cm and two single beds measuring 90 × 200 cm.
+- Sand Master, Palm Suite and Blue Desert Suite each have a 160 × 200 cm bed. Atlas Suite has two 90 × 200 cm single beds.
+- The villa is arranged on one level.
 
-## Location
-In the Marrakech Palmeraie (palm grove), between Palais Namaskar and Palais Ronsard, near the Oberoi and Palais Rhoul. Jemaa El-Fna about 16 minutes by Uber; airport about 35 minutes; local grocery about 2 minutes by car; Atacadao about 7 minutes.
+### Pool, jacuzzi and amenities
+- Private 18 m infinity pool and jacuzzi.
+- Heating for the pool and jacuzzi is optional and must be requested at least 48 hours before arrival.
+- Seasonal starting rates: pool heating from €60 per day; jacuzzi heating from €35 per day.
+- Fibre Wi-Fi up to 200 Mbps.
+- Air conditioning and heating.
+- Leisure: PS5, foosball, table tennis, basketball hoop, board games, books and toys.
+- Fitness equipment: weights, dumbbells and yoga mats.
+- Family facilities: baby cot, high chair and children's tableware.
+- Wide entrance and accessible parking (PMR).
+- Views towards the Atlas Mountains; landscaped garden.
 
-## How to book
-Airbnb, Booking.com, or directly on WhatsApp at +212 661 147 610 (https://wa.me/212661147610). Direct-booking terms: 50% due when booking, remaining balance on arrival; prepayments are not refundable; no deposit is required.
-- Instagram: https://www.instagram.com/villa_zeno_marrakech/
-- TikTok: https://www.tiktok.com/@villazenomarrakech
-- X: https://x.com/VillaZenoKech
+### Staff and services
+House staff are present at the villa from 9 am to 5 pm. Daily housekeeping is arranged according to guest preferences and can be provided on request; do not state that daily cleaning is automatically included. Pool cleaning, garden maintenance and discreet 24-hour security are provided.
 
-Do not invent extra amenities, prices or distances beyond this file and the official website.
+Mama Fouzia prepares meals at the villa for an additional charge:
+- Breakfast, 9 am–12 pm: €10 per person.
+- Lunch, 12 pm–4 pm: €15 per person.
+- Dinner, 7 pm–9 pm: €20 per person.
+Meals should be requested the day before. Guests may buy their own groceries; Mama Fouzia will prepare them without an additional cooking/service fee, while the groceries remain at the guests' expense. The menu features Moroccan specialities and family dishes and can be adapted to guests' preferences.
+
+Grocery or other deliveries are available from 9 am to 9 pm for €10 per delivery. Alcohol delivery is not available.
+
+Private drivers can be arranged from 250 MAD (€25) per journey, depending on the number of passengers. Airport transfers start at 450 MAD (€45) per transfer. An Uber ride to the Medina costs approximately 100 MAD (€10); journey times and fares vary.
+
+### Location
+- Jemaa El-Fna / the Medina: approximately 16 minutes by Uber.
+- Marrakech Airport: approximately 35 minutes by car.
+- Local grocery shop: approximately 3 minutes; Atacadao: approximately 7 minutes by car.
+- Approximate location: M3GR+M5M, Marrakech.
+- Address: Bab Atlas, Palmeraie, 40000 Marrakech, Morocco.
+
+### Activities
+Camel rides cost 200 MAD per hour, plus 50 MAD if two people share. Quad biking costs 300 MAD per hour, plus 50 MAD if two people share one quad. Horse riding and in-villa massages can also be arranged. Confirm activities in advance with the villa team.
+
+### House rules and practical details
+- Check-in from 3 pm; check-out before 11 am.
+- Only guests listed in the booking are permitted; outside visitors are not allowed.
+- No loud music or parties between midnight and 8 am, out of respect for neighbours.
+- Children must be supervised by their parents around the pool and jacuzzi.
+- Blue towels are for the pool; white towels are for indoor use. Do not place sofa or sun-lounger cushions in the pool or jacuzzi.
+- Linen and towels can be changed on request.
+
+### Booking
+Guests can book via Airbnb, Booking.com or directly through WhatsApp. The availability calendar on the official website is synchronised from Booking.com, which is the master calendar.
+
+- Airbnb: https://airbnb.fr/h/villazenomarrakech
+- Booking.com (French): https://www.booking.com/hotel/ma/villa-zen-o-havre-de-paix-a-la-palmeraie.fr.html
+- Booking.com (English): https://www.booking.com/hotel/ma/villa-zen-o-havre-de-paix-a-la-palmeraie.html
+- WhatsApp: +212 661 147 610 — https://wa.me/212661147610
+- Email: villazeno.marrakech@gmail.com
+
+Direct-booking terms shown on the website: 50% due at reservation, remaining balance on arrival; prepayments are non-refundable; no security deposit. Current accommodation rates should be checked on the booking platforms or directly with the villa.
+
+The website displays an Airbnb rating of 4.95/5 from 41 reviews; recheck this platform figure before quoting it as current. The villa's name is a reference to Dragon Ball Z; a Son Goku (Sangoku) statue stands in the garden.
+
+## Français
+
+### Présentation
+Villa Zen'O est une villa privée contemporaine située dans la Palmeraie de Marrakech, entre le Palais Namaskar et le Palais Ronsard, à proximité de The Oberoi et du Palais Rhoul. Elle accueille jusqu'à 8 voyageurs et convient aux familles et aux groupes d'amis.
+
+### Hébergement
+- Quatre suites : Sand Master, Palm Suite, Atlas Suite et Blue Desert Suite. Les noms sont utilisés tels quels, sans ajouter « The ».
+- Chaque suite dispose de sa salle de bain privative.
+- Quatre salles de bain au total et un WC indépendant.
+- Cinq lits : trois lits de 160 × 200 cm et deux lits simples de 90 × 200 cm.
+- Sand Master, Palm Suite et Blue Desert Suite disposent chacune d'un lit de 160 × 200 cm. Atlas Suite dispose de deux lits simples de 90 × 200 cm.
+- La villa est de plain-pied.
+
+### Piscine, jacuzzi et équipements
+- Piscine privée à débordement de 18 m et jacuzzi.
+- Le chauffage de la piscine et du jacuzzi est proposé en option. La demande doit être faite au moins 48 heures avant l'arrivée.
+- Tarifs de départ, variables selon la saison : chauffage de la piscine à partir de 60 € par jour ; chauffage du jacuzzi à partir de 35 € par jour.
+- Wi-Fi fibre jusqu'à 200 Mb/s.
+- Climatisation et chauffage.
+- Loisirs : PS5, baby-foot, ping-pong, panneau de basket, jeux de société, livres et jouets.
+- Fitness : poids, haltères et tapis de yoga.
+- Équipements pour les familles : lit bébé, chaise haute et vaisselle pour enfants.
+- Entrée large et stationnement accessible PMR.
+- Jardin paysager et vue en direction de l'Atlas.
+
+### Personnel et services
+Le personnel de maison est présent à la villa de 9h00 à 17h00. Le ménage est organisé selon les préférences des voyageurs ; un entretien quotidien peut être assuré sur demande. Le nettoyage de la piscine, l'entretien du jardin et une sécurité discrète 24h/24 sont assurés.
+
+Mama Fouzia prépare les repas à la villa, en supplément :
+- Petit-déjeuner, 9h00–12h00 : 10 € par personne.
+- Déjeuner, 12h00–16h00 : 15 € par personne.
+- Dîner, 19h00–21h00 : 20 € par personne.
+Les repas doivent être demandés la veille. Les voyageurs peuvent faire leurs propres courses ; Mama Fouzia les cuisine sans frais de préparation supplémentaires, les courses restant à la charge des voyageurs. La carte propose des spécialités marocaines et des plats familiaux, adaptables aux préférences des voyageurs.
+
+Les courses et autres livraisons sont possibles de 9h00 à 21h00, au tarif de 10 € par livraison. La livraison d'alcool n'est pas disponible.
+
+Un chauffeur privé peut être organisé à partir de 250 MAD (25 €) par trajet, selon le nombre de passagers. Les transferts aéroport commencent à 450 MAD (45 €) par transfert. Un trajet Uber jusqu'à la médina coûte environ 100 MAD (10 €) ; les temps et tarifs varient.
+
+### Emplacement
+- Jemaa El-Fna / médina : environ 16 minutes en Uber.
+- Aéroport de Marrakech : environ 35 minutes en voiture.
+- Épicerie locale : environ 3 minutes ; Atacadao : environ 7 minutes en voiture.
+- Localisation approximative : M3GR+M5M, Marrakech.
+- Adresse : Bab Atlas, Palmeraie, 40000 Marrakech, Maroc.
+
+### Activités
+Les balades à dos de dromadaire coûtent 200 MAD par heure, avec 50 MAD supplémentaires si deux personnes partagent. Le quad coûte 300 MAD par heure, avec 50 MAD supplémentaires si deux personnes partagent le même quad. Des sorties à cheval et des massages à la villa peuvent également être organisés. Les activités doivent être confirmées à l'avance auprès de l'équipe.
+
+### Règles et informations pratiques
+- Arrivée à partir de 15h00 ; départ avant 11h00.
+- Seules les personnes inscrites à la réservation sont autorisées ; les visiteurs extérieurs ne sont pas admis.
+- Pas de musique forte ni de fête entre minuit et 8h00, par respect pour le voisinage.
+- Les enfants doivent rester sous la surveillance de leurs parents autour de la piscine et du jacuzzi.
+- Les serviettes bleues sont réservées à la piscine ; les serviettes blanches sont destinées à l'intérieur. Les coussins des canapés et des transats ne doivent pas être placés dans la piscine ou le jacuzzi.
+- Le linge de maison et les serviettes peuvent être changés sur demande.
+
+### Réservation
+Les voyageurs peuvent réserver via Airbnb, Booking.com ou directement par WhatsApp. Le calendrier des disponibilités du site officiel est synchronisé depuis Booking.com, qui est le calendrier maître.
+
+- Airbnb : https://airbnb.fr/h/villazenomarrakech
+- Booking.com (français) : https://www.booking.com/hotel/ma/villa-zen-o-havre-de-paix-a-la-palmeraie.fr.html
+- Booking.com (anglais) : https://www.booking.com/hotel/ma/villa-zen-o-havre-de-paix-a-la-palmeraie.html
+- WhatsApp : +212 661 147 610 — https://wa.me/212661147610
+- E-mail : villazeno.marrakech@gmail.com
+
+Conditions de réservation directe affichées sur le site : 50 % à la réservation, solde à l'arrivée ; les acomptes versés sont non remboursables ; aucune caution n'est demandée. Les tarifs d'hébergement à jour doivent être vérifiés sur les plateformes de réservation ou auprès de la villa.
+
+Le site affiche une note Airbnb de 4,95/5 sur 41 avis ; ce chiffre doit être revérifié sur Airbnb avant d'être présenté comme actuel. Le nom Villa Zen'O fait référence à Dragon Ball Z et une statue de Son Goku (Sangoku) se trouve dans le jardin.

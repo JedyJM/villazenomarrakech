@@ -23,7 +23,6 @@ jobs:
       - name: Fetch and merge iCal
         env:
           BOOKING_ICAL_URL: ${{ secrets.BOOKING_ICAL_URL }}
-          AIRBNB_ICAL_URL: ${{ secrets.AIRBNB_ICAL_URL }}
         run: |
           python3 scripts/sync-availability.py --out data/availability.json | tee /tmp/sync-out.txt
 

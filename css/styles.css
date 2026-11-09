@@ -1078,3 +1078,10 @@ p,
   word-break: normal;
   overflow-wrap: normal;
 }
+
+
+/* Rooms introduction: use the full content width so the sentence flows naturally */
+#chambres > .wrap > .lead {
+  max-width: none;
+  width: 100%;
+}

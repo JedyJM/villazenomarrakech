@@ -1085,3 +1085,10 @@ p,
   max-width: none;
   width: 100%;
 }
+
+
+/* Global correction: lead paragraphs use the full available section width */
+.lead {
+  max-width: none;
+  width: 100%;
+}

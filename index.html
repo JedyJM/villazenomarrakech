@@ -717,54 +717,121 @@ Je recommande volontiers cette villa à mes amis et à ma famille.</p>
 
 <script>
 (function () {
+  "use strict";
+
   var v = document.getElementById("hero-video");
   var srcEl = document.getElementById("hero-video-src");
   var fallback = document.querySelector(".hero-fallback");
   if (!v || !srcEl) return;
 
-  function mobile() {
+  var playPending = false;
+  var resizeTimer = null;
+  var reduceMotion = window.matchMedia &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function isMobile() {
     return (window.innerWidth || document.documentElement.clientWidth) < 768;
   }
-  function pick() {
-    var m = mobile();
-    var next = m ? "video/hero-mobile.mp4" : "video/hero-desktop.mp4";
-    var poster = m ? "video/poster-mobile.jpg" : "video/poster.jpg";
-    v.setAttribute("poster", poster);
-    if ((srcEl.getAttribute("src") || "").indexOf(m ? "hero-mobile" : "hero-desktop") === -1) {
-      srcEl.setAttribute("src", next);
-      v.load();
-    }
-  }
+
   function showVideo() {
+    if (v.paused || v.ended) return;
+    v.classList.remove("is-error", "is-reduced");
     v.classList.add("is-playing");
     if (fallback) fallback.classList.remove("is-visible");
   }
+
   function showFallback() {
+    v.classList.remove("is-playing");
     v.classList.add("is-error");
     if (fallback) fallback.classList.add("is-visible");
   }
 
-  pick();
+  function requestPlayback() {
+    if (reduceMotion || document.hidden || playPending) return;
 
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!v.paused && !v.ended && v.readyState >= 2) {
+      showVideo();
+      return;
+    }
+
+    playPending = true;
+    var playPromise;
+
+    try {
+      playPromise = v.play();
+    } catch (err) {
+      playPending = false;
+      return;
+    }
+
+    if (playPromise && typeof playPromise.then === "function") {
+      playPromise.then(function () {
+        playPending = false;
+        if (!v.paused && !v.ended) showVideo();
+      }).catch(function () {
+        playPending = false;
+        /* A later canplay/pageshow/visibility event will retry playback. */
+      });
+    } else {
+      playPending = false;
+      if (!v.paused && !v.ended) showVideo();
+    }
+  }
+
+  function selectVideo() {
+    var mobile = isMobile();
+    var next = mobile ? "video/hero-mobile.mp4" : "video/hero-desktop.mp4";
+    var poster = mobile ? "video/poster-mobile.jpg" : "video/poster.jpg";
+    var current = srcEl.getAttribute("src") || "";
+
+    v.setAttribute("poster", poster);
+    if (current !== next) {
+      v.pause();
+      v.classList.remove("is-playing", "is-error");
+      if (fallback) fallback.classList.add("is-visible");
+      srcEl.setAttribute("src", next);
+      v.load();
+    }
+  }
+
+  /* Register listeners before selecting/loading the source so no start event is missed. */
+  v.muted = true;
+  v.defaultMuted = true;
+  v.playsInline = true;
+  v.autoplay = true;
+
+  v.addEventListener("playing", showVideo);
+  v.addEventListener("loadeddata", requestPlayback);
+  v.addEventListener("canplay", requestPlayback);
+  v.addEventListener("error", showFallback);
+
+  if (reduceMotion) {
     v.removeAttribute("autoplay");
-    try { v.pause(); } catch (e) {}
+    v.pause();
+    v.classList.remove("is-playing");
     v.classList.add("is-reduced");
     if (fallback) fallback.classList.add("is-visible");
+    selectVideo();
     return;
   }
 
-  ["loadeddata", "playing", "canplay"].forEach(function (ev) {
-    v.addEventListener(ev, showVideo);
-  });
-  v.addEventListener("error", showFallback);
-  var p = v.play();
-  if (p && p.catch) p.catch(function () {});
+  selectVideo();
 
-  var t;
+  /* Recover if the browser began loading before this script attached its listeners. */
+  if (v.error) v.load();
+  requestPlayback();
+
+  window.addEventListener("pageshow", requestPlayback);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) requestPlayback();
+  });
+
   window.addEventListener("resize", function () {
-    clearTimeout(t);
-    t = setTimeout(pick, 200);
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      selectVideo();
+      requestPlayback();
+    }, 200);
   });
 })();
 </script>

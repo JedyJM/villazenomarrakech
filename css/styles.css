@@ -1035,3 +1035,32 @@ h3 { line-height: 1.25; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+
+/* Global paragraph alignment — justified, as requested */
+p,
+.faq details p,
+.review-text,
+.footer-blurb {
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+}
+
+/* Keep short interface copy naturally aligned */
+.hero-kicker,
+.hero-sub,
+.lightbox-caption,
+.footer-legal {
+  text-align: left;
+}
+
+@media (max-width: 600px) {
+  p,
+  .faq details p,
+  .review-text,
+  .footer-blurb {
+    text-align: justify;
+    text-justify: inter-word;
+  }
+}

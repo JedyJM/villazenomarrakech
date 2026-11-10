@@ -1377,3 +1377,19 @@ p,
   text-justify: auto;
   hyphens: none;
 }
+
+
+/* Services section introduction: use the full section width and natural text flow */
+.svc-group-head {
+  width: 100%;
+  max-width: none;
+}
+.svc-group-head > p:last-child {
+  width: 100%;
+  max-width: none;
+  text-align: left !important;
+  text-justify: auto;
+  word-spacing: normal;
+  letter-spacing: normal;
+  white-space: normal;
+}

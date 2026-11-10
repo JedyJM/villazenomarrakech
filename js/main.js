@@ -138,9 +138,6 @@
     serviceDialog.addEventListener("click", function (event) {
       if (event.target === serviceDialog && serviceDialog.close) serviceDialog.close();
     });
-    serviceDialog.querySelectorAll(".service-dialog-contact").forEach(function (link) {
-      link.addEventListener("click", function () { if (serviceDialog.close) serviceDialog.close(); });
-    });
   }
 
   applyCtas();

@@ -93,7 +93,7 @@
     grid.innerHTML = renderMonth(y, m) + renderMonth(next.getFullYear(), next.getMonth());
     if (updated && meta.updated_at) {
       var d = new Date(meta.updated_at);
-      updated.textContent = t.updated + " : " + d.toLocaleString(isEn ? "en-GB" : "fr-FR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
+      updated.textContent = t.updated + " : " + d.toLocaleString(isEn ? "en-GB" : "fr-FR", { dateStyle: "medium", timeStyle: "short" });
     }
     if (badge) {
       badge.hidden = !meta.sample;

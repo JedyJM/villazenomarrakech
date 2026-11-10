@@ -13,7 +13,7 @@
       legendBusy: "Réservé",
       legendFree: "Disponible",
       updated: "Dernière mise à jour",
-      empty: "Calendrier bientôt disponible. Contactez-nous sur WhatsApp.",
+      empty: "Calendrier bientôt disponible — contactez-nous sur WhatsApp.",
       sample: "exemple",
       prev: "Mois précédents",
       next: "Mois suivants"
@@ -24,7 +24,7 @@
       legendBusy: "Booked",
       legendFree: "Available",
       updated: "Last updated",
-      empty: "The calendar will be available shortly. Please message us on WhatsApp.",
+      empty: "The calendar will be available shortly — please message us on WhatsApp.",
       sample: "sample",
       prev: "Previous months",
       next: "Next months"

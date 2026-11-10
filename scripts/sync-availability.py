@@ -105,20 +105,8 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     new_text = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
 
-    if out.exists():
-        try:
-            old = json.loads(out.read_text(encoding="utf-8"))
-            # Compare without updated_at for change detection
-            old_cmp = {k: v for k, v in old.items() if k != "updated_at"}
-            new_cmp = {k: v for k, v in payload.items() if k != "updated_at"}
-            if old_cmp == new_cmp:
-                print("No availability changes.")
-                # Still refresh updated_at only if forced? Skip write for GH action commit skip
-                print("UNCHANGED")
-                return 0
-        except Exception:
-            pass
-
+    # Always refresh updated_at: it represents the last successful calendar sync,
+    # not only the last time a booking date changed. The scheduled workflow runs every 3 hours.
     out.write_text(new_text, encoding="utf-8")
     print(f"Wrote {out} ({len(payload.get('busy', []))} busy days, sources={payload.get('sources')})")
     print("CHANGED")

@@ -1313,7 +1313,11 @@ p,
 .travel-note {
   margin: 0.7rem 0 0;
   color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.5;
-  letter-spacing: 0.01em;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .travel-note { font-size: 0.66rem; }
 }

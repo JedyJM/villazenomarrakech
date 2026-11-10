@@ -121,6 +121,51 @@
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
 
+  // Service detail dialogs (transfers, activities, massage and dining)
+  var serviceDialog = document.getElementById("service-dialog");
+  if (serviceDialog) {
+    var servicePanels = serviceDialog.querySelectorAll("[data-service-panel]");
+    var serviceClose = serviceDialog.querySelector(".service-dialog-close");
+    var lastServiceTrigger = null;
+
+    function closeServiceDialog() {
+      if (typeof serviceDialog.close === "function" && serviceDialog.open) {
+        serviceDialog.close();
+      } else {
+        serviceDialog.removeAttribute("open");
+      }
+    }
+
+    document.addEventListener("click", function (e) {
+      var trigger = e.target.closest(".svc-detail-trigger[data-service-dialog]");
+      if (!trigger || !serviceDialog.contains(trigger) && trigger.closest("#services") == null) return;
+      var panelName = trigger.getAttribute("data-service-dialog");
+      var targetPanel = serviceDialog.querySelector('[data-service-panel="' + panelName + '"]');
+      if (!targetPanel) return;
+
+      e.preventDefault();
+      lastServiceTrigger = trigger;
+      servicePanels.forEach(function (panel) {
+        panel.hidden = panel !== targetPanel;
+      });
+
+      if (typeof serviceDialog.showModal === "function") {
+        if (!serviceDialog.open) serviceDialog.showModal();
+      } else {
+        serviceDialog.setAttribute("open", "open");
+      }
+      if (serviceClose) serviceClose.focus();
+    });
+
+    if (serviceClose) serviceClose.addEventListener("click", closeServiceDialog);
+    serviceDialog.addEventListener("click", function (e) {
+      if (e.target === serviceDialog) closeServiceDialog();
+    });
+    serviceDialog.addEventListener("close", function () {
+      if (lastServiceTrigger) lastServiceTrigger.focus();
+    });
+  }
+
   applyCtas();
 
   var faqBtn = document.querySelector(".faq-toggle");

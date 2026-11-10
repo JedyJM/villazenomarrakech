@@ -1319,10 +1319,10 @@ p,
   font-size: 0.72rem;
   line-height: 1.4;
   letter-spacing: 0;
-  white-space: nowrap;
+  white-space: normal;
 }
 @media (max-width: 600px) {
-  .travel-note { font-size: 0.66rem; }
+  .travel-note { font-size: 0.72rem; }
 }
 
 /* Service information dialogs */

@@ -18,7 +18,7 @@
   function applyCtas() {
     document.querySelectorAll("[data-cta]").forEach(function (el) {
       var type = el.getAttribute("data-cta");
-      if (type === "airbnb") el.href = cfg.airbnbUrl || el.href;
+      if (type === "airbnb") el.href = (isEn ? (cfg.airbnbUrlEn || cfg.airbnbUrl) : cfg.airbnbUrl) || el.href;
       if (type === "booking") el.href = bookingLink() || el.href;
       if (type === "whatsapp") el.href = waLink();
     });

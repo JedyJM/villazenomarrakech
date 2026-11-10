@@ -121,6 +121,28 @@
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
 
+  var serviceDialog = document.getElementById("service-dialog");
+  if (serviceDialog) {
+    var servicePanels = serviceDialog.querySelectorAll("[data-service-panel]");
+    document.querySelectorAll("[data-service-dialog]").forEach(function (trigger) {
+      trigger.addEventListener("click", function () {
+        var key = trigger.getAttribute("data-service-dialog");
+        servicePanels.forEach(function (panel) { panel.hidden = panel.getAttribute("data-service-panel") !== key; });
+        if (serviceDialog.showModal) serviceDialog.showModal(); else serviceDialog.setAttribute("open", "");
+      });
+    });
+    var closeServiceDialog = serviceDialog.querySelector(".service-dialog-close");
+    if (closeServiceDialog) closeServiceDialog.addEventListener("click", function () {
+      if (serviceDialog.close) serviceDialog.close(); else serviceDialog.removeAttribute("open");
+    });
+    serviceDialog.addEventListener("click", function (event) {
+      if (event.target === serviceDialog && serviceDialog.close) serviceDialog.close();
+    });
+    serviceDialog.querySelectorAll(".service-dialog-contact").forEach(function (link) {
+      link.addEventListener("click", function () { if (serviceDialog.close) serviceDialog.close(); });
+    });
+  }
+
   applyCtas();
 
   var faqBtn = document.querySelector(".faq-toggle");

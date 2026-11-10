@@ -1126,7 +1126,7 @@ p,
   max-width: none;
   width: 100%;
 }
-#chambres > .wrap > .lead { text-align: left; }
+#chambres > .wrap > .lead { text-align: justify; }
 
 
 /* Global correction: lead paragraphs use the full available section width */

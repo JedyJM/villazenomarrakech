@@ -1349,3 +1349,25 @@ p,
 .service-treatment-group .service-price-list>div{padding:.52rem 0}
 .service-treatment-group .service-price-list small{font-size:.76rem;line-height:1.35}
 .service-dialog-note{font-size:.82rem}
+
+
+/* Refined service links and premium price presentation */
+.svc-card .body .svc-tariff-link{order:0;margin:0 0 .85rem;padding:0;border:0;background:none;color:var(--gold);font:inherit;font-size:.78rem;font-weight:600;letter-spacing:.035em;text-align:left;cursor:pointer}
+.svc-card .body .svc-tariff-link span{display:inline-block;margin-left:.18rem;transition:transform .2s ease}
+.svc-card .body .svc-tariff-link:hover span{transform:translateX(3px)}
+.svc-card .body .svc-tariff-link:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+.service-dialog-content h2,.service-treatment-group h3{font-family:var(--serif);font-weight:500}
+.service-treatment-group h3{font-size:1.18rem;letter-spacing:.01em}
+.service-price-list{border-top:0}
+.service-price-list>div{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:.7rem;padding:.58rem 0;border-bottom:0}
+.service-price-list span{position:relative;display:grid;grid-template-columns:auto minmax(1rem,1fr);grid-template-rows:auto auto;align-items:baseline;column-gap:.5rem;font-weight:500}
+.service-price-list span::after{content:"";grid-column:2;grid-row:1;border-bottom:1px dotted rgba(196,164,106,.75);transform:translateY(-.2rem)}
+.service-price-list small{grid-column:1/-1;grid-row:2;margin-top:.12rem}
+.service-price-list strong{font-weight:600;font-size:.94rem}
+.service-dialog-terms-pair{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.service-dialog-terms{display:flex;align-items:flex-start;gap:.7rem;margin-top:1.1rem;padding:.85rem .9rem;border:1px solid var(--line);border-radius:10px;background:transparent}
+.service-dialog-terms>svg{flex:0 0 19px;width:19px;height:19px;margin-top:.1rem;fill:none;stroke:var(--gold);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.service-dialog-terms>div{min-width:0}
+.service-dialog-terms strong{font-size:.82rem;font-weight:600;letter-spacing:.015em}
+.service-dialog-terms p{margin:.28rem 0 0;font-size:.83rem;line-height:1.5}
+@media(max-width:520px){.service-dialog-terms-pair{grid-template-columns:1fr 1fr;gap:.5rem}.service-dialog-terms{padding:.75rem .65rem;gap:.45rem}.service-dialog-terms>svg{flex-basis:17px;width:17px;height:17px}.service-dialog-terms strong{font-size:.76rem}.service-dialog-terms p{font-size:.76rem}.service-price-list>div{gap:.5rem}}

@@ -45,9 +45,9 @@ Grocery or other deliveries are available from 9 am to 9 pm for €10 per delive
 Private drivers can be arranged from 250 MAD (€25) per journey, depending on the number of passengers. Airport transfers start at 350 MAD (€35) per transfer. An Uber ride to the Medina starts at 100 MAD (€10); journey times and fares vary.
 
 ### Location
-- Jemaa El-Fna / the Medina: approximately 15 minutes by Uber.
-- Marrakech Airport: approximately 35 minutes by car.
-- Local grocery shop: approximately 3 minutes; Atacadao: approximately 7 minutes by car.
+- Jemaa El-Fna / the Medina: ~15 minutes by Uber.
+- Marrakech Airport: ~35 minutes by car.
+- Local grocery shop: ~3 minutes; Atacadao: ~7 minutes by car.
 - Approximate location: M3GR+M5M, Marrakech.
 - Address: Bab Atlas, Palmeraie, 40000 Marrakech, Morocco.
 
@@ -114,9 +114,9 @@ Les courses et autres livraisons sont possibles de 9h00 à 21h00, au tarif de 10
 Un chauffeur privé peut être organisé à partir de 250 MAD (25 €) par trajet, selon le nombre de passagers. Les transferts aéroport commencent à 350 MAD (35 €) par transfert. Un trajet Uber jusqu'à la médina est à partir de 100 MAD (10 €) ; les temps et tarifs varient.
 
 ### Emplacement
-- Jemaa El-Fna / médina : environ 15 minutes en Uber.
-- Aéroport de Marrakech : environ 35 minutes en voiture.
-- Épicerie locale : environ 3 minutes ; Atacadao : environ 7 minutes en voiture.
+- Jemaa El-Fna / médina : ~15 minutes en Uber.
+- Aéroport de Marrakech : ~35 minutes en voiture.
+- Épicerie locale : ~3 minutes ; Atacadao : ~7 minutes en voiture.
 - Localisation approximative : M3GR+M5M, Marrakech.
 - Adresse : Bab Atlas, Palmeraie, 40000 Marrakech, Maroc.
 

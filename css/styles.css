@@ -1260,11 +1260,20 @@ p,
 }
 
 
-/* Services: separate included villa comforts from optional experiences */
-.svc-group + .svc-group {
-  margin-top: clamp(2.8rem, 5vw, 4.2rem);
-  padding-top: clamp(2rem, 3.5vw, 2.8rem);
+/* Services: give the experiences section a clear, editorial transition */
+.svc-experiences {
+  margin-top: clamp(3rem, 6vw, 5rem);
+  padding-top: clamp(2rem, 4vw, 3rem);
   border-top: 1px solid var(--line);
+  position: relative;
+}
+.svc-experiences::before {
+  content: "";
+  display: block;
+  width: 46px;
+  height: 2px;
+  margin: 0 0 1.3rem;
+  background: var(--gold);
 }
 .svc-group-head {
   max-width: 760px;
@@ -1295,5 +1304,6 @@ p,
 }
 @media (max-width: 699px) {
   .svc-group-head { margin-bottom: 1rem; }
-  .svc-group + .svc-group { margin-top: 2.5rem; padding-top: 1.8rem; }
+  .svc-experiences { margin-top: 2.8rem; padding-top: 1.8rem; }
+  .svc-experiences::before { margin-bottom: 1.05rem; }
 }

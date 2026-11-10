@@ -498,9 +498,11 @@ p { margin: 0 0 1em; text-align: justify;}
 .room-card img { width: 100%; aspect-ratio: 16/11; object-fit: cover; }
 .room-body { padding: 1.1rem 1.2rem 1.25rem; }
 .room-body h3 { margin: 0 0 0.7rem; font-size: 1.35rem; }
-.room-meta { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.55rem 1rem; }
+.room-meta { display: grid; gap: 0.55rem; }
+.room-meta-row { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.55rem 1rem; }
+.room-meta-row-bath { border-top: 1px solid var(--line); padding-top: 0.55rem; }
 .room-meta li { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--muted); font-size: 0.9rem; }
-.room-meta .ico { color: var(--terracotta); }
+.room-meta .ico { color: var(--terracotta); flex: 0 0 auto; }
 
 .travel-grid {
   display: grid; gap: 0.9rem; margin-top: 1.6rem;

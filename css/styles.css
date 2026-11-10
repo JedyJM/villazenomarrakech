@@ -1344,3 +1344,9 @@ p,
 .service-dialog-terms p{margin:.35rem 0 0;color:var(--muted);font-size:.92rem}
 .service-dialog-contact{margin-top:1.3rem;width:100%}
 @media(max-width:520px){.service-dialog{width:94vw;max-height:88vh;border-radius:15px}.service-dialog-inner{max-height:88vh;padding:1.4rem 1rem 1.2rem}.service-price-list>div{gap:.55rem}.service-price-list strong{font-size:.88rem}}
+
+.service-treatment-group{margin-top:1rem}
+.service-treatment-group h3{margin:.75rem 0 .35rem;font-size:1.05rem}
+.service-treatment-group .service-price-list>div{padding:.52rem 0}
+.service-treatment-group .service-price-list small{font-size:.76rem;line-height:1.35}
+.service-dialog-note{font-size:.82rem}

@@ -1367,3 +1367,13 @@ p,
 .service-dialog-terms strong{font-size:.82rem;font-weight:600;letter-spacing:.015em}
 .service-dialog-terms p{margin:.28rem 0 0;font-size:.83rem;line-height:1.5}
 @media(max-width:520px){.service-dialog-terms-pair{grid-template-columns:1fr;gap:.5rem}.service-dialog-terms{padding:.75rem .65rem;gap:.45rem}.service-dialog-terms>svg{flex-basis:17px;width:17px;height:17px}.service-dialog-terms strong{font-size:.76rem}.service-dialog-terms p{font-size:.76rem}.service-price-list>div{gap:.5rem}}
+
+
+/* Services introduction: natural spacing, full available width */
+.svc-group-head p {
+  width: 100%;
+  max-width: 100%;
+  text-align: left;
+  text-justify: auto;
+  hyphens: none;
+}

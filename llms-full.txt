@@ -14,6 +14,7 @@ Villa Zen'O is a private contemporary villa in the Palmeraie of Marrakech, Moroc
 ### Accommodation
 - Four named suites: Sand Master, Palm Suite, Atlas Suite and Blue Desert Suite.
 - Each suite has its own private bathroom.
+- Sand Master and Palm Suite have bathtubs; Atlas Suite and Blue Desert Suite have showers.
 - Complimentary bathroom amenities: soap, shampoo and shower gel.
 - Four bathrooms in total, plus one separate toilet.
 - Five beds: three beds measuring 160 × 200 cm and two single beds measuring 90 × 200 cm.
@@ -84,6 +85,7 @@ Villa Zen'O est une villa privée contemporaine située dans la Palmeraie de Mar
 ### Hébergement
 - Quatre suites : Sand Master, Palm Suite, Atlas Suite et Blue Desert Suite. Les noms sont utilisés tels quels, sans ajouter « The ».
 - Chaque suite dispose de sa salle de bain privative.
+- Sand Master et Palm Suite disposent d'une baignoire ; Atlas Suite et Blue Desert Suite disposent d'une douche.
 - Produits d'accueil dans les salles de bain : savon, shampoing et gel douche.
 - Quatre salles de bain au total et un WC indépendant.
 - Cinq lits : trois lits de 160 × 200 cm et deux lits simples de 90 × 200 cm.

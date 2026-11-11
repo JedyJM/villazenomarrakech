@@ -203,6 +203,115 @@
     });
   }
 
+  var palmLb = document.getElementById("palm-lightbox");
+  var palmImg = document.getElementById("palm-lightbox-image");
+  var palmCap = document.getElementById("palm-lightbox-caption");
+  var palmSlides = [];
+  var palmIndex = 0;
+
+  function palmShow(i) {
+    if (!palmLb || !palmSlides.length) return;
+    palmIndex = (i + palmSlides.length) % palmSlides.length;
+    var img = palmSlides[palmIndex].querySelector("img");
+    palmImg.src = img.getAttribute("src");
+    palmImg.alt = img.getAttribute("alt") || "";
+    if (palmCap) palmCap.textContent = img.getAttribute("alt") || "";
+    palmLb.hidden = false;
+    document.body.style.overflow = "hidden";
+    var closeBtn = palmLb.querySelector(".lightbox-close");
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function palmHide() {
+    if (!palmLb || palmLb.hidden) return;
+    palmLb.hidden = true;
+    document.body.style.overflow = "";
+    if (palmImg) palmImg.removeAttribute("src");
+  }
+
+  document.querySelectorAll("[data-room-carousel]").forEach(function (root) {
+    var track = root.querySelector(".room-carousel-track");
+    var slides = Array.prototype.slice.call(root.querySelectorAll(".room-carousel-slide"));
+    var dots = Array.prototype.slice.call(root.querySelectorAll(".room-carousel-dots button"));
+    var prev = root.querySelector(".room-carousel-arrow.prev");
+    var next = root.querySelector(".room-carousel-arrow.next");
+    palmSlides = slides;
+    var dragged = false;
+
+    function current() {
+      var w = track.clientWidth || 1;
+      return Math.max(0, Math.min(slides.length - 1, Math.round(track.scrollLeft / w)));
+    }
+    function go(i) {
+      var n = (i + slides.length) % slides.length;
+      track.scrollTo({ left: n * track.clientWidth, behavior: "smooth" });
+    }
+    function sync() {
+      var i = current();
+      dots.forEach(function (dot, n) {
+        if (n === i) dot.setAttribute("aria-current", "true");
+        else dot.removeAttribute("aria-current");
+      });
+    }
+    track.addEventListener("scroll", sync, { passive: true });
+    track.addEventListener("touchmove", function () { dragged = true; }, { passive: true });
+    if (prev) prev.addEventListener("click", function () { go(current() - 1); });
+    if (next) next.addEventListener("click", function () { go(current() + 1); });
+    dots.forEach(function (dot, n) {
+      dot.addEventListener("click", function () { go(n); });
+    });
+    slides.forEach(function (slide, n) {
+      slide.addEventListener("click", function () {
+        if (dragged) {
+          dragged = false;
+          return;
+        }
+        palmShow(n);
+      });
+    });
+  });
+
+  if (palmLb) {
+    palmLb.querySelectorAll("[data-palm-lb]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var act = btn.getAttribute("data-palm-lb");
+        if (act === "close") palmHide();
+        if (act === "prev") palmShow(palmIndex - 1);
+        if (act === "next") palmShow(palmIndex + 1);
+      });
+    });
+    palmLb.addEventListener("click", function (e) {
+      if (e.target === palmLb) palmHide();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (palmLb.hidden) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        palmHide();
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        palmShow(palmIndex - 1);
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        palmShow(palmIndex + 1);
+      }
+    });
+    var palmTouchX = null;
+    palmLb.addEventListener("touchstart", function (e) {
+      if (e.changedTouches && e.changedTouches[0]) palmTouchX = e.changedTouches[0].clientX;
+    }, { passive: true });
+    palmLb.addEventListener("touchend", function (e) {
+      if (palmTouchX == null || !e.changedTouches || !e.changedTouches[0]) return;
+      var dx = e.changedTouches[0].clientX - palmTouchX;
+      palmTouchX = null;
+      if (Math.abs(dx) < 48) return;
+      if (dx < 0) palmShow(palmIndex + 1);
+      else palmShow(palmIndex - 1);
+    }, { passive: true });
+  }
+
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(setupReviewToggles);
   }

@@ -360,7 +360,7 @@ p { margin: 0 0 1em; text-align: justify;}
 .svc-card img { width: 100%; height: 190px; object-fit: cover; object-position: center; }
 .svc-card img.svc-img-chauffeur { object-position: 52% 48%; }
 .svc-card img.svc-img-activites { object-position: 50% 52%; }
-.svc-card img.svc-img-menage { object-position: 50% 38%; }
+.svc-card img.svc-img-menage { object-position: 50% 50%; }
 .svc-card .body { padding: 1.05rem 1.15rem 1.2rem; }
 .svc-card h3 { margin: 0 0 0.4rem; font-size: 1.28rem; }
 .svc-card p { color: var(--muted); margin: 0; font-size: 0.98rem; }

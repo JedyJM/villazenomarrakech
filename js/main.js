@@ -237,14 +237,34 @@
     var next = root.querySelector(".room-carousel-arrow.next");
     palmSlides = slides;
     var dragged = false;
+    var snapTimer = null;
 
+    function width() {
+      return track.clientWidth || 1;
+    }
+    function sizeSlides() {
+      var w = width();
+      slides.forEach(function (slide) {
+        slide.style.flex = "0 0 " + w + "px";
+        slide.style.width = w + "px";
+        slide.style.minWidth = w + "px";
+        slide.style.maxWidth = w + "px";
+      });
+    }
     function current() {
-      var w = track.clientWidth || 1;
+      var w = width();
       return Math.max(0, Math.min(slides.length - 1, Math.round(track.scrollLeft / w)));
+    }
+    function snap() {
+      var w = width();
+      var i = current();
+      var target = i * w;
+      if (Math.abs(track.scrollLeft - target) > 0.5) track.scrollLeft = target;
     }
     function go(i) {
       var n = (i + slides.length) % slides.length;
-      track.scrollTo({ left: n * track.clientWidth, behavior: "smooth" });
+      track.scrollLeft = n * width();
+      sync();
     }
     function sync() {
       var i = current();
@@ -253,7 +273,25 @@
         else dot.removeAttribute("aria-current");
       });
     }
-    track.addEventListener("scroll", sync, { passive: true });
+    sizeSlides();
+    if (window.ResizeObserver) {
+      new ResizeObserver(function () {
+        var i = current();
+        sizeSlides();
+        track.scrollLeft = i * width();
+      }).observe(track);
+    } else {
+      window.addEventListener("resize", function () {
+        var i = current();
+        sizeSlides();
+        track.scrollLeft = i * width();
+      });
+    }
+    track.addEventListener("scroll", function () {
+      sync();
+      clearTimeout(snapTimer);
+      snapTimer = setTimeout(snap, 80);
+    }, { passive: true });
     track.addEventListener("touchmove", function () { dragged = true; }, { passive: true });
     if (prev) prev.addEventListener("click", function () { go(current() - 1); });
     if (next) next.addEventListener("click", function () { go(current() + 1); });

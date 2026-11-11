@@ -1489,3 +1489,15 @@ p,
   letter-spacing: normal;
   white-space: normal;
 }
+
+/* Tablet and desktop: every photo keeps its 4:3 shape so nothing is cut off.
+   The balloons and Sangoku are shown large (2x2), the two tall photos span two rows,
+   which makes 20 cells: a full 4 x 5 grid with no empty space. */
+@media (min-width: 760px) {
+  #galerie .wrap { container-type: inline-size; }
+  .thumbs { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: calc((100cqw - 3 * 0.55rem) / 4 * 0.75); }
+  .thumbs a, .thumbs > a:last-child { height: 100%; grid-column: auto; }
+  .thumbs a.portrait { grid-row: span 2; }
+  .thumbs a[href$="montgolfieres.webp"],
+  .thumbs a[href$="statue-sangoku.webp"] { grid-column: span 2; grid-row: span 2; }
+}

@@ -512,7 +512,7 @@ p { margin: 0 0 1em; text-align: justify;}
 
 .room-carousel {
   position: relative;
-  aspect-ratio: 3 / 2;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
 }
 .room-carousel-track {

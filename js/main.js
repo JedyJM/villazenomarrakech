@@ -235,7 +235,6 @@
     var dots = Array.prototype.slice.call(root.querySelectorAll(".room-carousel-dots button"));
     var prev = root.querySelector(".room-carousel-arrow.prev");
     var next = root.querySelector(".room-carousel-arrow.next");
-    palmSlides = slides;
     var dragged = false;
     var snapTimer = null;
 
@@ -304,6 +303,8 @@
           dragged = false;
           return;
         }
+        palmSlides = slides;
+        if (palmLb && root.getAttribute("aria-label")) palmLb.setAttribute("aria-label", root.getAttribute("aria-label"));
         palmShow(n);
       });
     });

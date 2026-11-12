@@ -1170,6 +1170,7 @@ h3 { line-height: 1.25; }
   .faq > .wrap > h2 { margin-bottom: 1.4rem; }
   .faq details { padding: .95rem .1rem; }
   .faq summary { font-size: 1.05rem; padding-right: 2rem; }
+  .faq summary .faq-question-end { white-space: nowrap; }
   .faq details p, .faq details ul { font-size: .92rem; }
   .faq-group { margin-top: 1.7rem; }
   .faq-toggle { width: 100%; }

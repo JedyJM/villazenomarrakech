@@ -350,28 +350,43 @@ h1 em { font-style: italic; font-weight: 500; }
 .services { margin-top: 0.45rem; }
 .services-title { margin: 0 0 0.32rem; }
 .tiles {
+  --tile-h: 4.55rem;
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-auto-rows: var(--tile-h);
   gap: 0.35rem;
 }
+.tiles > li { min-width: 0; }
 .tile {
+  width: 100%;
+  height: var(--tile-h);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   background: var(--paper);
   border: 1px solid rgba(28, 25, 22, 0.09);
   border-radius: 8px;
-  padding: 0.38rem 0.42rem 0.42rem;
+  padding: 0.32rem 0.45rem;
   min-width: 0;
+  overflow: hidden;
 }
 .tile-ico { display: block; color: var(--terracotta); line-height: 0; margin-bottom: 0.12rem; }
-.tile-ico svg { width: 16px; height: 16px; display: block; }
-.tile h3 { margin: 0; font-size: 0.86rem; }
+.tile-ico svg { width: 15px; height: 15px; display: block; }
+.tile h3, .tile p {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  line-height: 1.15;
+}
+.tile h3 { margin: 0; font-size: 0.84rem; }
 .tile p {
   margin: 0.08rem 0 0;
   color: var(--muted);
-  font-size: 0.68rem;
-  line-height: 1.25;
+  font-size: 0.75rem;
 }
 
 .portal-footer {
@@ -457,12 +472,12 @@ h1 em { font-style: italic; font-weight: 500; }
   .wifi-scan { margin-top: 0.12rem; font-size: 0.62rem; }
   .services { margin-top: 0.3rem; }
   .services-title { margin-bottom: 0.22rem; }
-  .tiles { gap: 0.28rem; }
-  .tile { padding: 0.26rem 0.34rem 0.3rem; }
-  .tile-ico { margin-bottom: 0.04rem; }
+  .tiles { --tile-h: 4.35rem; gap: 0.28rem; }
+  .tile { padding: 0.26rem 0.4rem; }
+  .tile-ico { margin-bottom: 0.06rem; }
   .tile-ico svg { width: 14px; height: 14px; }
-  .tile h3 { font-size: 0.76rem; }
-  .tile p { font-size: 0.62rem; }
+  .tile h3 { font-size: 0.8rem; }
+  .tile p { font-size: 0.75rem; }
   .bottom-nav a, .bottom-nav button { min-height: 42px; font-size: 0.58rem; }
 }
 
@@ -510,7 +525,7 @@ h1 em { font-style: italic; font-weight: 500; }
   .wifi { margin-top: 0; height: 100%; }
   .services { margin-top: 1.1rem; }
   .services-title { font-size: 0.72rem; margin-bottom: 0.6rem; }
-  .tiles { gap: 0.7rem; }
+  .tiles { --tile-h: 7.25rem; gap: 0.7rem; }
   .tile { padding: 0.8rem 0.85rem; }
   .tile h3 { font-size: 1.15rem; }
   .tile p { font-size: 0.86rem; }

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Transfer | Villa Zen’O</title>
+<meta name="description" content="Airport transfer request for guests at Villa Zen’O. This page is not indexed.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#f6f1ea">
+<link rel="alternate" hreflang="fr" href="https://www.villazenomarrakech.com/guest/transfert.html">
+<link rel="alternate" hreflang="en" href="https://www.villazenomarrakech.com/guest/en/transfer.html">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/portal.css">
+</head>
+<body class="page-request">
+<a class="skip-link" href="#contenu">Skip to content</a>
+<header class="site-header">
+<div class="wrap header-inner">
+<a class="logo" href="./">Villa Zen’O<small>Marrakech Palmeraie</small></a>
+<div class="lang-switch" aria-label="Language">
+<a href="../transfert.html" hreflang="fr" lang="fr">FR</a>
+<a href="transfer.html" hreflang="en" lang="en" aria-current="page">EN</a>
+</div>
+</div>
+</header>
+<main id="contenu" class="request" data-request-page>
+<div class="request-wrap wrap">
+<a class="request-back" href="./">Home</a>
+<h1>Transfer</h1>
+<p class="request-lead">Marrakech airport, about 35 minutes. Payment in cash to the driver. 1–4 guests 350 MAD, 5–8 guests 450 MAD.</p>
+<a class="section-link" href="#rental">Car rental</a>
+<div data-flow>
+<form class="request-form" data-transfer-form novalidate>
+<div class="request-guest">
+<p><span class="mini-example">Example</span> <input name="guest_name" aria-label="Guest name" value="Guest" autocomplete="name"> <span data-guest-phone-line><input name="guest_phone" aria-label="Guest phone" value="+212 600 000 000" autocomplete="tel"></span></p>
+</div>
+<fieldset class="trip-list">
+<legend class="visually-hidden">Trip type</legend>
+<label><input type="radio" name="trip" value="arrival" checked> Airport arrival → villa</label>
+<label><input type="radio" name="trip" value="departure"> Villa → airport departure</label>
+<label><input type="radio" name="trip" value="city"> City ride</label>
+</fieldset>
+<div data-airport>
+<p class="form-error" data-errors hidden></p>
+<div class="field-row">
+<div class="field"><label for="date">Date</label><input id="date" name="date" type="date" required></div>
+<div class="field"><label for="time" data-time-label>Flight arrival time</label><input id="time" name="time" type="time" required></div>
+</div>
+<div class="field-row">
+<div class="field"><label for="passengers">Passengers</label><select id="passengers" name="passengers" required><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option value="9">More than 8</option></select></div>
+<div class="field"><label for="luggage">Bags</label><input id="luggage" name="luggage" type="number" min="0" max="16" inputmode="numeric" required></div>
+</div>
+<div class="field"><label for="flight">Flight number</label><input id="flight" name="flight_number" autocomplete="off" required></div>
+<div class="field"><label for="villa" data-villa-label>Arrival villa</label><input id="villa" name="villa" value="Villa Zen’O" required></div>
+<div class="baby-row">
+<label><input type="checkbox" name="baby_seat"> Baby seat</label>
+<span data-baby-qty hidden><select name="baby_seat_qty" aria-label="Number of baby seats"><option>1</option><option>2</option></select></span>
+</div>
+<div class="field"><label for="comment">Comment <span class="field-label">optional</span></label><textarea id="comment" name="comment" rows="2"></textarea></div>
+<p class="price-line" data-price></p>
+<button class="request-submit" type="submit" data-transfer-submit>Send the request</button>
+</div>
+</form>
+<section class="course-card" data-city hidden>
+<p class="label">Simple ride</p>
+<h2>City ride</h2>
+<p class="request-lead">Private driver, from 250 MAD, depending on the route. Payment is in cash to the driver.</p>
+<a class="request-submit" data-city-link href="https://wa.me/212661775422">Contact Hicham on WhatsApp</a>
+</section>
+</div>
+<section class="confirm" data-confirm hidden>
+<div class="confirm-card">
+<p class="label">Transfer</p>
+<h2>Request received — the villa will confirm shortly</h2>
+<p class="request-lead">Saved on this device. Nothing is sent to the villa yet.</p>
+<a class="request-submit" href="./">Back to home</a>
+</div>
+</section>
+<section class="rental-card" id="rental">
+<p class="label">Car rental</p>
+<h2>Massillya</h2>
+<p class="request-lead">Papa. The request opens in WhatsApp on your phone.</p>
+<form class="rental-form" data-rental-form novalidate>
+<p class="form-error" data-errors hidden></p>
+<div class="field-row">
+<div class="field"><label for="start">Start</label><input id="start" name="start_date" type="date" required></div>
+<div class="field"><label for="end">End</label><input id="end" name="end_date" type="date" required></div>
+</div>
+<div class="field-row">
+<div class="field"><label for="car">Type</label><select id="car" name="car_type" required><option value="">—</option><option value="citadine">City car</option><option value="suv">SUV</option><option value="monospace">People carrier</option><option value="other">Other</option></select></div>
+<div class="field"><label for="people">People</label><select id="people" name="people" required><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
+</div>
+<fieldset class="trip-list">
+<legend class="field-label">Delivery to the villa</legend>
+<label><input type="radio" name="delivery" value="yes"> Yes</label>
+<label><input type="radio" name="delivery" value="no"> No</label>
+</fieldset>
+<div class="field"><label for="rental-comment">Comment <span class="field-label">optional</span></label><textarea id="rental-comment" name="comment" rows="2"></textarea></div>
+<button class="request-submit" type="submit">Request from Massillya</button>
+</form>
+</section>
+</div>
+</main>
+<script src="../js/requests.js"></script>
+</body>
+</html>

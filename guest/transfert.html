@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Transfert | Villa Zen’O</title>
+<meta name="description" content="Demande de transfert aéroport pour les invités de la Villa Zen’O. Page non indexée.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#f6f1ea">
+<link rel="alternate" hreflang="fr" href="https://www.villazenomarrakech.com/guest/transfert.html">
+<link rel="alternate" hreflang="en" href="https://www.villazenomarrakech.com/guest/en/transfer.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/portal.css">
+</head>
+<body class="page-request">
+<a class="skip-link" href="#contenu">Aller au contenu</a>
+<header class="site-header">
+<div class="wrap header-inner">
+<a class="logo" href="./">Villa Zen’O<small>Marrakech Palmeraie</small></a>
+<div class="lang-switch" aria-label="Langue">
+<a href="transfert.html" hreflang="fr" lang="fr" aria-current="page">FR</a>
+<a href="en/transfer.html" hreflang="en" lang="en">EN</a>
+</div>
+</div>
+</header>
+<main id="contenu" class="request" data-request-page>
+<div class="request-wrap wrap">
+<a class="request-back" href="./">Accueil</a>
+<h1>Transfert</h1>
+<p class="request-lead">Aéroport de Marrakech, environ 35 minutes. Règlement en espèces auprès du chauffeur. 1–4 pers. 350 DH, 5–8 pers. 450 DH.</p>
+<a class="section-link" href="#location">Location de voiture</a>
+<div data-flow>
+<form class="request-form" data-transfer-form novalidate>
+<div class="request-guest">
+<p><span class="mini-example">Exemple</span> <input name="guest_name" aria-label="Nom de l’invité" value="Invité" autocomplete="name"> <span data-guest-phone-line><input name="guest_phone" aria-label="Téléphone de l’invité" value="+212 600 000 000" autocomplete="tel"></span></p>
+</div>
+<fieldset class="trip-list">
+<legend class="visually-hidden">Type de trajet</legend>
+<label><input type="radio" name="trip" value="arrival" checked> Arrivée aéroport → villa</label>
+<label><input type="radio" name="trip" value="departure"> Départ villa → aéroport</label>
+<label><input type="radio" name="trip" value="city"> Trajet en ville</label>
+</fieldset>
+<div data-airport>
+<p class="form-error" data-errors hidden></p>
+<div class="field-row">
+<div class="field"><label for="date">Date</label><input id="date" name="date" type="date" required></div>
+<div class="field"><label for="time" data-time-label>Heure d’arrivée du vol</label><input id="time" name="time" type="time" required></div>
+</div>
+<div class="field-row">
+<div class="field"><label for="passengers">Passagers</label><select id="passengers" name="passengers" required><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option value="9">Plus de 8</option></select></div>
+<div class="field"><label for="luggage">Bagages</label><input id="luggage" name="luggage" type="number" min="0" max="16" inputmode="numeric" required></div>
+</div>
+<div class="field"><label for="flight">Numéro de vol</label><input id="flight" name="flight_number" autocomplete="off" required></div>
+<div class="field"><label for="villa" data-villa-label>Villa d’arrivée</label><input id="villa" name="villa" value="Villa Zen’O" required></div>
+<div class="baby-row">
+<label><input type="checkbox" name="baby_seat"> Siège bébé</label>
+<span data-baby-qty hidden><select name="baby_seat_qty" aria-label="Nombre de sièges bébé"><option>1</option><option>2</option></select></span>
+</div>
+<div class="field"><label for="comment">Commentaire <span class="field-label">facultatif</span></label><textarea id="comment" name="comment" rows="2"></textarea></div>
+<p class="price-line" data-price></p>
+<button class="request-submit" type="submit" data-transfer-submit>Envoyer la demande</button>
+</div>
+</form>
+<section class="course-card" data-city hidden>
+<p class="label">Course simple</p>
+<h2>Trajet en ville</h2>
+<p class="request-lead">Chauffeur privé, à partir de 250 DH, selon le trajet. Le règlement se fait en espèces auprès du chauffeur.</p>
+<a class="request-submit" data-city-link href="https://wa.me/212661775422">Contacter Hicham sur WhatsApp</a>
+</section>
+</div>
+<section class="confirm" data-confirm hidden>
+<div class="confirm-card">
+<p class="label">Transfert</p>
+<h2>Demande reçue — la villa vous confirme rapidement</h2>
+<p class="request-lead">Enregistrée sur cet appareil. Rien n’est envoyé à la villa pour le moment.</p>
+<a class="request-submit" href="./">Retour à l’accueil</a>
+</div>
+</section>
+<section class="rental-card" id="location">
+<p class="label">Location de voiture</p>
+<h2>Massillya</h2>
+<p class="request-lead">Papa. La demande s’ouvre dans WhatsApp sur votre téléphone.</p>
+<form class="rental-form" data-rental-form novalidate>
+<p class="form-error" data-errors hidden></p>
+<div class="field-row">
+<div class="field"><label for="start">Début</label><input id="start" name="start_date" type="date" required></div>
+<div class="field"><label for="end">Fin</label><input id="end" name="end_date" type="date" required></div>
+</div>
+<div class="field-row">
+<div class="field"><label for="car">Type</label><select id="car" name="car_type" required><option value="">—</option><option value="citadine">Citadine</option><option value="suv">SUV</option><option value="monospace">Monospace</option><option value="other">Autre</option></select></div>
+<div class="field"><label for="people">Personnes</label><select id="people" name="people" required><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
+</div>
+<fieldset class="trip-list">
+<legend class="field-label">Livraison à la villa</legend>
+<label><input type="radio" name="delivery" value="yes"> Oui</label>
+<label><input type="radio" name="delivery" value="no"> Non</label>
+</fieldset>
+<div class="field"><label for="rental-comment">Commentaire <span class="field-label">facultatif</span></label><textarea id="rental-comment" name="comment" rows="2"></textarea></div>
+<button class="request-submit" type="submit">Demander à Massillya</button>
+</form>
+</section>
+</div>
+</main>
+<script src="js/requests.js"></script>
+</body>
+</html>

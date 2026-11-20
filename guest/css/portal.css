@@ -479,6 +479,7 @@ p { margin: 0; }
   gap: 0.35rem;
 }
 .tiles > li { min-width: 0; }
+a.tile { color: inherit; text-decoration: none; }
 .tile {
   width: 100%;
   height: var(--tile-h);
@@ -677,3 +678,143 @@ p { margin: 0; }
   .bottom-nav, .skip-link { display: none !important; }
   body { padding-bottom: 0; background: #fff; }
 }
+
+.page-request { padding-bottom: 1.25rem; }
+.request { padding: 0.45rem 0 0.8rem; }
+.request-back {
+  display: inline-block;
+  margin: 0 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+.request h1 { margin: 0; font-size: 1.45rem; }
+.request h1 em { font-style: italic; font-weight: 500; }
+.request-lead {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.request-guest {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--paper);
+  border: 1px solid rgba(28, 25, 22, 0.1);
+  border-radius: 10px;
+}
+.request-guest p { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem 0.55rem; margin: 0; font-size: 0.92rem; }
+.request-guest input {
+  width: 9.5rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--ink);
+  font: inherit;
+}
+.request fieldset { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
+.request fieldset legend { padding: 0; }
+.trip-list { display: grid; gap: 0.28rem; margin: 0.5rem 0 0; }
+.trip-list label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.15rem;
+  padding: 0.28rem 0.65rem;
+  background: var(--paper);
+  border: 1px solid rgba(28, 25, 22, 0.1);
+  border-radius: 10px;
+  font-size: 0.86rem;
+}
+.trip-list input { accent-color: var(--terracotta); margin: 0; }
+.trip-list label:has(input:checked) { border-color: rgba(140, 63, 42, 0.45); }
+.request-panel { margin-top: 0.7rem; }
+.request-form, .rental-form {
+  display: grid;
+  gap: 0.42rem;
+  margin-top: 0.45rem;
+}
+.field { display: flex; flex-direction: column; gap: 0.22rem; min-width: 0; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.field label, .field .field-label { font-size: 0.66rem; }
+.field input, .field select, .field textarea {
+  width: 100%;
+  margin: 0;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(28, 25, 22, 0.14);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
+.field textarea { min-height: 2.6rem; resize: vertical; }
+.field input[readonly] { background: var(--bg); color: var(--muted); }
+.baby-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid rgba(28, 25, 22, 0.1);
+  border-radius: 10px;
+  background: #fff;
+}
+.baby-row label { display: flex; align-items: center; gap: 0.45rem; font-size: 0.86rem; }
+.baby-row select { width: auto; padding: 0.28rem 0.4rem; }
+.price-line {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  background: var(--bg-alt);
+  color: var(--ink);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.price-line strong { font-weight: 600; }
+.request-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.7rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--terracotta);
+  color: var(--paper);
+  font: inherit;
+  font-size: 0.86rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.request-submit[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+.form-error {
+  margin: 0;
+  color: var(--terracotta-dark);
+  font-size: 0.78rem;
+}
+.course-card, .rental-card, .confirm-card {
+  padding: 0.75rem 0.75rem 0.8rem;
+  background: var(--paper);
+  border: 1px solid rgba(28, 25, 22, 0.1);
+  border-radius: 12px;
+}
+.course-card h2, .rental-card h2, .confirm-card h2 {
+  margin: 0.15rem 0 0;
+  font-size: 1.2rem;
+}
+.section-link {
+  display: inline-block;
+  margin-top: 0.55rem;
+  color: var(--terracotta-dark);
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+.confirm { margin-top: 0.8rem; }
+.confirm-card p { margin-top: 0.45rem; }
+.confirm-card .request-submit { margin-top: 0.8rem; }

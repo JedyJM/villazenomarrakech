@@ -29,27 +29,33 @@
 </div>
 </header>
 <main id="contenu" class="request" data-request-page>
-<div class="request-wrap wrap">
+<div class="wrap">
 <a class="request-back" href="./">Accueil</a>
 <h1>Transfert</h1>
-<p class="request-lead">Aéroport de Marrakech, environ 35 minutes. Règlement en espèces auprès du chauffeur. 1–4 pers. 350 DH, 5–8 pers. 450 DH.</p>
-<a class="section-link" href="#location">Location de voiture</a>
-<div data-flow>
-<form class="request-form" data-transfer-form novalidate>
-<div class="request-guest">
-<p><span class="mini-example">Exemple</span> <input name="guest_name" aria-label="Nom de l’invité" value="Invité" autocomplete="name"> <span data-guest-phone-line><input name="guest_phone" aria-label="Téléphone de l’invité" value="+212 600 000 000" autocomplete="tel"></span></p>
+<div class="segments" role="tablist" aria-label="Type de demande">
+<button type="button" role="tab" data-show="airport" aria-selected="true">Aéroport</button>
+<button type="button" role="tab" data-show="city" aria-selected="false">Course en ville</button>
+<button type="button" role="tab" data-show="rental" aria-selected="false">Location de voiture</button>
 </div>
-<fieldset class="trip-list">
-<legend class="visually-hidden">Type de trajet</legend>
-<label><input type="radio" name="trip" value="arrival" checked> Arrivée aéroport → villa</label>
-<label><input type="radio" name="trip" value="departure"> Départ villa → aéroport</label>
-<label><input type="radio" name="trip" value="city"> Trajet en ville</label>
-</fieldset>
-<div data-airport>
+<p class="request-lead" data-segment-lead>Aéroport de Marrakech · environ 35 min · règlement en espèces au chauffeur</p>
+<section data-panel="airport">
+<form class="request-form" data-transfer-form novalidate>
 <p class="form-error" data-errors hidden></p>
+<div class="form-card">
+<p class="card-kicker"><span class="mini-example">Exemple</span></p>
 <div class="field-row">
-<div class="field"><label for="date">Date</label><input id="date" name="date" type="date" required></div>
-<div class="field"><label for="time" data-time-label>Heure d’arrivée du vol</label><input id="time" name="time" type="time" required></div>
+<div class="field"><label for="guest-name">Nom</label><input id="guest-name" name="guest_name" value="Invité" autocomplete="name"></div>
+<div class="field"><label for="guest-phone">Téléphone</label><input id="guest-phone" name="guest_phone" value="+212 600 000 000" autocomplete="tel"></div>
+</div>
+</div>
+<div class="form-card">
+<div class="pair">
+<label><input type="radio" name="trip" value="arrival" checked> Arrivée</label>
+<label><input type="radio" name="trip" value="departure"> Départ</label>
+</div>
+<div class="field-row">
+<div class="field"><label for="date">Date</label><div class="picker"><span class="picker-value is-empty" data-picker-value>—</span><input class="picker-native" id="date" name="date" type="date" lang="fr" required></div></div>
+<div class="field"><label for="time" data-time-label>Heure d’arrivée du vol</label><div class="picker"><span class="picker-value is-empty" data-picker-value>—</span><input class="picker-native" id="time" name="time" type="time" lang="fr" step="60" required></div></div>
 </div>
 <div class="field-row">
 <div class="field"><label for="passengers">Passagers</label><select id="passengers" name="passengers" required><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option value="9">Plus de 8</option></select></div>
@@ -58,50 +64,77 @@
 <div class="field"><label for="flight">Numéro de vol</label><input id="flight" name="flight_number" autocomplete="off" required></div>
 <div class="field"><label for="villa" data-villa-label>Villa d’arrivée</label><input id="villa" name="villa" value="Villa Zen’O" required></div>
 <div class="baby-row">
-<label><input type="checkbox" name="baby_seat"> Siège bébé</label>
-<span data-baby-qty hidden><select name="baby_seat_qty" aria-label="Nombre de sièges bébé"><option>1</option><option>2</option></select></span>
+<span>Siège bébé</span>
+<label class="switch"><input type="checkbox" name="baby_seat"><i></i></label>
 </div>
-<div class="field"><label for="comment">Commentaire <span class="field-label">facultatif</span></label><textarea id="comment" name="comment" rows="2"></textarea></div>
-<p class="price-line" data-price></p>
+<div class="baby-step" data-baby-step hidden>
+<span>Nombre de sièges bébé</span>
+<span class="stepper">
+<button type="button" data-baby-dec aria-label="Moins">−</button>
+<span data-baby-count>1</span>
+<button type="button" data-baby-inc aria-label="Plus">+</button>
+</span>
+<input type="hidden" name="baby_seats" value="1">
+</div>
+</div>
+<div class="form-card">
+<div class="field"><label for="comment">Commentaire (facultatif)</label><textarea id="comment" name="comment" rows="2"></textarea></div>
+</div>
+<div class="price-box" data-price-box hidden>
+<p class="price-total" data-price-total></p>
+<p class="price-break" data-price-break></p>
+</div>
 <button class="request-submit" type="submit" data-transfer-submit>Envoyer la demande</button>
-</div>
 </form>
-<section class="course-card" data-city hidden>
-<p class="label">Course simple</p>
-<h2>Trajet en ville</h2>
-<p class="request-lead">Chauffeur privé, à partir de 250 DH, selon le trajet. Le règlement se fait en espèces auprès du chauffeur.</p>
-<a class="request-submit" data-city-link href="https://wa.me/212661775422">Contacter Hicham sur WhatsApp</a>
-</section>
-</div>
-<section class="confirm" data-confirm hidden>
-<div class="confirm-card">
-<p class="label">Transfert</p>
+<!-- Saved on this device only. Nothing is sent to the villa yet. -->
+<section class="confirm-card" data-confirm hidden>
+<p class="card-kicker">Transfert</p>
 <h2>Demande reçue — la villa vous confirme rapidement</h2>
-<p class="request-lead">Enregistrée sur cet appareil. Rien n’est envoyé à la villa pour le moment.</p>
+<dl class="confirm-list" data-confirm-list></dl>
 <a class="request-submit" href="./">Retour à l’accueil</a>
+</section>
+</section>
+<section data-panel="city" hidden>
+<div class="form-card course-card">
+<p class="card-kicker">Course simple</p>
+<h2>Trajet en ville</h2>
+<a class="request-submit" data-city-link href="https://wa.me/212661775422"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.41-.14-.95-.32-1.64-.63-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.16-1.54-1.16-2.94s.73-2.08 1-2.37c.24-.26.64-.38.85-.38h.61c.2 0 .46-.04.72.55.27.64.9 2.2.98 2.36.08.16.13.35.03.56-.1.21-.15.34-.3.52-.14.18-.3.4-.43.53-.14.14-.29.3-.12.58.16.28.73 1.2 1.57 1.95 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.17-.19.7-.81.89-1.09.19-.28.38-.23.64-.14.26.09 1.66.78 1.94.92.28.14.47.21.54.33.07.12.07.68-.17 1.36z"/></svg>Contacter Hicham sur WhatsApp</a>
 </div>
 </section>
-<section class="rental-card" id="location">
-<p class="label">Location de voiture</p>
+<section data-panel="rental" hidden>
+<div class="rental-head">
+<p class="request-lead">Location de voiture · contact Papa</p>
 <h2>Massillya</h2>
-<p class="request-lead">Papa. La demande s’ouvre dans WhatsApp sur votre téléphone.</p>
+</div>
 <form class="rental-form" data-rental-form novalidate>
 <p class="form-error" data-errors hidden></p>
+<div class="form-card">
 <div class="field-row">
-<div class="field"><label for="start">Début</label><input id="start" name="start_date" type="date" required></div>
-<div class="field"><label for="end">Fin</label><input id="end" name="end_date" type="date" required></div>
+<div class="field"><label for="start">Début</label><div class="picker"><span class="picker-value is-empty" data-picker-value>—</span><input class="picker-native" id="start" name="start_date" type="date" lang="fr" required></div></div>
+<div class="field"><label for="end">Fin</label><div class="picker"><span class="picker-value is-empty" data-picker-value>—</span><input class="picker-native" id="end" name="end_date" type="date" lang="fr" required></div></div>
 </div>
-<div class="field-row">
-<div class="field"><label for="car">Type</label><select id="car" name="car_type" required><option value="">—</option><option value="citadine">Citadine</option><option value="suv">SUV</option><option value="monospace">Monospace</option><option value="other">Autre</option></select></div>
+<div class="field"><span class="card-kicker">Type</span>
+<div class="pair">
+<label><input type="radio" name="car_type" value="citadine"> Citadine</label>
+<label><input type="radio" name="car_type" value="4x4"> 4x4</label>
+</div>
+</div>
 <div class="field"><label for="people">Personnes</label><select id="people" name="people" required><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
+<div class="field"><span class="card-kicker">Livraison</span>
+<div class="pair">
+<label><input type="radio" name="delivery" value="villa"> À la villa</label>
+<label><input type="radio" name="delivery" value="airport"> À l’aéroport</label>
 </div>
-<fieldset class="trip-list">
-<legend class="field-label">Livraison à la villa</legend>
-<label><input type="radio" name="delivery" value="yes"> Oui</label>
-<label><input type="radio" name="delivery" value="no"> Non</label>
-</fieldset>
-<div class="field"><label for="rental-comment">Commentaire <span class="field-label">facultatif</span></label><textarea id="rental-comment" name="comment" rows="2"></textarea></div>
-<button class="request-submit" type="submit">Demander à Massillya</button>
+</div>
+<div class="field"><span class="card-kicker">Utilisation</span>
+<div class="pair">
+<label><input type="radio" name="usage" value="marrakech"> Trajets dans Marrakech</label>
+<label><input type="radio" name="usage" value="excursion"> Excursion / road trip</label>
+</div>
+</div>
+<div class="field"><label for="rental-comment">Commentaire (facultatif)</label><textarea id="rental-comment" name="comment" rows="2"></textarea></div>
+</div>
+<button class="request-submit" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.41-.14-.95-.32-1.64-.63-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.16-1.54-1.16-2.94s.73-2.08 1-2.37c.24-.26.64-.38.85-.38h.61c.2 0 .46-.04.72.55.27.64.9 2.2.98 2.36.08.16.13.35.03.56-.1.21-.15.34-.3.52-.14.18-.3.4-.43.53-.14.14-.29.3-.12.58.16.28.73 1.2 1.57 1.95 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.17-.19.7-.81.89-1.09.19-.28.38-.23.64-.14.26.09 1.66.78 1.94.92.28.14.47.21.54.33.07.12.07.68-.17 1.36z"/></svg>Demander sur WhatsApp</button>
 </form>
 </section>
 </div>

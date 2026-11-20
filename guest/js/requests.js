@@ -62,7 +62,7 @@
     if (!n) return { ready: false, blocked: false };
     if (n > rates.maxPassengers) return { ready: true, blocked: true };
     var base = n <= 4 ? rates.bandSmall : rates.bandLarge;
-    var qty = Math.max(0, Math.min(2, Number(babyQty) || 0));
+    var qty = Math.max(0, Math.min(3, Number(babyQty) || 0));
     var amount = qty * rates.babySeat;
     return {
       ready: true,
@@ -75,23 +75,61 @@
     };
   }
 
-  function summary(q) {
-    if (!q.ready) {
-      return text(
-        "1–4 pers. 350 DH · 5–8 pers. 450 DH · siège bébé 50 DH",
-        "1–4 guests 350 MAD · 5–8 guests 450 MAD · baby seat 50 MAD"
-      );
+  var monthsFr = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+  var monthsEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  function formatDate(iso) {
+    if (!iso) return "";
+    var parts = iso.split("-");
+    var month = (isEn() ? monthsEn : monthsFr)[Number(parts[1]) - 1];
+    return Number(parts[2]) + " " + month + " " + parts[0];
+  }
+
+  function paintPicker(input) {
+    var display = input.parentElement.querySelector("[data-picker-value]");
+    if (!display) return;
+    if (!input.value) {
+      display.textContent = "—";
+      display.classList.add("is-empty");
+      return;
     }
-    if (q.blocked) return text("Contactez la villa", "Contact the villa");
+    display.classList.remove("is-empty");
+    display.textContent = input.type === "date" ? formatDate(input.value) : input.value.slice(0, 5);
+  }
+
+  function breakdown(q) {
+    if (!q.ready || q.blocked) return "";
     var band = q.band === "1-4"
-      ? text("Transfert 1-4 pers. ", "Transfer 1-4 guests ")
-      : text("Transfert 5-8 pers. ", "Transfer 5-8 guests ");
+      ? text("Transfert 1–4 pers. ", "Transfer 1–4 guests ")
+      : text("Transfert 5–8 pers. ", "Transfer 5–8 guests ");
     var line = band + money(q.price_base);
     if (q.supplements.length) {
-      line += text(" · Siège bébé +", " · Baby seat +") + money(q.supplements[0].amount_mad);
+      var qty = q.supplements[0].quantity;
+      var seats = qty > 1
+        ? text(qty + " sièges bébé ", qty + " baby seats ")
+        : text("1 siège bébé ", "1 baby seat ");
+      line += " + " + seats + money(q.supplements[0].amount_mad);
     }
-    line += text(" · Total ", " · Total ") + money(q.total);
     return line;
+  }
+
+  function renderPrice(box, q) {
+    if (!box) return;
+    var total = box.querySelector("[data-price-total]");
+    var line = box.querySelector("[data-price-break]");
+    if (!q.ready) {
+      box.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    if (q.blocked) {
+      total.textContent = text("Contactez la villa", "Contact the villa");
+      line.hidden = true;
+      return;
+    }
+    total.textContent = "Total " + money(q.total);
+    line.hidden = false;
+    line.textContent = breakdown(q);
   }
 
   function saveLocal(record) {
@@ -156,10 +194,15 @@
     node.textContent = message;
   }
 
+  function babySeats(form) {
+    if (!form.querySelector("[name='baby_seat']").checked) return 0;
+    var n = Number(form.querySelector("[name='baby_seats']").value) || 1;
+    return Math.max(1, Math.min(3, n));
+  }
+
   function readTransfer(form) {
     var trip = selectedTrip(form);
-    var babyOn = form.querySelector("[name='baby_seat']").checked;
-    var babyQty = babyOn ? Number(form.querySelector("[name='baby_seat_qty']").value) : 0;
+    var babyQty = babySeats(form);
     var passengers = form.querySelector("[name='passengers']").value;
     var price = quote(passengers, babyQty);
     var villa = form.querySelector("[name='villa']").value.trim();
@@ -173,8 +216,8 @@
       flight_number: form.querySelector("[name='flight_number']").value.trim(),
       arrival_villa: trip === "arrival" ? villa : "",
       pickup_villa: trip === "departure" ? villa : "",
-      baby_seat: babyOn,
-      baby_seat_qty: babyQty,
+      baby_seat: babyQty > 0,
+      baby_seats: babyQty,
       comment: form.querySelector("[name='comment']").value.trim()
     };
     return { fields: fields, price: price, guest: guestFrom(form) };
@@ -229,11 +272,6 @@
 
   function syncTransfer(form) {
     var trip = selectedTrip(form);
-    var airport = trip === "arrival" || trip === "departure";
-    var city = document.querySelector("[data-request-page] [data-city]");
-    var airportBox = form.querySelector("[data-airport]");
-    if (city) city.hidden = trip !== "city";
-    if (airportBox) airportBox.hidden = !airport;
     var timeLabel = form.querySelector("[data-time-label]");
     var villaLabel = form.querySelector("[data-villa-label]");
     if (timeLabel) {
@@ -247,12 +285,61 @@
         : text("Villa d’arrivée", "Arrival villa");
     }
     var babyOn = form.querySelector("[name='baby_seat']").checked;
-    form.querySelector("[data-baby-qty]").hidden = !babyOn;
-    var price = quote(form.querySelector("[name='passengers']").value, babyOn ? form.querySelector("[name='baby_seat_qty']").value : 0);
-    var line = form.querySelector("[data-price]");
-    if (line) line.textContent = airport || !trip ? summary(price) : "";
+    var seats = form.querySelector("[name='baby_seats']");
+    if (babyOn && Number(seats.value) < 1) seats.value = "1";
+    form.querySelector("[data-baby-step]").hidden = !babyOn;
+    var count = babyOn ? Number(seats.value) : 0;
+    form.querySelector("[data-baby-count]").textContent = String(count || 1);
+    form.querySelector("[data-baby-dec]").disabled = count <= 1;
+    form.querySelector("[data-baby-inc]").disabled = count >= 3;
+    var price = quote(form.querySelector("[name='passengers']").value, count);
+    renderPrice(form.querySelector("[data-price-box]"), price);
     var button = form.querySelector("[data-transfer-submit]");
-    if (button) button.disabled = !!(airport && price.blocked);
+    if (button) button.disabled = !!price.blocked;
+  }
+
+  function showSegment(root, name) {
+    root.querySelectorAll("[data-show]").forEach(function (button) {
+      button.setAttribute("aria-selected", button.getAttribute("data-show") === name ? "true" : "false");
+    });
+    root.querySelectorAll("[data-panel]").forEach(function (panel) {
+      panel.hidden = panel.getAttribute("data-panel") !== name;
+    });
+    var lead = root.querySelector("[data-segment-lead]");
+    var leads = {
+      airport: text(
+        "Aéroport de Marrakech · environ 35 min · règlement en espèces au chauffeur",
+        "Marrakech airport · about 35 min · payment in cash to the driver"
+      ),
+      city: text(
+        "Avec Hicham · règlement en espèces au chauffeur",
+        "With Hicham · payment in cash to the driver"
+      ),
+      rental: ""
+    };
+    if (lead) {
+      lead.textContent = leads[name] || "";
+      lead.hidden = !leads[name];
+    }
+  }
+
+  function fillConfirmation(node, data) {
+    var trip = data.fields.trip_type === "arrival"
+      ? text("Arrivée aéroport → villa", "Airport arrival → villa")
+      : text("Départ villa → aéroport", "Villa → airport departure");
+    var time = data.fields.flight_arrival_time || data.fields.pickup_time;
+    var rows = [
+      [text("Trajet", "Trip"), trip],
+      [text("Date", "Date"), formatDate(data.fields.date)],
+      [text("Heure", "Time"), time],
+      [text("Vol", "Flight"), data.fields.flight_number],
+      [text("Passagers", "Passengers"), String(data.fields.passengers)],
+      [text("Sièges bébé", "Baby seats"), String(data.fields.baby_seats || 0)],
+      [text("Total", "Total"), money(data.price.total)]
+    ];
+    node.innerHTML = rows.map(function (row) {
+      return "<div><dt>" + row[0] + "</dt><dd>" + row[1] + "</dd></div>";
+    }).join("");
   }
 
   function cityMessage(guest) {
@@ -269,18 +356,16 @@
   }
 
   function rentalMessage(guest, fields) {
-    var delivery = fields.delivery === "yes"
-      ? text("oui", "yes")
-      : text("non", "no");
-    var typeLabel = {
-      citadine: text("citadine", "city car"),
-      suv: "SUV",
-      monospace: text("monospace", "people carrier"),
-      other: text("autre", "other")
-    }[fields.car_type] || fields.car_type;
+    var typeLabel = fields.car_type === "4x4" ? "4x4" : text("Citadine", "City car");
+    var delivery = fields.delivery === "airport"
+      ? text("À l’aéroport", "To the airport")
+      : text("À la villa", "To the villa");
+    var usage = fields.usage === "excursion"
+      ? "Excursion / road trip"
+      : text("Trajets dans Marrakech", "Around Marrakech");
     return text(
-      "Bonjour Papa,\nJe souhaite louer une voiture avec Massillya.\nNom : " + guest.name + "\nVilla : " + guest.villa + "\nDébut : " + fields.start_date + "\nFin : " + fields.end_date + "\nVéhicule : " + typeLabel + "\nPersonnes : " + fields.people + "\nLivraison à la villa : " + delivery + "\nCommentaire : " + (fields.comment || "—"),
-      "Hello Papa,\nI would like to rent a car with Massillya.\nName: " + guest.name + "\nVilla: " + guest.villa + "\nStart: " + fields.start_date + "\nEnd: " + fields.end_date + "\nVehicle: " + typeLabel + "\nPeople: " + fields.people + "\nDelivery to the villa: " + delivery + "\nComment: " + (fields.comment || "—")
+      "Bonjour Papa,\nJe souhaite louer une voiture avec Massillya.\nNom : " + guest.name + "\nVilla : " + guest.villa + "\nDébut : " + fields.start_date + "\nFin : " + fields.end_date + "\nVéhicule : " + typeLabel + "\nPersonnes : " + fields.people + "\nLivraison : " + delivery + "\nUtilisation : " + usage + "\nCommentaire : " + (fields.comment || "—"),
+      "Hello Papa,\nI would like to rent a car with Massillya.\nName: " + guest.name + "\nVilla: " + guest.villa + "\nStart: " + fields.start_date + "\nEnd: " + fields.end_date + "\nVehicle: " + typeLabel + "\nPeople: " + fields.people + "\nDelivery: " + delivery + "\nUse: " + usage + "\nComment: " + (fields.comment || "—")
     );
   }
 
@@ -292,9 +377,10 @@
     clearInvalid(form);
     var start = form.querySelector("[name='start_date']").value;
     var end = form.querySelector("[name='end_date']").value;
-    var type = form.querySelector("[name='car_type']").value;
+    var type = form.querySelector("input[name='car_type']:checked");
     var people = form.querySelector("[name='people']").value;
     var delivery = form.querySelector("input[name='delivery']:checked");
+    var usage = form.querySelector("input[name='usage']:checked");
     if (!start || start < todayISO()) {
       setInvalid(form, "start_date", true);
       return text("Indiquez une date de début à venir.", "Enter a start date that is not in the past.");
@@ -304,14 +390,14 @@
       return text("La fin doit être le même jour ou après le début.", "The end date must be on or after the start.");
     }
     if (!type) {
-      setInvalid(form, "car_type", true);
-      return text("Choisissez un type de voiture.", "Choose a car type.");
+      return text("Choisissez Citadine ou 4x4.", "Choose a city car or a 4x4.");
     }
     if (!people) {
       setInvalid(form, "people", true);
       return text("Indiquez le nombre de personnes.", "Enter the number of people.");
     }
-    if (!delivery) return text("Indiquez si la voiture est livrée à la villa.", "Say whether the car should be delivered to the villa.");
+    if (!delivery) return text("Choisissez la livraison : à la villa ou à l’aéroport.", "Choose delivery to the villa or to the airport.");
+    if (!usage) return text("Choisissez l’utilisation.", "Choose how the car will be used.");
     return "";
   }
 
@@ -319,9 +405,10 @@
     return {
       start_date: form.querySelector("[name='start_date']").value,
       end_date: form.querySelector("[name='end_date']").value,
-      car_type: form.querySelector("[name='car_type']").value,
+      car_type: form.querySelector("input[name='car_type']:checked").value,
       people: Number(form.querySelector("[name='people']").value),
       delivery: form.querySelector("input[name='delivery']:checked").value,
+      usage: form.querySelector("input[name='usage']:checked").value,
       comment: form.querySelector("[name='comment']").value.trim(),
       agency: "Massillya",
       contact: "Papa"
@@ -344,13 +431,32 @@
     if (nameInput && !nameInput.value) nameInput.value = stay.name;
     if (phoneInput && !phoneInput.value) phoneInput.value = stay.phone;
     var today = todayISO();
-    root.querySelectorAll("input[type='date']").forEach(function (input) {
-      input.min = today;
+    root.querySelectorAll("input[type='date'], input[type='time']").forEach(function (input) {
+      if (input.type === "date") input.min = today;
+      paintPicker(input);
+      input.addEventListener("input", function () { paintPicker(input); });
+      input.addEventListener("change", function () { paintPicker(input); });
     });
+    root.querySelectorAll("[data-show]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        showSegment(root, button.getAttribute("data-show"));
+      });
+    });
+    showSegment(root, "airport");
 
     if (transfer) {
       var errorNode = transfer.querySelector("[data-errors]");
       syncTransfer(transfer);
+      transfer.querySelector("[data-baby-dec]").addEventListener("click", function () {
+        var input = transfer.querySelector("[name='baby_seats']");
+        input.value = String(Math.max(1, Number(input.value) - 1));
+        syncTransfer(transfer);
+      });
+      transfer.querySelector("[data-baby-inc]").addEventListener("click", function () {
+        var input = transfer.querySelector("[name='baby_seats']");
+        input.value = String(Math.min(3, Number(input.value) + 1));
+        syncTransfer(transfer);
+      });
       transfer.addEventListener("change", function () { syncTransfer(transfer); });
       transfer.addEventListener("input", function () { syncTransfer(transfer); });
       transfer.addEventListener("submit", function (event) {
@@ -360,10 +466,10 @@
         if (message) return;
         var data = readTransfer(transfer);
         submitRequest(baseRecord("transfert", data.guest, data.fields, data.price));
-        root.querySelector("[data-flow]").hidden = true;
+        transfer.hidden = true;
         var done = root.querySelector("[data-confirm]");
+        fillConfirmation(done.querySelector("[data-confirm-list]"), data);
         done.hidden = false;
-        done.scrollIntoView({ block: "start" });
       });
       var cityLink = root.querySelector("[data-city-link]");
       if (cityLink) {
@@ -406,7 +512,8 @@
   window.GuestRequests = {
     config: config,
     quote: quote,
-    summary: summary,
+    breakdown: breakdown,
+    formatDate: formatDate,
     submitRequest: submitRequest,
     cityUrl: cityUrl,
     rentalUrl: rentalUrl

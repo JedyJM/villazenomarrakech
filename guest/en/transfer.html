@@ -29,27 +29,33 @@
 </div>
 </header>
 <main id="contenu" class="request" data-request-page>
-<div class="request-wrap wrap">
+<div class="wrap">
 <a class="request-back" href="./">Home</a>
 <h1>Transfer</h1>
-<p class="request-lead">Marrakech airport, about 35 minutes. Payment in cash to the driver. 1–4 guests 350 MAD, 5–8 guests 450 MAD.</p>
-<a class="section-link" href="#rental">Car rental</a>
-<div data-flow>
-<form class="request-form" data-transfer-form novalidate>
-<div class="request-guest">
-<p><span class="mini-example">Example</span> <input name="guest_name" aria-label="Guest name" value="Guest" autocomplete="name"> <span data-guest-phone-line><input name="guest_phone" aria-label="Guest phone" value="+212 600 000 000" autocomplete="tel"></span></p>
+<div class="segments" role="tablist" aria-label="Request type">
+<button type="button" role="tab" data-show="airport" aria-selected="true">Airport</button>
+<button type="button" role="tab" data-show="city" aria-selected="false">City ride</button>
+<button type="button" role="tab" data-show="rental" aria-selected="false">Car rental</button>
 </div>
-<fieldset class="trip-list">
-<legend class="visually-hidden">Trip type</legend>
-<label><input type="radio" name="trip" value="arrival" checked> Airport arrival → villa</label>
-<label><input type="radio" name="trip" value="departure"> Villa → airport departure</label>
-<label><input type="radio" name="trip" value="city"> City ride</label>
-</fieldset>
-<div data-airport>
+<p class="request-lead" data-segment-lead>Marrakech airport · about 35 min · payment in cash to the driver</p>
+<section data-panel="airport">
+<form class="request-form" data-transfer-form novalidate>
 <p class="form-error" data-errors hidden></p>
+<div class="form-card">
+<p class="card-kicker"><span class="mini-example">Example</span></p>
 <div class="field-row">
-<div class="field"><label for="date">Date</label><input id="date" name="date" type="date" required></div>
-<div class="field"><label for="time" data-time-label>Flight arrival time</label><input id="time" name="time" type="time" required></div>
+<div class="field"><label for="guest-name">Name</label><input id="guest-name" name="guest_name" value="Guest" autocomplete="name"></div>
+<div class="field"><label for="guest-phone">Phone</label><input id="guest-phone" name="guest_phone" value="+212 600 000 000" autocomplete="tel"></div>
+</div>
+</div>
+<div class="form-card">
+<div class="pair">
+<label><input type="radio" name="trip" value="arrival" checked> Arrival</label>
+<label><input type="radio" name="trip" value="departure"> Departure</label>
+</div>
+<div class="field-row">
+<div class="field"><label for="date">Date</label><div class="picker"><span class="picker-value is-empty" data-picker-value>—</span><input class="picker-native" id="date" name="date" type="date" lang="en" required></div></div>
+<div class="field"><label for="time" data-time-label>Flight arrival time</label><div class="picker"><span class="picker-value is-empty" data-picker-value>—</span><input class="picker-native" id="time" name="time" type="time" lang="en" step="60" required></div></div>
 </div>
 <div class="field-row">
 <div class="field"><label for="passengers">Passengers</label><select id="passengers" name="passengers" required><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option value="9">More than 8</option></select></div>
@@ -58,50 +64,77 @@
 <div class="field"><label for="flight">Flight number</label><input id="flight" name="flight_number" autocomplete="off" required></div>
 <div class="field"><label for="villa" data-villa-label>Arrival villa</label><input id="villa" name="villa" value="Villa Zen’O" required></div>
 <div class="baby-row">
-<label><input type="checkbox" name="baby_seat"> Baby seat</label>
-<span data-baby-qty hidden><select name="baby_seat_qty" aria-label="Number of baby seats"><option>1</option><option>2</option></select></span>
+<span>Baby seat</span>
+<label class="switch"><input type="checkbox" name="baby_seat"><i></i></label>
 </div>
-<div class="field"><label for="comment">Comment <span class="field-label">optional</span></label><textarea id="comment" name="comment" rows="2"></textarea></div>
-<p class="price-line" data-price></p>
+<div class="baby-step" data-baby-step hidden>
+<span>Number of baby seats</span>
+<span class="stepper">
+<button type="button" data-baby-dec aria-label="Fewer">−</button>
+<span data-baby-count>1</span>
+<button type="button" data-baby-inc aria-label="More">+</button>
+</span>
+<input type="hidden" name="baby_seats" value="1">
+</div>
+</div>
+<div class="form-card">
+<div class="field"><label for="comment">Comment (optional)</label><textarea id="comment" name="comment" rows="2"></textarea></div>
+</div>
+<div class="price-box" data-price-box hidden>
+<p class="price-total" data-price-total></p>
+<p class="price-break" data-price-break></p>
+</div>
 <button class="request-submit" type="submit" data-transfer-submit>Send the request</button>
-</div>
 </form>
-<section class="course-card" data-city hidden>
-<p class="label">Simple ride</p>
-<h2>City ride</h2>
-<p class="request-lead">Private driver, from 250 MAD, depending on the route. Payment is in cash to the driver.</p>
-<a class="request-submit" data-city-link href="https://wa.me/212661775422">Contact Hicham on WhatsApp</a>
-</section>
-</div>
-<section class="confirm" data-confirm hidden>
-<div class="confirm-card">
-<p class="label">Transfer</p>
+<!-- Saved on this device only. Nothing is sent to the villa yet. -->
+<section class="confirm-card" data-confirm hidden>
+<p class="card-kicker">Transfer</p>
 <h2>Request received — the villa will confirm shortly</h2>
-<p class="request-lead">Saved on this device. Nothing is sent to the villa yet.</p>
+<dl class="confirm-list" data-confirm-list></dl>
 <a class="request-submit" href="./">Back to home</a>
+</section>
+</section>
+<section data-panel="city" hidden>
+<div class="form-card course-card">
+<p class="card-kicker">Simple ride</p>
+<h2>City ride</h2>
+<a class="request-submit" data-city-link href="https://wa.me/212661775422"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.41-.14-.95-.32-1.64-.63-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.16-1.54-1.16-2.94s.73-2.08 1-2.37c.24-.26.64-.38.85-.38h.61c.2 0 .46-.04.72.55.27.64.9 2.2.98 2.36.08.16.13.35.03.56-.1.21-.15.34-.3.52-.14.18-.3.4-.43.53-.14.14-.29.3-.12.58.16.28.73 1.2 1.57 1.95 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.17-.19.7-.81.89-1.09.19-.28.38-.23.64-.14.26.09 1.66.78 1.94.92.28.14.47.21.54.33.07.12.07.68-.17 1.36z"/></svg>Contact Hicham on WhatsApp</a>
 </div>
 </section>
-<section class="rental-card" id="rental">
-<p class="label">Car rental</p>
+<section data-panel="rental" hidden>
+<div class="rental-head">
+<p class="request-lead">Car rental · contact Papa</p>
 <h2>Massillya</h2>
-<p class="request-lead">Papa. The request opens in WhatsApp on your phone.</p>
+</div>
 <form class="rental-form" data-rental-form novalidate>
 <p class="form-error" data-errors hidden></p>
+<div class="form-card">
 <div class="field-row">
-<div class="field"><label for="start">Start</label><input id="start" name="start_date" type="date" required></div>
-<div class="field"><label for="end">End</label><input id="end" name="end_date" type="date" required></div>
+<div class="field"><label for="start">Start</label><div class="picker"><span class="picker-value is-empty" data-picker-value>—</span><input class="picker-native" id="start" name="start_date" type="date" lang="en" required></div></div>
+<div class="field"><label for="end">End</label><div class="picker"><span class="picker-value is-empty" data-picker-value>—</span><input class="picker-native" id="end" name="end_date" type="date" lang="en" required></div></div>
 </div>
-<div class="field-row">
-<div class="field"><label for="car">Type</label><select id="car" name="car_type" required><option value="">—</option><option value="citadine">City car</option><option value="suv">SUV</option><option value="monospace">People carrier</option><option value="other">Other</option></select></div>
+<div class="field"><span class="card-kicker">Type</span>
+<div class="pair">
+<label><input type="radio" name="car_type" value="citadine"> City car</label>
+<label><input type="radio" name="car_type" value="4x4"> 4x4</label>
+</div>
+</div>
 <div class="field"><label for="people">People</label><select id="people" name="people" required><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
+<div class="field"><span class="card-kicker">Delivery</span>
+<div class="pair">
+<label><input type="radio" name="delivery" value="villa"> To the villa</label>
+<label><input type="radio" name="delivery" value="airport"> To the airport</label>
 </div>
-<fieldset class="trip-list">
-<legend class="field-label">Delivery to the villa</legend>
-<label><input type="radio" name="delivery" value="yes"> Yes</label>
-<label><input type="radio" name="delivery" value="no"> No</label>
-</fieldset>
-<div class="field"><label for="rental-comment">Comment <span class="field-label">optional</span></label><textarea id="rental-comment" name="comment" rows="2"></textarea></div>
-<button class="request-submit" type="submit">Request from Massillya</button>
+</div>
+<div class="field"><span class="card-kicker">Use</span>
+<div class="pair">
+<label><input type="radio" name="usage" value="marrakech"> Around Marrakech</label>
+<label><input type="radio" name="usage" value="excursion"> Excursion / road trip</label>
+</div>
+</div>
+<div class="field"><label for="rental-comment">Comment (optional)</label><textarea id="rental-comment" name="comment" rows="2"></textarea></div>
+</div>
+<button class="request-submit" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.41-.14-.95-.32-1.64-.63-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.16-1.54-1.16-2.94s.73-2.08 1-2.37c.24-.26.64-.38.85-.38h.61c.2 0 .46-.04.72.55.27.64.9 2.2.98 2.36.08.16.13.35.03.56-.1.21-.15.34-.3.52-.14.18-.3.4-.43.53-.14.14-.29.3-.12.58.16.28.73 1.2 1.57 1.95 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.17-.19.7-.81.89-1.09.19-.28.38-.23.64-.14.26.09 1.66.78 1.94.92.28.14.47.21.54.33.07.12.07.68-.17 1.36z"/></svg>Request on WhatsApp</button>
 </form>
 </section>
 </div>

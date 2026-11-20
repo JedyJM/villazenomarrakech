@@ -26,8 +26,8 @@ One row per request. Amounts are in MAD. The French pages display the same amoun
 | flight_number | `fields.flight_number` | |
 | arrival_villa | `fields.arrival_villa` | Destination villa |
 | pickup_villa | `fields.pickup_villa` | Departure villa |
-| baby_seat | `fields.baby_seat` | |
-| baby_seat_qty | `fields.baby_seat_qty` | 0, 1, or 2 |
+| baby_seat | `fields.baby_seat` | True when a seat is requested |
+| baby_seats | `fields.baby_seats` | 0, 1, 2, or 3. Each seat is 50 MAD |
 | comment | `fields.comment` | |
 | price_base | `price_base` | 350 for 1–4 passengers, 450 for 5–8. Empty for a city ride or a rental |
 | supplement_baby_seat | `supplements[].amount_mad` where `code` is `baby_seat` | 50 MAD per seat |
@@ -36,9 +36,10 @@ One row per request. Amounts are in MAD. The French pages display the same amoun
 | course_message | `fields.message` | City ride, service `course` |
 | rental_start | `fields.start_date` | Service `location_voiture` |
 | rental_end | `fields.end_date` | |
-| car_type | `fields.car_type` | `citadine`, `suv`, `monospace`, `other` |
+| car_type | `fields.car_type` | `citadine` or `4x4` |
 | rental_people | `fields.people` | |
-| delivery_to_villa | `fields.delivery` | `yes` or `no` |
+| delivery | `fields.delivery` | `villa` or `airport` |
+| usage | `fields.usage` | `marrakech` or `excursion` |
 | rental_agency | `fields.agency` | Massillya |
 | rental_contact | `fields.contact` | Papa |
 | rental_message | `fields.message` | Text the guest opens in WhatsApp |

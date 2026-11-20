@@ -1000,12 +1000,8 @@ a.tile { color: inherit; text-decoration: none; }
   flex: none;
   margin-left: auto;
   color: var(--muted);
-  overflow: visible;
-  transform-origin: 50% 50%;
-  transition: transform 0.2s ease;
 }
 .care-cat summary:has(.care-count:not([hidden])) svg.chev { margin-left: 0.2rem; }
-.care-cat[open] > summary > svg.chev { transform: rotate(180deg); }
 .care-cat .soin-list { gap: 6px; padding: 0 0.55rem 0.55rem; }
 .care .soin-pick { min-height: 40px; padding: 0.18rem 0.6rem; border-radius: 10px; }
 .care .soin-copy strong { font-size: 0.8rem; }
@@ -1218,11 +1214,10 @@ a.request-submit:active { color: var(--paper); text-decoration: none; }
   flex: none;
   margin-left: auto;
   color: var(--muted);
-  overflow: visible;
-  transform-origin: 50% 50%;
-  transition: transform 0.2s ease;
 }
-.guide details[open] > summary > svg.chev { transform: rotate(180deg); }
+svg.chev .chev-up { display: none; }
+details[open] > summary > svg.chev .chev-down { display: none; }
+details[open] > summary > svg.chev .chev-up { display: inline; }
 .guide-body { display: grid; gap: 7px; padding: 0 0.85rem 0.75rem 2.55rem; }
 .guide-row {
   display: flex;

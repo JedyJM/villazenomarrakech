@@ -1098,3 +1098,39 @@ a.request-submit:active { color: var(--paper); text-decoration: none; }
 .pick:has(input:checked) .pick-copy small,
 .pick:has(input:checked) .pick-ico { color: rgba(255, 250, 243, 0.72); }
 .soin-detail { margin: 0; color: var(--muted); font-size: 0.75rem; white-space: nowrap; }
+.guide { display: grid; gap: 8px; margin-top: 0.45rem; }
+.guide details {
+  background: #fff;
+  border: 1px solid rgba(28, 25, 22, 0.1);
+  border-radius: 12px;
+}
+.guide summary {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 48px;
+  padding: 0 0.8rem;
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+.guide summary::-webkit-details-marker { display: none; }
+.guide summary .sum-ico { display: flex; color: var(--terracotta); }
+.guide summary .sum-ico svg,
+.guide summary svg.chev { width: 18px; height: 18px; display: block; flex: none; }
+.guide summary svg.chev { margin-left: auto; color: var(--muted); transition: transform 0.2s ease; }
+.guide details[open] summary .chev { transform: rotate(180deg); }
+.guide-body { display: grid; gap: 7px; padding: 0 0.85rem 0.75rem 2.55rem; }
+.guide-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.8rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.guide-row svg { width: 15px; height: 15px; flex: none; color: var(--terracotta); }

@@ -959,8 +959,8 @@ a.tile { color: inherit; text-decoration: none; }
 .soin-pick[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); }
 .soin-pick[aria-pressed="true"] strong { color: var(--paper); }
 .soin-pick[aria-pressed="true"] small { color: rgba(255, 250, 243, 0.72); }
-.guide-prose { margin: 0; color: var(--ink); font-size: 0.82rem; line-height: 1.35; white-space: normal; }
-.guide-prose + .guide-prose { margin-top: 0.45rem; }
+.guide-prose { margin: 0; color: var(--ink); font-size: 0.84rem; line-height: 1.45; white-space: normal; }
+.guide-prose + .guide-prose { margin-top: 0.55rem; }
 .switch { position: relative; width: 42px; height: 26px; flex: none; }
 .switch input { position: absolute; inset: 0; margin: 0; opacity: 0; }
 .switch i {
@@ -1149,7 +1149,12 @@ a.request-submit:active { color: var(--paper); text-decoration: none; }
 .guide summary::-webkit-details-marker { display: none; }
 .guide summary::marker { content: none; }
 .guide summary .sum-ico { display: flex; color: var(--terracotta); }
-.guide summary .sum-ico svg,
+.guide summary .sum-ico svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  flex: none;
+}
 .guide summary svg.chev {
   width: 18px;
   height: 18px;
@@ -1157,8 +1162,8 @@ a.request-submit:active { color: var(--paper); text-decoration: none; }
   flex: none;
   margin-left: auto;
   color: var(--muted);
-  transform-box: fill-box;
-  transform-origin: center;
+  overflow: visible;
+  transform-origin: 50% 50%;
   transition: transform 0.2s ease;
 }
 .guide details[open] > summary > svg.chev { transform: rotate(180deg); }

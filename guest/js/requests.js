@@ -1073,8 +1073,33 @@
     if (massage) {
       var massageError = massage.querySelector("[data-errors]");
       bindComment(massage);
+      massage.querySelectorAll(".care-cat").forEach(function (item) {
+        item.addEventListener("toggle", function () {
+          if (!item.open) return;
+          massage.querySelectorAll(".care-cat").forEach(function (other) {
+            if (other !== item) other.open = false;
+          });
+        });
+      });
       function soinItems() {
         return Array.prototype.slice.call(massage.querySelectorAll(".soin"));
+      }
+      function soinChosen(item) {
+        return item.querySelector(".soin-pick").getAttribute("aria-pressed") === "true";
+      }
+      function soinDetail(item) {
+        return {
+          id: item.getAttribute("data-soin"),
+          category: item.closest(".care-cat").getAttribute("data-category"),
+          label: item.getAttribute("data-label"),
+          minutes: item.getAttribute("data-minutes") || "",
+          people: Number(item.querySelector("input[type='hidden']").value),
+          price: Number(item.getAttribute("data-price"))
+        };
+      }
+      function soinLine(item) {
+        var name = item.minutes ? item.label + " · " + item.minutes : item.label;
+        return name + " × " + item.people + " · " + moneyFr(item.price * item.people);
       }
       function paintMassage() {
         var total = 0;
@@ -1088,10 +1113,20 @@
           var inc = item.querySelector('[data-soin-step="1"]');
           if (dec) dec.disabled = count <= 1;
           if (inc) inc.disabled = count >= 8;
-          if (item.querySelector(".soin-pick").getAttribute("aria-pressed") === "true") {
+          if (soinChosen(item)) {
             any = true;
             total += Number(item.getAttribute("data-price")) * count;
           }
+        });
+        massage.querySelectorAll(".care-cat").forEach(function (cat) {
+          var n = cat.querySelectorAll(".soin-pick[aria-pressed='true']").length;
+          var badge = cat.querySelector("[data-care-count]");
+          var live = cat.querySelector("[data-care-live]");
+          if (badge) {
+            badge.hidden = n === 0;
+            badge.textContent = String(n);
+          }
+          if (live) live.textContent = n ? (n > 1 ? n + " soins sélectionnés" : "1 soin sélectionné") : "";
         });
         var box = massage.querySelector("[data-price-box]");
         if (box) {
@@ -1117,13 +1152,17 @@
         }
         if (pick || step) paintMassage();
       });
+      paintMassage();
       massage.addEventListener("submit", function (event) {
         event.preventDefault();
         clearInvalid(massage);
-        var chosen = soinItems().filter(function (item) {
-          return item.querySelector(".soin-pick").getAttribute("aria-pressed") === "true";
+        var groups = [];
+        massage.querySelectorAll(".care-cat").forEach(function (cat) {
+          var items = Array.prototype.filter.call(cat.querySelectorAll(".soin"), soinChosen).map(soinDetail);
+          if (items.length) groups.push({ name: cat.getAttribute("data-category"), items: items });
         });
-        if (!chosen.length) {
+        var details = groups.reduce(function (all, group) { return all.concat(group.items); }, []);
+        if (!details.length) {
           showError(massageError, "Veuillez choisir au moins un soin.");
           return;
         }
@@ -1132,44 +1171,43 @@
         if (when) return;
         var guest = getGuestFromStay();
         var total = paintMassage();
-        var details = chosen.map(function (item) {
-          return {
-            id: item.getAttribute("data-soin"),
-            label: item.getAttribute("data-label"),
-            minutes: item.getAttribute("data-minutes"),
-            people: Number(item.querySelector("input[type='hidden']").value),
-            price: Number(item.getAttribute("data-price"))
-          };
-        });
         var fields = {
           soins: details,
           date: massage.querySelector("[name='date']").value,
           time: clock(massage.querySelector("[name='time']").value),
           comment: noteValue(massage)
         };
-        var rows = details.map(function (item) {
-          return [item.label, item.people + " pers. · " + item.minutes];
+        var rows = [];
+        groups.forEach(function (group) {
+          group.items.forEach(function (item) {
+            var meta = item.minutes ? item.minutes + " · " : "";
+            rows.push([item.label, meta + item.people + " pers. · " + moneyFr(item.price * item.people)]);
+          });
         });
         rows.push(["Date", formatDate(fields.date)], ["Heure", fields.time], ["Total", moneyFr(total)]);
         if (fields.comment) rows.push(["Note", fields.comment]);
         var lines = [
           "Bonjour,",
           "",
-          "Je séjourne actuellement à la " + guest.villa + " et souhaiterais réserver un massage.",
+          "Je séjourne actuellement à la " + guest.villa + " et souhaiterais réserver " + (details.length > 1 ? "les soins suivants." : "le soin suivant."),
           "",
-          "Nom : " + staffName(guest)
+          "Nom : " + staffName(guest),
+          ""
         ];
-        details.forEach(function (item) {
-          lines.push(item.label + " : " + item.people + " pers. · " + item.minutes + " · " + moneyFr(item.price * item.people));
+        groups.forEach(function (group, index) {
+          if (index) lines.push("");
+          lines.push(group.name);
+          group.items.forEach(function (item) { lines.push(soinLine(item)); });
         });
         lines.push(
+          "",
           "Date : " + formatDateFr(fields.date),
           "Heure : " + fields.time
         );
         if (fields.comment) lines.push("Note : " + fields.comment);
         lines.push("Total : " + moneyFr(total), "", "Merci d’avance.");
         fields.message = lines.join("\n");
-        dispatchService(root, baseRecord("massage", guest, fields, { price_base: total, supplements: [], total: total, blocked: false }), rows, details.map(function (item) { return item.id; }).join("+"), "Massage", RECIPIENTS.massage);
+        dispatchService(root, baseRecord("massage", guest, fields, { price_base: total, supplements: [], total: total, blocked: false }), rows, details.map(function (item) { return item.id; }).join("+"), "Massages & soins", RECIPIENTS.massage);
       });
     }
   }

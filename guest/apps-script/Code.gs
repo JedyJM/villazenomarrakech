@@ -70,10 +70,11 @@ function doGet(e) {
       return htmlPage_("Ce lien n’est pas valable.");
     }
     var status = String(sheet.getRange(row, 9).getValue() || "");
-    if (status === "Confirmée") return htmlPage_("Cette demande a déjà été confirmée.");
+    var summary = details.resume || "";
+    if (status === "Confirmée") return htmlPage_("✅ Cette demande est déjà confirmée.", summary);
     sheet.getRange(row, 9).setValue("Confirmée");
     sheet.getRange(row, 10).setValue(Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd HH:mm"));
-    return htmlPage_("Merci, la demande est confirmée.");
+    return htmlPage_("✅ Demande confirmée. Merci !", summary);
   } finally {
     lock.releaseLock();
   }
@@ -109,14 +110,17 @@ function jsonOut(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-function htmlPage_(message) {
+function htmlPage_(message, summary) {
+  var summaryHtml = summary
+    ? "<p style=\"margin:1.4rem 0 0;color:#5e554c;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:0.78rem;line-height:1.55;white-space:pre-line;text-align:left;\">" + escapeHtml_(summary) + "</p>"
+    : "";
   var html = "<!DOCTYPE html><html lang=\"fr\"><head><meta charset=\"utf-8\">"
     + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
     + "<title>Villa Zen’O</title></head>"
     + "<body style=\"margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f1ea;color:#1c1916;font-family:Georgia,'Times New Roman',serif;\">"
     + "<main style=\"width:min(22rem,calc(100% - 2.5rem));text-align:center;padding:2.5rem 0;\">"
-    + "<p style=\"margin:0 0 0.8rem;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:0.72rem;letter-spacing:0.16em;\">VILLA ZEN’O</p>"
-    + "<h1 style=\"margin:0;font-weight:500;font-size:1.65rem;line-height:1.35;\">" + escapeHtml_(message) + "</h1>"
+    + "<h1 style=\"margin:0;font-weight:500;font-size:1.85rem;line-height:1.3;\">" + escapeHtml_(message) + "</h1>"
+    + summaryHtml
     + "</main></body></html>";
   return HtmlService.createHtmlOutput(html).setTitle("Villa Zen’O").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }

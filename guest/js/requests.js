@@ -48,15 +48,18 @@
 
   function withStaffConfirm(message, id, token) {
     if (!APPS_SCRIPT_URL || !token) return message;
-    return message + "\n\nPour confirmer la prise en charge de cette demande :\n" + confirmLink(id, token);
+    return message + "\n\n✅ Pour confirmer, appuyez ici :\n" + confirmLink(id, token);
   }
 
-  function sheetPayload(record, token, sousType, destinataire) {
+  function sheetPayload(record, token, sousType, destinataire, rows) {
     var fields = record.fields || {};
     var details = { token: token };
     Object.keys(fields).forEach(function (key) {
       if (key !== "message") details[key] = fields[key];
     });
+    if (rows && rows.length) {
+      details.resume = rows.map(function (row) { return row[0] + " : " + row[1]; }).join("\n");
+    }
     return {
       id: record.id,
       token: token,
@@ -792,7 +795,7 @@
         record.token = newToken();
         data.fields.message = withStaffConfirm(transferMessage(data.guest, data.fields, data.price), record.id, record.token);
         submitRequest(record);
-        postToSheet(sheetPayload(record, record.token, data.fields.trip_type === "departure" ? "départ" : "arrivée", "Hicham"));
+        postToSheet(sheetPayload(record, record.token, data.fields.trip_type === "departure" ? "départ" : "arrivée", "Hicham", rows));
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, data.fields.message));
         showReceived(root, rows);
       });
@@ -826,7 +829,7 @@
         record.token = newToken();
         fields.message = withStaffConfirm(cityMessage(guest, fields), record.id, record.token);
         submitRequest(record);
-        postToSheet(sheetPayload(record, record.token, "en ville", "Hicham"));
+        postToSheet(sheetPayload(record, record.token, "en ville", "Hicham", rows));
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, fields.message));
         showReceived(root, rows);
       });
@@ -858,7 +861,7 @@
         record.token = newToken();
         fields.message = withStaffConfirm(rentalMessage(guest, fields), record.id, record.token);
         submitRequest(record);
-        postToSheet(sheetPayload(record, record.token, fields.car_type === "4x4" ? "4x4" : "citadine", "Massillya"));
+        postToSheet(sheetPayload(record, record.token, fields.car_type === "4x4" ? "4x4" : "citadine", "Massillya", rentalRows));
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.massillya, fields.message));
         showReceived(root, rentalRows);
       });

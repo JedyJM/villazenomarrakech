@@ -29,25 +29,29 @@
     return "https://api.whatsapp.com/send?phone=" + number + "&text=" + encodeURIComponent(message);
   }
 
-  function newToken() {
-    var bytes = new Uint8Array(16);
+  function randomBase36(length) {
+    var alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
+    var bytes = new Uint8Array(length);
     if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
     else {
-      for (var i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+      for (var i = 0; i < length; i++) bytes[i] = Math.floor(Math.random() * 256);
     }
-    var hex = "";
-    for (var j = 0; j < bytes.length; j++) hex += ("0" + bytes[j].toString(16)).slice(-2);
-    return hex;
+    var out = "";
+    for (var j = 0; j < length; j++) out += alphabet[bytes[j] % 36];
+    return out;
+  }
+
+  function newToken() {
+    return randomBase36(10);
   }
 
   function confirmLink(id, token) {
-    var join = APPS_SCRIPT_URL.indexOf("?") === -1 ? "?" : "&";
-    return APPS_SCRIPT_URL + join + "action=confirm&id=" + encodeURIComponent(id) + "&t=" + encodeURIComponent(token);
+    return window.location.origin + "/c?r=" + encodeURIComponent(id) + "&k=" + encodeURIComponent(token);
   }
 
   function withStaffConfirm(message, id, token) {
     if (!APPS_SCRIPT_URL || !token) return message;
-    return message + "\n\n✅ Pour confirmer, appuyez ici :\n" + confirmLink(id, token);
+    return message + "\n\n✅ Merci de confirmer ici :\n" + confirmLink(id, token);
   }
 
   function sheetPayload(record, token, sousType, destinataire, rows) {
@@ -123,7 +127,7 @@
   }
 
   function newId() {
-    return "req-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+    return randomBase36(8);
   }
 
 

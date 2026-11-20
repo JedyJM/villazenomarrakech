@@ -39,7 +39,7 @@ h1, h2, h3, .logo, .guest-name, .footer-logo {
   line-height: 1.12;
 }
 p { margin: 0; }
-.wrap { width: min(var(--max), calc(100% - 1.25rem)); margin-inline: auto; }
+.wrap { width: min(var(--max), calc(100% - 1.5rem)); margin-inline: auto; }
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -129,34 +129,44 @@ p { margin: 0; }
   object-fit: cover;
   object-position: center 42%;
 }
-.home-stack { padding: 0.45rem 0 0.35rem; }
-h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.28rem;
+.home-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.55rem 0 0.3rem;
 }
+.home-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+h1 { margin: 0; font-size: 1.26rem; }
 h1 em { font-style: italic; font-weight: 500; }
 
-.stay-card, .wifi {
-  background: var(--paper);
-  border: 1px solid rgba(28, 25, 22, 0.09);
-  border-radius: 10px;
-}
-.stay-card { padding: 0.42rem 0.6rem 0.48rem; }
-.stay-kicker {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.4rem;
-  margin: 0 0 0.12rem;
-}
-.stay-kicker h2, .services-title, .wifi-title {
+.label, .field-label {
   margin: 0;
   font-family: var(--sans);
-  font-size: 0.64rem;
+  font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--terracotta);
+  line-height: 1;
+}
+.label { color: var(--terracotta); }
+.field-label { color: var(--muted); }
+
+.stay-card, .wifi {
+  background: var(--paper);
+  border: 1px solid rgba(28, 25, 22, 0.1);
+  border-radius: 10px;
+  padding: 0.62rem 0.72rem 0.68rem;
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 1rem;
 }
 .mini-example {
   font-family: var(--sans);
@@ -164,90 +174,80 @@ h1 em { font-style: italic; font-weight: 500; }
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  line-height: 1;
   color: var(--terracotta-dark);
-  background: rgba(140, 63, 42, 0.1);
+  border: 1px solid rgba(140, 63, 42, 0.28);
   border-radius: 999px;
-  padding: 0.08rem 0.38rem;
+  padding: 0.16rem 0.4rem;
 }
-.guest-name { margin: 0; font-size: 1.12rem; }
+.guest-name { margin: 0.4rem 0 0; font-size: 1.12rem; }
 .stay-range {
   display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0.12rem 0 0;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin: 0.14rem 0 0;
   font-size: 0.78rem;
   color: var(--muted);
 }
 .stay-range span[aria-hidden="true"] { color: var(--gold); }
 
-.wifi {
-  margin-top: 0.4rem;
-  padding: 0.32rem 0.5rem 0.36rem 0.6rem;
+.wifi-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 0.7rem;
+  margin-top: 0.52rem;
+  padding-top: 0.52rem;
+  border-top: 1px solid var(--line);
 }
-.wifi-row {
+.wifi-col {
   display: flex;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 0.28rem 0.55rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.26rem;
+  min-width: 0;
 }
-.wifi-title { flex: none; align-self: center; }
-.wifi-field { display: flex; flex-direction: column; gap: 0.08rem; min-width: 0; }
-.wifi-field:last-child { margin-left: auto; }
-.wifi-k {
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-  line-height: 1;
-}
-.wifi-net {
+.wifi-value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
   margin: 0;
-  font-size: 0.78rem;
-  font-weight: 600;
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.15;
   letter-spacing: 0.01em;
 }
-.wifi-copy {
+.icon-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  min-height: 32px;
-  border: 1px solid rgba(28, 25, 22, 0.16);
-  background: var(--bg);
-  color: var(--ink);
-  border-radius: 999px;
-  padding: 0.15rem 0.45rem 0.15rem 0.6rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-}
-.wifi-copy svg { width: 14px; height: 14px; display: block; }
-.wifi-action {
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--terracotta-dark);
-}
-.wifi-copy.is-copied { border-color: var(--terracotta); background: rgba(140, 63, 42, 0.08); }
-.wifi-scan {
-  display: flex;
-  align-items: center;
-  gap: 0.32rem;
-  width: 100%;
-  margin: 0.22rem 0 0;
+  justify-content: center;
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--terracotta-dark);
-  font-size: 0.68rem;
-  font-weight: 500;
-  line-height: 1.2;
-  text-align: left;
+  color: var(--muted);
   cursor: pointer;
 }
-.wifi-scan svg { width: 14px; height: 14px; flex: none; }
+.icon-btn svg { width: 15px; height: 15px; display: block; }
+.wifi-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  flex: none;
+}
+.wifi-copy svg { width: 12px; height: 12px; display: block; }
+.wifi-copy.is-copied { color: var(--terracotta-dark); }
 .contacts-dialog {
   border: 0;
   padding: 0;
@@ -356,8 +356,8 @@ h1 em { font-style: italic; font-weight: 500; }
   cursor: pointer;
 }
 
-.services { margin-top: 0.45rem; }
-.services-title { margin: 0 0 0.32rem; }
+.services { margin: 0; }
+.services > .label { display: block; margin: 0 0 0.4rem; }
 .tiles {
   --tile-h: 4.55rem;
   list-style: none;
@@ -377,8 +377,8 @@ h1 em { font-style: italic; font-weight: 500; }
   flex-direction: column;
   justify-content: center;
   background: var(--paper);
-  border: 1px solid rgba(28, 25, 22, 0.09);
-  border-radius: 8px;
+  border: 1px solid rgba(28, 25, 22, 0.1);
+  border-radius: 10px;
   padding: 0.32rem 0.45rem;
   min-width: 0;
   overflow: hidden;
@@ -471,16 +471,15 @@ h1 em { font-style: italic; font-weight: 500; }
 @media (max-width: 759px) and (max-height: 700px) {
   :root { --header: 40px; --nav-space: calc(3.05rem + env(safe-area-inset-bottom, 0px)); }
   .welcome-photo { height: 36px; }
-  .home-stack { padding-top: 0.28rem; }
-  h1 { font-size: 1.08rem; margin-bottom: 0.22rem; }
-  .stay-card { padding: 0.28rem 0.5rem 0.32rem; }
-  .guest-name { font-size: 0.98rem; }
+  .home-stack { gap: 0.32rem; padding-top: 0.28rem; }
+  .home-tools { gap: 0.28rem; }
+  h1 { font-size: 1.08rem; }
+  .stay-card, .wifi { padding: 0.42rem 0.62rem 0.46rem; }
+  .guest-name { font-size: 0.98rem; margin-top: 0.28rem; }
   .stay-range { font-size: 0.72rem; }
-  .wifi { margin-top: 0.22rem; padding: 0.2rem 0.4rem 0.24rem 0.45rem; }
-  .wifi-copy { min-height: 26px; font-size: 0.72rem; }
-  .wifi-scan { margin-top: 0.12rem; font-size: 0.62rem; }
-  .services { margin-top: 0.3rem; }
-  .services-title { margin-bottom: 0.22rem; }
+  .wifi-cols { margin-top: 0.36rem; padding-top: 0.36rem; column-gap: 0.4rem; }
+  .wifi-value { font-size: 0.74rem; }
+  .services > .label { margin-bottom: 0.28rem; }
   .tiles { --tile-h: 4.35rem; gap: 0.28rem; }
   .tile { padding: 0.26rem 0.4rem; }
   .tile-ico { margin-bottom: 0.06rem; }
@@ -532,8 +531,8 @@ h1 em { font-style: italic; font-weight: 500; }
     align-items: stretch;
   }
   .wifi { margin-top: 0; height: 100%; }
-  .services { margin-top: 1.1rem; }
-  .services-title { font-size: 0.72rem; margin-bottom: 0.6rem; }
+  .services { margin-top: 0.4rem; }
+  .services > .label { margin-bottom: 0.55rem; }
   .tiles { --tile-h: 7.25rem; gap: 0.7rem; }
   .tile { padding: 0.8rem 0.85rem; }
   .tile h3 { font-size: 1.15rem; }

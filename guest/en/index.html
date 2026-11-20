@@ -42,35 +42,39 @@
 <div class="home-tools">
 <section class="stay" id="sejour" aria-labelledby="sejour-title">
 <article class="stay-card" aria-label="Sample stay. Guest. Arrival 12 December 2026, departure 19 December 2026.">
-<div class="stay-kicker"><h2 id="sejour-title">My stay</h2><span class="mini-example">Example</span></div>
+<div class="card-head"><h2 class="label" id="sejour-title">My stay</h2><span class="mini-example">Example</span></div>
 <p class="guest-name">Example: Guest</p>
 <p class="stay-range"><time datetime="2026-12-12">12 Dec 2026</time><span aria-hidden="true">→</span><time datetime="2026-12-19">19 Dec 2026</time></p>
 </article>
 </section>
 <section class="wifi" aria-labelledby="wifi-title">
-<div class="wifi-row">
-<h2 class="wifi-title" id="wifi-title">Wi-Fi</h2>
-<p class="wifi-field">
-<span class="wifi-k">Network</span>
-<span class="wifi-net" data-wifi-network></span>
-</p>
-<div class="wifi-field">
-<span class="wifi-k">Password</span>
-<button type="button" class="wifi-copy" data-wifi-copy data-label-copy="Copy" data-label-copied="Copied">
+<div class="card-head">
+<h2 class="label" id="wifi-title">Wi-Fi</h2>
+<button type="button" class="icon-btn" data-wifi-scan aria-label="Scan to connect another device">
+<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/></svg>
+</button>
+</div>
+<div class="wifi-cols">
+<div class="wifi-col">
+<span class="field-label">Network</span>
+<p class="wifi-value" data-wifi-network></p>
+</div>
+<div class="wifi-col">
+<span class="field-label">Password</span>
+<p class="wifi-value">
 <span data-wifi-password></span>
-<span class="wifi-action" data-wifi-action>Copy</span>
+<button type="button" class="wifi-copy" data-wifi-copy data-label-copy="Copy" data-label-copied="Copied" aria-label="Copy the password">
+<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="9" y="9" width="11" height="11" rx="1.5"/><path d="M5 15V5.5A1.5 1.5 0 0 1 6.5 4H15"/></svg>
+<span data-wifi-action>Copy</span>
 </button>
+</p>
 </div>
 </div>
-<button type="button" class="wifi-scan" data-wifi-scan>
-<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2M18 14v2M14 18h2M18 18h2v2h-2z"/></svg>
-Scan to connect another device
-</button>
 <p class="visually-hidden" data-wifi-status aria-live="polite"></p>
 </section>
 </div>
 <section class="services" id="services" aria-labelledby="services-title">
-<h2 class="services-title" id="services-title">Services</h2>
+<h2 class="label" id="services-title">Services</h2>
 <p class="visually-hidden">The detail pages do not open yet.</p>
 <ul class="tiles">
 <li><article class="tile"><span class="tile-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 15h16M6 15l1.5-5h9L18 15"/><circle cx="7.5" cy="17.5" r="1.4"/><circle cx="16.5" cy="17.5" r="1.4"/></svg></span><h3>Transfer</h3><p>Book a driver</p></article></li>

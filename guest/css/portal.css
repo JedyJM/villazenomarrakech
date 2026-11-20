@@ -1011,8 +1011,23 @@ a.tile { color: inherit; text-decoration: none; }
 .care .soin:has(.soin-pick[aria-pressed="true"]) .stepper { display: flex; }
 .care .stepper button { width: 28px; height: 28px; font-size: 1rem; }
 .care-when { margin-top: 8px; gap: 8px; padding: 12px; }
-.guide-prose { margin: 0; color: var(--ink); font-size: 0.84rem; line-height: 1.45; white-space: normal; }
-.guide-prose + .guide-prose { margin-top: 0.55rem; }
+.guide-prose {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.94rem;
+  font-weight: 400;
+  line-height: 1.6;
+  white-space: normal;
+  text-wrap: pretty;
+}
+.guide-kicker {
+  margin: 0.4rem 0 -6px;
+  color: var(--terracotta);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+}
 .switch { position: relative; width: 42px; height: 26px; flex: none; }
 .switch input { position: absolute; inset: 0; margin: 0; opacity: 0; }
 .switch i {
@@ -1219,6 +1234,7 @@ svg.chev .chev-up { display: none; }
 details[open] > summary > svg.chev .chev-down { display: none; }
 details[open] > summary > svg.chev .chev-up { display: inline; }
 .guide-body { display: grid; gap: 7px; padding: 0 0.85rem 0.75rem 2.55rem; }
+.guide-body.guide-copy { gap: 12px; padding: 0.15rem 1.05rem 0.95rem; }
 .guide-row {
   display: flex;
   align-items: center;

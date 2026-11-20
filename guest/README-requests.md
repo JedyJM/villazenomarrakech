@@ -27,8 +27,9 @@ One row per request. Amounts are in MAD. The French pages display the same amoun
 | vehicles | `fields.vehicles` | 1 or 2. Two vehicles split the passengers evenly |
 | luggage | `fields.luggage` | |
 | flight_number | `fields.flight_number` | |
-| arrival_villa | `fields.arrival_villa` | Destination villa |
-| pickup_villa | `fields.pickup_villa` | Departure villa |
+| origin_city | `fields.origin_city` | City the guest is coming from, free text |
+| arrival_villa | `fields.arrival_villa` | Kept empty. The stay villa comes from `getGuestFromStay()` |
+| pickup_villa | `fields.pickup_villa` | Kept empty. The stay villa comes from `getGuestFromStay()` |
 | baby_seat | `fields.baby_seat` | True when a seat is requested |
 | baby_seats | `fields.baby_seats` | 0, 1, 2, or 3. Each seat is 50 MAD |
 | comment | `fields.comment` | |
@@ -44,11 +45,9 @@ One row per request. Amounts are in MAD. The French pages display the same amoun
 | rental_start | `fields.start_date` | Service `location_voiture` |
 | rental_end | `fields.end_date` | |
 | car_type | `fields.car_type` | `citadine` or `4x4` |
-| rental_people | `fields.people` | |
 | delivery | `fields.delivery` | `villa` or `airport` |
 | usage | `fields.usage` | `marrakech` or `excursion` |
-| rental_agency | `fields.agency` | Massillya |
-| rental_contact | `fields.contact` | Papa |
+| rental_agency | `fields.agency` | Agence Massillya |
 | rental_message | `fields.message` | Text the guest opens in WhatsApp |
 
 Sales KPIs can sum `price_base`, `supplement_baby_seat`, and `total` where `service` is `transfert` and `status` is not cancelled.

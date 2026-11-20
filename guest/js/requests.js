@@ -231,7 +231,10 @@
     var passengers = form.querySelector("[name='passengers']").value;
     var vehicles = Number(form.querySelector("[name='vehicles']").value) || 1;
     var price = quote(passengers, babyQty, vehicles);
-    var villa = form.querySelector("[name='villa']").value.trim();
+    var originEl = form.querySelector("[name='origin_city']");
+    var villaEl = form.querySelector("[name='villa']");
+    var origin = originEl ? originEl.value.trim() : "";
+    var villa = villaEl ? villaEl.value.trim() : "";
     var fields = {
       trip_type: trip,
       date: form.querySelector("[name='date']").value,
@@ -240,8 +243,9 @@
       passengers: Number(passengers) || null,
       luggage: form.querySelector("[name='luggage']").value === "" ? null : Number(form.querySelector("[name='luggage']").value),
       flight_number: form.querySelector("[name='flight_number']").value.trim(),
-      arrival_villa: trip === "arrival" ? villa : "",
-      pickup_villa: trip === "departure" ? villa : "",
+      origin_city: origin,
+      arrival_villa: originEl ? "" : (trip === "arrival" ? villa : ""),
+      pickup_villa: originEl ? "" : (trip === "departure" ? villa : ""),
       vehicles: vehicles,
       baby_seat: babyQty > 0,
       baby_seats: babyQty,
@@ -258,7 +262,10 @@
     var passengers = form.querySelector("[name='passengers']").value;
     var luggage = form.querySelector("[name='luggage']").value;
     var flight = form.querySelector("[name='flight_number']").value.trim();
-    var villa = form.querySelector("[name='villa']").value.trim();
+    var originEl = form.querySelector("[name='origin_city']");
+    var villaEl = form.querySelector("[name='villa']");
+    var origin = originEl ? originEl.value.trim() : "";
+    var villa = villaEl ? villaEl.value.trim() : "";
     if (trip !== "arrival" && trip !== "departure") {
       return text("Choisissez une arrivée ou un départ.", "Choose an arrival or a departure.");
     }
@@ -287,7 +294,12 @@
       setInvalid(form, "flight_number", true);
       return text("Indiquez le numéro de vol.", "Enter the flight number.");
     }
-    if (!villa) {
+    if (originEl) {
+      if (!origin) {
+        setInvalid(form, "origin_city", true);
+        return text("Indiquez la ville de provenance.", "Enter the city of origin.");
+      }
+    } else if (!villa) {
       setInvalid(form, "villa", true);
       return trip === "arrival"
         ? text("Indiquez la villa d’arrivée.", "Enter the arrival villa.")
@@ -385,12 +397,15 @@
       [text("Trajet", "Trip"), trip],
       [text("Date", "Date"), formatDate(data.fields.date)],
       [text("Heure", "Time"), time],
-      [text("Vol", "Flight"), data.fields.flight_number],
+      [text("Vol", "Flight"), data.fields.flight_number]
+    ];
+    if (data.fields.origin_city) rows.push([text("Ville de provenance", "City of origin"), data.fields.origin_city]);
+    rows.push(
       [text("Passagers", "Passengers"), String(data.fields.passengers)],
       [text("Véhicules", "Vehicles"), String(data.fields.vehicles || 1)],
       [text("Sièges bébé", "Baby seats"), String(data.fields.baby_seats || 0)],
       [text("Total", "Total"), money(data.price.total)]
-    ];
+    );
     node.innerHTML = rows.map(function (row) {
       return "<div><dt>" + row[0] + "</dt><dd>" + row[1] + "</dd></div>";
     }).join("");
@@ -416,8 +431,8 @@
       ? "Excursion"
       : text("Dans Marrakech", "In Marrakech");
     return text(
-      "Bonjour Papa,\nJe souhaite louer une voiture avec Massillya.\nNom : " + guest.name + "\nVilla : " + guest.villa + "\nDébut : " + fields.start_date + "\nFin : " + fields.end_date + "\nVéhicule : " + typeLabel + "\nPersonnes : " + fields.people + "\nLivraison : " + delivery + "\nUtilisation : " + usage + "\nCommentaire : " + (fields.comment || "—"),
-      "Hello Papa,\nI would like to rent a car with Massillya.\nName: " + guest.name + "\nVilla: " + guest.villa + "\nStart: " + fields.start_date + "\nEnd: " + fields.end_date + "\nVehicle: " + typeLabel + "\nPeople: " + fields.people + "\nDelivery: " + delivery + "\nUse: " + usage + "\nComment: " + (fields.comment || "—")
+      "Bonjour,\nJe souhaite louer une voiture avec l’agence Massillya.\nNom : " + guest.name + "\nVilla : " + guest.villa + "\nDébut : " + fields.start_date + "\nFin : " + fields.end_date + "\nVéhicule : " + typeLabel + "\nLivraison : " + delivery + "\nUtilisation : " + usage + "\nCommentaire : " + (fields.comment || "—"),
+      "Hello,\nI would like to rent a car with Massillya.\nName: " + guest.name + "\nVilla: " + guest.villa + "\nStart: " + fields.start_date + "\nEnd: " + fields.end_date + "\nVehicle: " + typeLabel + "\nDelivery: " + delivery + "\nUse: " + usage + "\nComment: " + (fields.comment || "—")
     );
   }
 
@@ -479,7 +494,6 @@
     var start = form.querySelector("[name='start_date']").value;
     var end = form.querySelector("[name='end_date']").value;
     var type = form.querySelector("input[name='car_type']:checked");
-    var people = form.querySelector("[name='people']").value;
     var delivery = form.querySelector("input[name='delivery']:checked");
     var usage = form.querySelector("input[name='usage']:checked");
     if (!start || start < todayISO()) {
@@ -493,10 +507,6 @@
     if (!type) {
       return text("Choisissez Citadine ou 4x4.", "Choose a city car or a 4x4.");
     }
-    if (!people) {
-      setInvalid(form, "people", true);
-      return text("Indiquez le nombre de personnes.", "Enter the number of people.");
-    }
     if (!delivery) return text("Choisissez la livraison : à la villa ou à l’aéroport.", "Choose delivery to the villa or to the airport.");
     if (!usage) return text("Choisissez l’utilisation.", "Choose how the car will be used.");
     return "";
@@ -507,12 +517,10 @@
       start_date: form.querySelector("[name='start_date']").value,
       end_date: form.querySelector("[name='end_date']").value,
       car_type: form.querySelector("input[name='car_type']:checked").value,
-      people: Number(form.querySelector("[name='people']").value),
       delivery: form.querySelector("input[name='delivery']:checked").value,
       usage: form.querySelector("input[name='usage']:checked").value,
       comment: form.querySelector("[name='comment']").value.trim(),
-      agency: "Massillya",
-      contact: "Papa"
+      agency: "Massillya"
     };
   }
 

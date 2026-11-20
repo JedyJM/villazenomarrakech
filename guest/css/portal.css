@@ -694,44 +694,66 @@ a.tile { color: inherit; text-decoration: none; }
 }
 
 .page-request { padding-bottom: calc(var(--nav-space) + 16px); }
-.page-meal { padding-bottom: calc(var(--nav-space) + 5.2rem); }
+.page-meal { padding-bottom: calc(var(--nav-space) + 20px); }
+body.has-meal-recap { padding-bottom: calc(var(--nav-space) + 96px); }
 .page-meal .meal-lead { margin: 0.1rem 0 0.35rem; }
 .page-meal .segments { margin: 0 0 6px; }
+.meal-breakfast { display: grid; gap: 10px; }
+.meal-breakfast[hidden] { display: none; }
+.meal-menu { display: grid; gap: 6px; }
+.meal-menu[hidden] { display: none; }
 .meal-kicker {
-  margin: 0.15rem 0 0;
+  margin: 0;
   font-size: 0.84rem;
   font-weight: 500;
   white-space: nowrap;
 }
 .meal-formula { margin: 0; font-size: 0.9rem; line-height: 1.5; }
-.meal-chips.chips { grid-template-columns: 1fr; gap: 4px; }
-.meal-chips button {
-  justify-content: flex-start;
-  height: 36px;
-  padding: 0 0.75rem;
-  font-size: 0.82rem;
-  white-space: nowrap;
+.meal-chips.chips {
+  display: flex;
+  flex-wrap: wrap;
+  grid-template-columns: none;
+  gap: 6px;
 }
+.meal-chips.chips button {
+  width: auto;
+  flex: none;
+  justify-content: center;
+  height: 32px;
+  padding: 0 0.72rem;
+  font-size: 0.78rem;
+}
+.meal-chips.chips button .chip-check { display: none; width: 12px; height: 12px; }
+.meal-chips.chips button[aria-pressed="true"] .chip-check { display: block; }
 .page-meal .form-card { padding: 12px; gap: 8px; }
 .page-meal .care-cat summary { min-height: 40px; }
-.meal-dishes { display: grid; gap: 0; padding: 0 0 0.35rem; }
+.page-meal .care-cat summary .sum-ico { display: flex; color: var(--terracotta); }
+.page-meal .care-cat summary .sum-ico svg { width: 16px; height: 16px; display: block; flex: none; }
+.meal-dishes { display: grid; gap: 0; padding: 0 0.75rem 0.4rem calc(0.75rem + 16px + 0.45rem); }
 .dish {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 0.35rem;
-  min-height: 38px;
+  gap: 0.3rem;
+  min-height: 36px;
 }
-.dish-name { font-size: 0.74rem; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.dish-name,
+.dish-price,
+.dish .stepper > span {
+  line-height: 1;
+}
+.dish-name { font-size: 0.66rem; white-space: nowrap; overflow: hidden; text-overflow: clip; }
 .dish-price { color: var(--muted); font-size: 0.74rem; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-.dish .stepper { gap: 0.2rem; }
-.dish .stepper button { width: 26px; height: 26px; font-size: 1rem; }
-.meal-chips button { height: 32px; font-size: 0.8rem; }
+.dish .stepper { gap: 0.2rem; align-items: center; }
+.meal-dishes .stepper button { width: 26px; height: 26px; font-size: 1rem; }
+.dish .stepper > span { min-width: 0.9rem; font-size: 0.82rem; }
 .meal-note {
-  margin: 0.15rem 0 0.35rem;
+  margin: 0.65rem 0.4rem 0;
   color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1.4;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: center;
+  text-wrap: balance;
 }
 .meal-recap {
   position: fixed;
@@ -749,6 +771,7 @@ a.tile { color: inherit; text-decoration: none; }
   font-size: 0.92rem;
   white-space: nowrap;
 }
+.meal-recap[hidden],
 body.is-typing .meal-recap { display: none; }
 .page-staff {
   display: flex;
@@ -1077,6 +1100,7 @@ body.is-typing .meal-recap { display: none; }
 .care .soin .stepper { display: none; }
 .care .soin:has(.soin-pick[aria-pressed="true"]) .stepper { display: flex; }
 .care .stepper button { width: 28px; height: 28px; font-size: 1rem; }
+.meal-dishes .dish .stepper button { width: 24px; height: 24px; }
 .care-when { margin-top: 8px; gap: 8px; padding: 12px; }
 .guide-prose {
   margin: 0;

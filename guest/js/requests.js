@@ -946,7 +946,11 @@
           total += item.sum;
         });
       }
-      if (recap) recap.textContent = personWord(people) + " · Total " + euro(total);
+      if (recap) {
+        recap.hidden = people < 1;
+        recap.textContent = people < 1 ? "" : personWord(people) + " · Total " + euro(total);
+      }
+      document.body.classList.toggle("has-meal-recap", people > 0);
       return { people: people, total: total };
     }
     function tomorrowISO() {

@@ -318,7 +318,7 @@ p { margin: 0; }
 }
 .contacts-body {
   overflow: auto;
-  padding: 0.35rem 0.85rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+  padding: 0.35rem 0.85rem calc(16px + env(safe-area-inset-bottom, 0px));
 }
 .contacts-card h3 {
   margin: 0.62rem 0 0.28rem;

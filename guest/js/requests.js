@@ -10,10 +10,9 @@
     storageKey: "villazeno.demandes"
   };
 
-  /* Google Apps Script web app URL for the sheet “Villa Zen’O – Bookings”.
-     Leave empty until the script is deployed. An empty value skips the sheet
-     and keeps the request in localStorage only. */
-  var APPS_SCRIPT_URL = "";
+  /* Google Apps Script web app for the sheet “Villa Zen’O – Bookings”.
+     An empty value skips the sheet and keeps the request in localStorage only. */
+  var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrmyFtKdhIovJAh2A-DjYfIYNwGWz7s-r_yKz8TDj29J1OcbnBPA7tIBV1qRJbtFcwlw/exec";
 
   /* Test routing for request WhatsApp buttons only.
      Flip TEST_MODE to false to open the real recipients again.
@@ -81,7 +80,7 @@
         mode: "no-cors",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload)
-      });
+      }).catch(function () {});
     } catch (e) {}
   }
 

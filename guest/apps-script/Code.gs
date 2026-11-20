@@ -1,7 +1,8 @@
 /**
- * Web app bound to the Google Sheet “Villa Zen’O – Bookings”.
+ * Standalone web app. Opens the spreadsheet by id.
  * doPost logs a guest request. doGet confirms one request.
  */
+var SHEET_ID = "1bd3xmrdjz7_Ae8xiu__OuxKUliQUWCvYg8i7J1ugMj8";
 var DEMANDES_HEADERS = [
   "id",
   "date_creation",
@@ -51,37 +52,37 @@ function doPost(e) {
 function doGet(e) {
   var params = (e && e.parameter) || {};
   if (params.action !== "confirm" || !params.id || !params.t) {
-    return htmlPage_("Ce lien n’est pas valable.");
+    return htmlPage_("Ce lien n\u2019est pas valable.");
   }
   var lock = LockService.getScriptLock();
   lock.waitLock(15000);
   try {
     var sheet = getDemandesSheet_();
     var row = findRow_(sheet, String(params.id));
-    if (!row) return htmlPage_("Ce lien n’est pas valable.");
+    if (!row) return htmlPage_("Ce lien n\u2019est pas valable.");
     var detailsRaw = String(sheet.getRange(row, 6).getValue() || "");
     var details = {};
     try {
       details = JSON.parse(detailsRaw);
     } catch (err) {
-      return htmlPage_("Ce lien n’est pas valable.");
+      return htmlPage_("Ce lien n\u2019est pas valable.");
     }
     if (!details.token || String(details.token) !== String(params.t)) {
-      return htmlPage_("Ce lien n’est pas valable.");
+      return htmlPage_("Ce lien n\u2019est pas valable.");
     }
     var status = String(sheet.getRange(row, 9).getValue() || "");
     var summary = details.resume || "";
-    if (status === "Confirmée") return htmlPage_("✅ Cette demande est déjà confirmée.", summary);
-    sheet.getRange(row, 9).setValue("Confirmée");
+    if (status === "Confirm\u00e9e") return htmlPage_("\u2705 Cette demande est d\u00e9j\u00e0 confirm\u00e9e.", summary);
+    sheet.getRange(row, 9).setValue("Confirm\u00e9e");
     sheet.getRange(row, 10).setValue(Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd HH:mm"));
-    return htmlPage_("✅ Demande confirmée. Merci !", summary);
+    return htmlPage_("\u2705 Demande confirm\u00e9e. Merci !", summary);
   } finally {
     lock.releaseLock();
   }
 }
 
 function getDemandesSheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName("Demandes");
   if (!sheet) {
     sheet = ss.insertSheet("Demandes");
@@ -116,13 +117,13 @@ function htmlPage_(message, summary) {
     : "";
   var html = "<!DOCTYPE html><html lang=\"fr\"><head><meta charset=\"utf-8\">"
     + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
-    + "<title>Villa Zen’O</title></head>"
+    + "<title>Villa Zen\u2019O</title></head>"
     + "<body style=\"margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f1ea;color:#1c1916;font-family:Georgia,'Times New Roman',serif;\">"
     + "<main style=\"width:min(22rem,calc(100% - 2.5rem));text-align:center;padding:2.5rem 0;\">"
     + "<h1 style=\"margin:0;font-weight:500;font-size:1.85rem;line-height:1.3;\">" + escapeHtml_(message) + "</h1>"
     + summaryHtml
     + "</main></body></html>";
-  return HtmlService.createHtmlOutput(html).setTitle("Villa Zen’O").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  return HtmlService.createHtmlOutput(html).setTitle("Villa Zen\u2019O").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function escapeHtml_(value) {

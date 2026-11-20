@@ -125,7 +125,7 @@
   }
 
   function money(amount) {
-    return amount + (isEn() ? " MAD" : " DH");
+    return amount + (isEn() ? "\u00A0MAD" : "\u00A0DH");
   }
 
   function todayISO() {
@@ -817,7 +817,7 @@
     if (!item || !item.days || !item.rate) return "";
     var days = Number(item.days);
     var rate = Number(item.rate);
-    return "Chauffage " + label + " · " + days + " jour" + (days > 1 ? "s" : "") + " × " + rate + " € = " + (days * rate) + " €";
+    return "Chauffage " + label + " · " + days + " jour" + (days > 1 ? "s" : "") + " × " + rate + "\u00A0€ = " + (days * rate) + "\u00A0€";
   }
 
   function paintHeating(root) {

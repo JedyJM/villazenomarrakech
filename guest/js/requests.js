@@ -1154,7 +1154,7 @@
         showSegment(root, button.getAttribute("data-show"));
       });
     });
-    if (root.querySelector("[data-show]")) showSegment(root, "airport");
+    if (root.querySelector("[data-show]")) showSegment(root, location.hash === "#ville" ? "city" : "airport");
 
     if (transfer) {
       var errorNode = transfer.querySelector("[data-errors]");

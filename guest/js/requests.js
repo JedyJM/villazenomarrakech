@@ -25,6 +25,23 @@
     return "https://api.whatsapp.com/send?phone=" + number + "&text=" + encodeURIComponent(message);
   }
 
+  function guestRoot() {
+    var path = window.location.pathname;
+    var mark = "/guest/";
+    var at = path.indexOf(mark);
+    var prefix = at === -1 ? "/guest/" : path.slice(0, at + mark.length);
+    return window.location.origin + prefix;
+  }
+
+  function confirmPageUrl(id, rows) {
+    var summary = rows.map(function (row) { return row[0] + " : " + row[1]; }).join("\n");
+    return guestRoot() + "confirmation.html?id=" + encodeURIComponent(id) + "&r=" + encodeURIComponent(summary);
+  }
+
+  function withStaffConfirm(message, id, rows) {
+    return message + "\n\n✅ Pour confirmer, appuyez ici :\n" + confirmPageUrl(id, rows);
+  }
+
   function getGuestFromStay() {
     // Placeholder. Name and phone will be looked up from the Google Sheet
     // "Villa Zen'O – Bookings", tab Réservations, using the stay booking id.
@@ -730,10 +747,12 @@
         showError(errorNode, message);
         if (message) return;
         var data = readTransfer(transfer);
-        data.fields.message = transferMessage(data.guest, data.fields, data.price);
-        submitRequest(baseRecord("transfert", data.guest, data.fields, data.price));
+        var rows = transferRows(data);
+        var record = baseRecord("transfert", data.guest, data.fields, data.price);
+        data.fields.message = withStaffConfirm(transferMessage(data.guest, data.fields, data.price), record.id, rows);
+        submitRequest(record);
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, data.fields.message));
-        showReceived(root, transferRows(data));
+        showReceived(root, rows);
       });
     }
 
@@ -755,15 +774,17 @@
         if (message) return;
         var guest = getGuestFromStay();
         var fields = readCity(city);
-        fields.message = cityMessage(guest, fields);
-        submitRequest(baseRecord("course", guest, fields, null));
-        openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, fields.message));
-        showReceived(root, [
+        var rows = [
           [text("Personnes", "People"), String(fields.passengers)],
           [text("Date", "Date"), formatDate(fields.date)],
           [text("Heure de prise en charge", "Pick-up time"), fields.pickup_time],
           [text("Destination", "Destination"), fields.destination]
-        ]);
+        ];
+        var record = baseRecord("course", guest, fields, null);
+        fields.message = withStaffConfirm(cityMessage(guest, fields), record.id, rows);
+        submitRequest(record);
+        openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, fields.message));
+        showReceived(root, rows);
       });
     }
 
@@ -781,10 +802,6 @@
         if (message) return;
         var guest = getGuestFromStay();
         var fields = readRental(rental);
-        var url = rentalUrl(guest, fields);
-        fields.message = rentalMessage(guest, fields);
-        submitRequest(baseRecord("location_voiture", guest, fields, null));
-        openGuestWhatsApp(url);
         var rentalRows = [
           [text("Prise en charge", "Pick-up"), formatDate(fields.start_date) + " · " + fields.pickup_time],
           [text("Restitution", "Return"), formatDate(fields.end_date) + " · " + fields.return_time],
@@ -793,6 +810,10 @@
           [text("Parcours", "Journey"), fields.usage === "excursion" ? "Excursion" : text("À Marrakech", "In Marrakech")]
         ];
         if (fields.comment) rentalRows.push([text("Commentaire", "Comment"), fields.comment]);
+        var record = baseRecord("location_voiture", guest, fields, null);
+        fields.message = withStaffConfirm(rentalMessage(guest, fields), record.id, rentalRows);
+        submitRequest(record);
+        openGuestWhatsApp(requestWhatsApp(RECIPIENTS.massillya, fields.message));
         showReceived(root, rentalRows);
       });
     }

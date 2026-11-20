@@ -15,7 +15,7 @@ One row per request. Amounts are in MAD. The French pages display the same amoun
 | id | `id` | |
 | created_at | `created_at` | ISO time |
 | service | `service` | `transfert`, `course`, or `location_voiture` |
-| status | `status` | `nouvelle` when the guest saves it |
+| status | `status` | `nouvelle` when the guest saves it. `confirmee` when the staff link in the WhatsApp message is opened on a browser that holds the same request |
 | guest_name | `guest.name` | Looked up from the Google Sheet “Villa Zen'O – Bookings”, tab Réservations, by booking id. Not typed by the guest. `getGuestFromStay()` is the placeholder until that lookup exists |
 | guest_phone | `guest.phone` | Same booking lookup as the name. Not typed by the guest |
 | guest_villa | `guest.villa` | |

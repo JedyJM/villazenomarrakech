@@ -69,7 +69,7 @@
       date_creation: record.created_at,
       service: record.service,
       sous_type: sousType || "",
-      nom_client: record.guest && record.guest.name ? record.guest.name : "",
+      nom_client: staffName(record.guest),
       details: details,
       total_dh: record.total == null ? "" : record.total,
       destinataire: destinataire
@@ -173,6 +173,21 @@
     return Number(parts[2]) + " " + month + " " + parts[0];
   }
 
+  function formatDateFr(iso) {
+    if (!iso) return "";
+    var parts = iso.split("-");
+    return Number(parts[2]) + " " + monthsFr[Number(parts[1]) - 1] + " " + parts[0];
+  }
+
+  function moneyFr(amount) {
+    return amount + " DH";
+  }
+
+  function staffName(guest) {
+    if (!guest || guest.example || guest.name === "Guest") return "Invité";
+    return guest.name;
+  }
+
   function paintPicker(input) {
     var display = input.parentElement.querySelector("[data-picker-value]");
     if (!display) return;
@@ -188,8 +203,8 @@
   function breakdown(q) {
     if (!q.ready || q.prompt) return "";
     var head = q.vehicles === 2
-      ? text("2 véhicules · " + q.loads[0] + "+" + q.loads[1] + " pers. ", "2 vehicles · " + q.loads[0] + "+" + q.loads[1] + " guests ")
-      : text("1 véhicule · " + (q.loads[0] <= 4 ? "1–4" : "5–8") + " pers. ", "1 vehicle · " + (q.loads[0] <= 4 ? "1–4" : "5–8") + " guests ");
+      ? text("2 véhicules · " + q.loads[0] + "+" + q.loads[1] + " pers. ", "2 cars · " + q.loads[0] + "+" + q.loads[1] + " guests ")
+      : text("1 véhicule · " + (q.loads[0] <= 4 ? "1–4" : "5–8") + " pers. ", "1 car · " + (q.loads[0] <= 4 ? "1–4" : "5–8") + " guests ");
     var line = head + money(q.price_base);
     if (q.supplements.length) {
       var qty = q.supplements[0].quantity;
@@ -211,7 +226,7 @@
     }
     box.hidden = false;
     if (q.prompt) {
-      total.textContent = text("Pour plus de 8 passagers, passez à 2 véhicules.", "For more than 8 passengers, switch to 2 vehicles.");
+      total.textContent = text("Pour plus de 8 passagers, passez à 2 véhicules.", "For more than 8 guests, please add a second car.");
       line.hidden = true;
       return;
     }
@@ -334,39 +349,39 @@
     var origin = originEl ? originEl.value.trim() : "";
     var villa = villaEl ? villaEl.value.trim() : "";
     if (trip !== "arrival" && trip !== "departure") {
-      return text("Veuillez choisir une arrivée ou un départ.", "Please choose an arrival or a departure.");
+      return text("Veuillez choisir une arrivée ou un départ.", "Please choose arrival or departure.");
     }
     if (!date || date < todayISO()) {
       setInvalid(form, "date", true);
-      return text("Veuillez indiquer une date à venir.", "Please enter a date that is not in the past.");
+      return text("Veuillez indiquer une date à venir.", "Please choose a future date.");
     }
     if (!time) {
       setInvalid(form, "time", true);
       return trip === "arrival"
-        ? text("Veuillez indiquer l’heure d’arrivée du vol.", "Please enter the flight arrival time.")
-        : text("Veuillez indiquer l’heure de prise en charge.", "Please enter the pick-up time at the villa.");
+        ? text("Veuillez indiquer l’heure d’arrivée du vol.", "Please add the arrival time.")
+        : text("Veuillez indiquer l’heure de prise en charge.", "Please add the pickup time.");
     }
     if (!passengers) {
       setInvalid(form, "passengers", true);
-      return text("Veuillez indiquer le nombre de passagers.", "Please enter the number of passengers.");
+      return text("Veuillez indiquer le nombre de passagers.", "Please add the number of guests.");
     }
     if ((Number(form.querySelector("[name='vehicles']").value) || 1) === 1 && Number(passengers) > rates.maxPassengers) {
-      return text("Pour plus de 8 passagers, passez à 2 véhicules.", "For more than 8 passengers, switch to 2 vehicles.");
+      return text("Pour plus de 8 passagers, passez à 2 véhicules.", "For more than 8 guests, please add a second car.");
     }
     if (luggage === "" || Number(luggage) < 0) {
       setInvalid(form, "luggage", true);
-      return text("Veuillez indiquer le nombre de bagages.", "Please enter the number of bags.");
+      return text("Veuillez indiquer le nombre de bagages.", "Please add the number of bags.");
     }
     if (askFlight && !flight) {
       setInvalid(form, "flight_number", true);
-      return text("Veuillez indiquer le numéro de vol.", "Please enter the flight number.");
+      return text("Veuillez indiquer le numéro de vol.", "Please add the flight number.");
     }
     if (askFlight && originEl) {
       if (!origin) {
         setInvalid(form, "origin_city", true);
         return trip === "arrival"
-          ? text("Veuillez indiquer la ville de provenance.", "Please enter the city of origin.")
-          : text("Veuillez indiquer la destination.", "Please enter the destination.");
+          ? text("Veuillez indiquer la ville de provenance.", "Please add the city you're flying from.")
+          : text("Veuillez indiquer la destination.", "Please add the destination.");
       }
     } else if (villaEl && !villa) {
       setInvalid(form, "villa", true);
@@ -383,8 +398,8 @@
     var villaLabel = form.querySelector("[data-villa-label]");
     if (timeLabel) {
       timeLabel.textContent = trip === "arrival"
-        ? text("Heure d’arrivée du vol", "Flight arrival time")
-        : text("Heure de prise en charge", "Pick-up time");
+        ? text("Heure d’arrivée du vol", "Arrival time")
+        : text("Heure de prise en charge", "Pickup time");
     }
     var flightRow = form.querySelector("[data-flight-row]");
     if (flightRow) flightRow.hidden = trip === "departure";
@@ -423,7 +438,7 @@
       line.hidden = true;
       split.hidden = false;
       var rows = price.loads.map(function (count, index) {
-        return text("Véhicule ", "Vehicle ") + (index + 1) + " · " + count + text(" pers. ", " guests ") + money(bandAmount(count));
+        return text("Véhicule ", "Car ") + (index + 1) + " · " + count + text(" pers. ", " guests ") + money(bandAmount(count));
       });
       if (price.supplements.length) {
         var qty = price.supplements[0].quantity;
@@ -454,22 +469,44 @@
     var arrival = data.fields.trip_type === "arrival";
     var villa = (data.guest && data.guest.villa) || "Villa Zen’O";
     var trip = arrival
-      ? "Aéroport RAK → " + villa
-      : villa + " → Aéroport RAK";
+      ? text("Aéroport RAK", "RAK Airport") + " → " + villa
+      : villa + " → " + text("Aéroport RAK", "RAK Airport");
     var time = data.fields.flight_arrival_time || data.fields.pickup_time;
     var rows = [
-      [text("Trajet", "Trip"), trip],
+      [text("Trajet", "Journey"), trip],
       [text("Date", "Date"), formatDate(data.fields.date)],
-      [arrival ? text("Heure d’arrivée du vol", "Flight arrival time") : text("Heure de prise en charge", "Pick-up time"), time]
+      [arrival ? text("Heure d’arrivée du vol", "Arrival time") : text("Heure de prise en charge", "Pickup time"), time]
     ];
     if (data.fields.flight_number) rows.push([text("Vol", "Flight"), data.fields.flight_number]);
-    if (data.fields.origin_city) rows.push([text("Ville de provenance", "City of origin"), data.fields.origin_city]);
+    if (data.fields.origin_city) rows.push([text("Ville de provenance", "From"), data.fields.origin_city]);
     rows.push(
       [text("Passagers", "Passengers"), String(data.fields.passengers)],
-      [text("Bagages", "Luggage"), String(data.fields.luggage)],
+      [text("Bagages", "Bags"), String(data.fields.luggage)],
       [text("Véhicules", "Vehicles"), String(data.fields.vehicles || 1)],
       [text("Sièges bébé", "Baby seats"), String(data.fields.baby_seats || 0)],
       [text("Total", "Total"), money(data.price.total)]
+    );
+    return rows;
+  }
+
+  function staffTransferRows(data) {
+    var arrival = data.fields.trip_type === "arrival";
+    var villa = (data.guest && data.guest.villa) || "Villa Zen’O";
+    var trip = arrival ? "Aéroport RAK → " + villa : villa + " → Aéroport RAK";
+    var time = data.fields.flight_arrival_time || data.fields.pickup_time;
+    var rows = [
+      ["Trajet", trip],
+      ["Date", formatDateFr(data.fields.date)],
+      [arrival ? "Heure d’arrivée du vol" : "Heure de prise en charge", time]
+    ];
+    if (data.fields.flight_number) rows.push(["Vol", data.fields.flight_number]);
+    if (data.fields.origin_city) rows.push(["Ville de provenance", data.fields.origin_city]);
+    rows.push(
+      ["Passagers", String(data.fields.passengers)],
+      ["Bagages", String(data.fields.luggage)],
+      ["Véhicules", String(data.fields.vehicles || 1)],
+      ["Sièges bébé", String(data.fields.baby_seats || 0)],
+      ["Total", moneyFr(data.price.total)]
     );
     return rows;
   }
@@ -499,10 +536,6 @@
     return value ? String(value).slice(0, 5) : "";
   }
 
-  function closing() {
-    return text("Merci d’avance.", "Thank you in advance.");
-  }
-
   function transferMessage(guest, fields, price) {
     var arrival = fields.trip_type === "arrival";
     var villa = guest.villa || "Villa Zen’O";
@@ -510,30 +543,22 @@
       "Bonjour,",
       "",
       arrival
-        ? text(
-          "Je séjournerai prochainement à la " + villa + " et souhaite réserver un transfert depuis l’aéroport RAK.",
-          "I will soon be staying at " + villa + " and would like to reserve a transfer from RAK airport."
-        )
-        : text(
-          "Je séjourne actuellement à la " + villa + " et souhaite réserver un transfert vers l’aéroport RAK.",
-          "I am currently staying at " + villa + " and would like to reserve a transfer to RAK airport."
-        ),
+        ? "Je séjournerai prochainement à la " + villa + " et souhaite réserver un transfert depuis l’aéroport RAK."
+        : "Je séjourne actuellement à la " + villa + " et souhaite réserver un transfert vers l’aéroport RAK.",
       "",
-      text("Nom : ", "Name: ") + guest.name,
-      text("Trajet : ", "Journey: ") + (arrival ? "Aéroport RAK → " + villa : villa + " → Aéroport RAK"),
-      text("Date : ", "Date: ") + formatDate(fields.date),
-      (arrival ? text("Heure d’arrivée du vol : ", "Flight arrival time: ") : text("Heure de prise en charge : ", "Pick-up time: ")) + clock(fields.flight_arrival_time || fields.pickup_time),
-      text("Passagers : ", "Passengers: ") + fields.passengers,
-      text("Bagages : ", "Luggage: ") + fields.luggage,
-      text("Véhicules : ", "Vehicles: ") + fields.vehicles
+      "Nom : " + staffName(guest),
+      "Trajet : " + (arrival ? "Aéroport RAK → " + villa : villa + " → Aéroport RAK"),
+      "Date : " + formatDateFr(fields.date),
+      (arrival ? "Heure d’arrivée du vol : " : "Heure de prise en charge : ") + clock(fields.flight_arrival_time || fields.pickup_time),
+      "Passagers : " + fields.passengers,
+      "Bagages : " + fields.luggage,
+      "Véhicules : " + fields.vehicles
     ];
-    if (fields.flight_number) lines.push(text("Vol : ", "Flight: ") + fields.flight_number);
-    if (fields.origin_city) lines.push(text("Ville de provenance : ", "City of origin: ") + fields.origin_city);
-    lines.push(
-      text("Sièges bébé : ", "Baby seats: ") + (fields.baby_seats ? fields.baby_seats : text("Aucun", "None"))
-    );
-    if (fields.comment) lines.push(text("Commentaire : ", "Comment: ") + fields.comment);
-    lines.push(text("Total : ", "Total: ") + money(price.total), "", closing());
+    if (fields.flight_number) lines.push("Vol : " + fields.flight_number);
+    if (fields.origin_city) lines.push("Ville de provenance : " + fields.origin_city);
+    lines.push("Sièges bébé : " + (fields.baby_seats ? fields.baby_seats : "Aucun"));
+    if (fields.comment) lines.push("Commentaire : " + fields.comment);
+    lines.push("Total : " + moneyFr(price.total), "", "Merci d’avance.");
     return lines.join("\n");
   }
 
@@ -541,20 +566,17 @@
     return [
       "Bonjour,",
       "",
-      text(
-        "Je séjourne actuellement à la " + guest.villa + " et souhaite réserver une course en ville.",
-        "I am currently staying at " + guest.villa + " and would like to reserve a city ride."
-      ),
+      "Je séjourne actuellement à la " + guest.villa + " et souhaite réserver une course en ville.",
       "",
-      text("Nom : ", "Name: ") + guest.name,
-      text("Nombre de personnes : ", "Number of guests: ") + fields.passengers,
-      text("Date de prise en charge : ", "Pick-up date: ") + formatDate(fields.date),
-      text("Heure de prise en charge : ", "Pick-up time: ") + fields.pickup_time,
-      text("Destination : ", "Destination: ") + fields.destination,
+      "Nom : " + staffName(guest),
+      "Nombre de personnes : " + fields.passengers,
+      "Date de prise en charge : " + formatDateFr(fields.date),
+      "Heure de prise en charge : " + fields.pickup_time,
+      "Destination : " + fields.destination,
       "",
-      text("Pourriez-vous m’indiquer le tarif de cette course ?", "Could you tell me the fare for this ride?"),
+      "Pourriez-vous m’indiquer le tarif de cette course ?",
       "",
-      closing()
+      "Merci d’avance."
     ].join("\n");
   }
 
@@ -563,38 +585,25 @@
   }
 
   function rentalMessage(guest, fields) {
-    var typeLabel = fields.car_type === "4x4" ? "4×4" : text("Citadine", "City car");
-    var delivery = fields.delivery === "airport"
-      ? text("À l’aéroport", "To the airport")
-      : text("À la villa", "To the villa");
-    var usage = fields.usage === "excursion"
-      ? "Excursion"
-      : text("À Marrakech", "In Marrakech");
+    var typeLabel = fields.car_type === "4x4" ? "4×4" : "Citadine";
+    var delivery = fields.delivery === "airport" ? "À l’aéroport" : "À la villa";
+    var usage = fields.usage === "excursion" ? "Excursion" : "À Marrakech";
     var when = fields.pickup_time
-      ? text(
-        "Prise en charge : " + formatDate(fields.start_date) + " à " + fields.pickup_time + "\nRestitution : " + formatDate(fields.end_date) + " à " + fields.return_time,
-        "Pick-up: " + formatDate(fields.start_date) + " at " + fields.pickup_time + "\nReturn: " + formatDate(fields.end_date) + " at " + fields.return_time
-      )
-      : text(
-        "Début : " + fields.start_date + "\nFin : " + fields.end_date,
-        "Start: " + fields.start_date + "\nEnd: " + fields.end_date
-      );
+      ? "Prise en charge : " + formatDateFr(fields.start_date) + " à " + fields.pickup_time + "\nRestitution : " + formatDateFr(fields.end_date) + " à " + fields.return_time
+      : "Début : " + fields.start_date + "\nFin : " + fields.end_date;
     var lines = [
       "Bonjour,",
       "",
-      text(
-        "Je séjourne actuellement à la " + guest.villa + " et souhaite réserver un véhicule auprès de l’agence Massillya.",
-        "I am currently staying at " + guest.villa + " and would like to reserve a car with Massillya."
-      ),
+      "Je séjourne actuellement à la " + guest.villa + " et souhaite réserver un véhicule auprès de l’agence Massillya.",
       "",
-      text("Nom : ", "Name: ") + guest.name,
+      "Nom : " + staffName(guest),
       when,
-      text("Véhicule : ", "Vehicle: ") + typeLabel,
-      text("Livraison : ", "Delivery: ") + delivery,
-      text("Parcours : ", "Journey: ") + usage
+      "Véhicule : " + typeLabel,
+      "Livraison : " + delivery,
+      "Parcours : " + usage
     ];
-    if (fields.comment) lines.push(text("Commentaire : ", "Comment: ") + fields.comment);
-    lines.push("", text("Pourriez-vous m’indiquer le tarif et les disponibilités ?", "Could you tell me the rate and the availability?"), "", closing());
+    if (fields.comment) lines.push("Commentaire : " + fields.comment);
+    lines.push("", "Pourriez-vous m’indiquer le tarif et les disponibilités ?", "", "Merci d’avance.");
     return lines.join("\n");
   }
 
@@ -622,19 +631,19 @@
     var destination = form.querySelector("[name='destination']").value.trim();
     var passengers = Number(form.querySelector("[name='passengers']").value);
     if (!passengers || passengers < 1 || passengers > 8) {
-      return text("Veuillez indiquer entre 1 et 8 personnes.", "Please enter between 1 and 8 people.");
+      return text("Veuillez indiquer entre 1 et 8 personnes.", "Please choose between 1 and 8 guests.");
     }
     if (!date || date < todayISO()) {
       setInvalid(form, "date", true);
-      return text("Veuillez indiquer une date de prise en charge à venir.", "Please enter a pick-up date that is not in the past.");
+      return text("Veuillez indiquer une date de prise en charge à venir.", "Please choose a pickup date.");
     }
     if (!time) {
       setInvalid(form, "time", true);
-      return text("Veuillez indiquer l’heure de prise en charge.", "Please enter the pick-up time.");
+      return text("Veuillez indiquer l’heure de prise en charge.", "Please add the pickup time.");
     }
     if (!destination) {
       setInvalid(form, "destination", true);
-      return text("Veuillez indiquer la destination.", "Please enter the destination.");
+      return text("Veuillez indiquer la destination.", "Please add the destination.");
     }
     return "";
   }
@@ -668,27 +677,27 @@
     var usage = form.querySelector("input[name='usage']:checked");
     if (!start || start < todayISO()) {
       setInvalid(form, "start_date", true);
-      return text("Veuillez indiquer une date de prise en charge à venir.", "Please enter a pick-up date that is not in the past.");
+      return text("Veuillez indiquer une date de prise en charge à venir.", "Please choose a pickup date.");
     }
     if (hasTime && !startTime) {
       setInvalid(form, "pickup_time", true);
-      return text("Veuillez indiquer l’heure de prise en charge.", "Please enter the pick-up time.");
+      return text("Veuillez indiquer l’heure de prise en charge.", "Please add the pickup time.");
     }
     if (!end || end < start) {
       setInvalid(form, "end_date", true);
-      return text("La restitution doit suivre la prise en charge.", "The return must be after the pick-up.");
+      return text("La restitution doit suivre la prise en charge.", "The return must be after pickup.");
     }
     if (hasTime && !endTime) {
       setInvalid(form, "return_time", true);
-      return text("Veuillez indiquer l’heure de restitution.", "Please enter the return time.");
+      return text("Veuillez indiquer l’heure de restitution.", "Please add the return time.");
     }
     if (hasTime && end === start && endTime <= startTime) {
       setInvalid(form, "return_time", true);
-      return text("L’heure de restitution doit être postérieure à la prise en charge.", "The return time must be after the pick-up.");
+      return text("L’heure de restitution doit être postérieure à la prise en charge.", "The return time must be after pickup.");
     }
     if (!type) return text("Veuillez choisir une citadine ou un 4×4.", "Please choose a city car or a 4×4.");
-    if (!delivery) return text("Veuillez préciser le lieu de livraison.", "Please choose where the car should be delivered.");
-    if (!usage) return text("Veuillez préciser le parcours.", "Please choose the type of journey.");
+    if (!delivery) return text("Veuillez préciser le lieu de livraison.", "Please choose where we should deliver the car.");
+    if (!usage) return text("Veuillez préciser le parcours.", "Please tell us how you plan to use the car.");
     return "";
   }
 
@@ -796,7 +805,7 @@
         data.fields.message = withStaffConfirm(transferMessage(data.guest, data.fields, data.price), record.id, record.token);
         submitRequest(record);
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, data.fields.message));
-        postToSheet(sheetPayload(record, record.token, data.fields.trip_type === "departure" ? "départ" : "arrivée", "Hicham", rows));
+        postToSheet(sheetPayload(record, record.token, data.fields.trip_type === "departure" ? "départ" : "arrivée", "Hicham", staffTransferRows(data)));
         showReceived(root, rows);
       });
     }
@@ -820,17 +829,23 @@
         var guest = getGuestFromStay();
         var fields = readCity(city);
         var rows = [
-          [text("Personnes", "People"), String(fields.passengers)],
+          [text("Personnes", "Guests"), String(fields.passengers)],
           [text("Date", "Date"), formatDate(fields.date)],
-          [text("Heure de prise en charge", "Pick-up time"), fields.pickup_time],
+          [text("Heure de prise en charge", "Pickup time"), fields.pickup_time],
           [text("Destination", "Destination"), fields.destination]
+        ];
+        var staffRows = [
+          ["Personnes", String(fields.passengers)],
+          ["Date", formatDateFr(fields.date)],
+          ["Heure de prise en charge", fields.pickup_time],
+          ["Destination", fields.destination]
         ];
         var record = baseRecord("course", guest, fields, null);
         record.token = newToken();
         fields.message = withStaffConfirm(cityMessage(guest, fields), record.id, record.token);
         submitRequest(record);
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, fields.message));
-        postToSheet(sheetPayload(record, record.token, "en ville", "Hicham", rows));
+        postToSheet(sheetPayload(record, record.token, "en ville", "Hicham", staffRows));
         showReceived(root, rows);
       });
     }
@@ -850,19 +865,27 @@
         var guest = getGuestFromStay();
         var fields = readRental(rental);
         var rentalRows = [
-          [text("Prise en charge", "Pick-up"), formatDate(fields.start_date) + " · " + fields.pickup_time],
+          [text("Prise en charge", "Pickup"), formatDate(fields.start_date) + " · " + fields.pickup_time],
           [text("Restitution", "Return"), formatDate(fields.end_date) + " · " + fields.return_time],
           [text("Véhicule", "Vehicle"), fields.car_type === "4x4" ? "4×4" : text("Citadine", "City car")],
-          [text("Livraison", "Delivery"), fields.delivery === "airport" ? text("À l’aéroport", "To the airport") : text("À la villa", "To the villa")],
-          [text("Parcours", "Journey"), fields.usage === "excursion" ? "Excursion" : text("À Marrakech", "In Marrakech")]
+          [text("Livraison", "Delivery"), fields.delivery === "airport" ? text("À l’aéroport", "RAK Airport") : text("À la villa", "The villa")],
+          [text("Parcours", "Plans"), fields.usage === "excursion" ? text("Excursion", "A day trip") : text("À Marrakech", "In Marrakech")]
         ];
-        if (fields.comment) rentalRows.push([text("Commentaire", "Comment"), fields.comment]);
+        if (fields.comment) rentalRows.push([text("Commentaire", "Note"), fields.comment]);
+        var staffRentalRows = [
+          ["Prise en charge", formatDateFr(fields.start_date) + " · " + fields.pickup_time],
+          ["Restitution", formatDateFr(fields.end_date) + " · " + fields.return_time],
+          ["Véhicule", fields.car_type === "4x4" ? "4×4" : "Citadine"],
+          ["Livraison", fields.delivery === "airport" ? "À l’aéroport" : "À la villa"],
+          ["Parcours", fields.usage === "excursion" ? "Excursion" : "À Marrakech"]
+        ];
+        if (fields.comment) staffRentalRows.push(["Commentaire", fields.comment]);
         var record = baseRecord("location_voiture", guest, fields, null);
         record.token = newToken();
         fields.message = withStaffConfirm(rentalMessage(guest, fields), record.id, record.token);
         submitRequest(record);
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.massillya, fields.message));
-        postToSheet(sheetPayload(record, record.token, fields.car_type === "4x4" ? "4x4" : "citadine", "Massillya", rentalRows));
+        postToSheet(sheetPayload(record, record.token, fields.car_type === "4x4" ? "4x4" : "citadine", "Massillya", staffRentalRows));
         showReceived(root, rentalRows);
       });
     }

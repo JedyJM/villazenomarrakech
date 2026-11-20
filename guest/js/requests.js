@@ -705,13 +705,10 @@
   }
 
   function openGuestWhatsApp(url) {
-    var link = document.createElement("a");
-    link.href = url;
-    link.target = "_blank";
-    link.rel = "noopener";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    // iOS Safari only allows this during the tap itself. A fetch, even one
+    // that is not awaited, ends that permission, so this call stays first.
+    var popup = window.open(url, "_blank");
+    if (!popup) window.location.href = url;
   }
 
   function framePage() {
@@ -794,8 +791,8 @@
         record.token = newToken();
         data.fields.message = withStaffConfirm(transferMessage(data.guest, data.fields, data.price), record.id, record.token);
         submitRequest(record);
-        postToSheet(sheetPayload(record, record.token, data.fields.trip_type === "departure" ? "départ" : "arrivée", "Hicham", rows));
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, data.fields.message));
+        postToSheet(sheetPayload(record, record.token, data.fields.trip_type === "departure" ? "départ" : "arrivée", "Hicham", rows));
         showReceived(root, rows);
       });
     }
@@ -828,8 +825,8 @@
         record.token = newToken();
         fields.message = withStaffConfirm(cityMessage(guest, fields), record.id, record.token);
         submitRequest(record);
-        postToSheet(sheetPayload(record, record.token, "en ville", "Hicham", rows));
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, fields.message));
+        postToSheet(sheetPayload(record, record.token, "en ville", "Hicham", rows));
         showReceived(root, rows);
       });
     }
@@ -860,8 +857,8 @@
         record.token = newToken();
         fields.message = withStaffConfirm(rentalMessage(guest, fields), record.id, record.token);
         submitRequest(record);
-        postToSheet(sheetPayload(record, record.token, fields.car_type === "4x4" ? "4x4" : "citadine", "Massillya", rentalRows));
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.massillya, fields.message));
+        postToSheet(sheetPayload(record, record.token, fields.car_type === "4x4" ? "4x4" : "citadine", "Massillya", rentalRows));
         showReceived(root, rentalRows);
       });
     }

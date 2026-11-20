@@ -121,6 +121,26 @@
     });
   }
 
+  var contactsDialog = document.getElementById("contacts-dialog");
+  var contactButtons = document.querySelectorAll("[data-open-contacts]");
+  if (contactsDialog) {
+    contactButtons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        if (typeof contactsDialog.showModal === "function") contactsDialog.showModal();
+        contactButtons.forEach(function (item) { item.setAttribute("aria-expanded", "true"); });
+      });
+    });
+    contactsDialog.querySelectorAll("[data-contacts-close]").forEach(function (button) {
+      button.addEventListener("click", function () { contactsDialog.close(); });
+    });
+    contactsDialog.addEventListener("click", function (event) {
+      if (event.target === contactsDialog) contactsDialog.close();
+    });
+    contactsDialog.addEventListener("close", function () {
+      contactButtons.forEach(function (item) { item.setAttribute("aria-expanded", "false"); });
+    });
+  }
+
   var header = document.querySelector(".site-header");
   function onScroll() {
     if (!header) return;

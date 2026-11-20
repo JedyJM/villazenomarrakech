@@ -239,6 +239,82 @@ h1 em { font-style: italic; font-weight: 500; }
   cursor: pointer;
 }
 .wifi-scan svg { width: 14px; height: 14px; flex: none; }
+.contacts-dialog {
+  border: 0;
+  padding: 0;
+  margin: auto 0 0;
+  width: min(32rem, 100%);
+  max-width: 100%;
+  max-height: min(86dvh, 640px);
+  background: transparent;
+}
+.contacts-dialog::backdrop { background: rgba(28, 25, 22, 0.48); }
+.contacts-card {
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 16px 16px 0 0;
+  max-height: min(86dvh, 640px);
+  overflow: auto;
+  padding: 0.85rem 0.9rem 1.15rem;
+}
+.contacts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  position: sticky;
+  top: -0.85rem;
+  margin: -0.85rem -0.9rem 0.7rem;
+  padding: 0.85rem 0.9rem 0.55rem;
+  background: var(--paper);
+}
+.contacts-head h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+.contacts-card h3 {
+  margin: 0.85rem 0 0.15rem;
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--terracotta);
+}
+.contacts-source, .contacts-note {
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+.contact-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+.contact-list a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-height: 44px;
+  justify-content: center;
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.contact-list a span {
+  font-weight: 500;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.contacts-note a { color: var(--terracotta-dark); }
 .qr-dialog {
   border: 0;
   padding: 0;
@@ -317,28 +393,34 @@ h1 em { font-style: italic; font-weight: 500; }
   bottom: 0;
   z-index: 50;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   background: rgba(255, 250, 243, 0.96);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--line);
   padding: 0.1rem 0.1rem calc(0.12rem + env(safe-area-inset-bottom, 0px));
 }
-.bottom-nav a {
+.bottom-nav a,
+.bottom-nav button {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.08rem;
+  width: 100%;
   min-height: 46px;
-  padding: 0.28rem 0.1rem 0.2rem;
+  padding: 0.28rem 0.15rem 0.2rem;
   text-decoration: none;
+  background: none;
+  border: 0;
   color: var(--muted);
   font-size: 0.62rem;
   font-weight: 500;
   line-height: 1.1;
   text-align: center;
+  cursor: pointer;
 }
+.bottom-nav button[aria-expanded="true"] { color: var(--terracotta); }
 .bottom-nav svg { width: 18px; height: 18px; display: block; }
 .bottom-nav .stroke {
   fill: none;
@@ -348,8 +430,10 @@ h1 em { font-style: italic; font-weight: 500; }
   stroke-linejoin: round;
 }
 .bottom-nav a[data-nav="whatsapp"] { color: #18853c; }
-.bottom-nav a[aria-current="location"] { color: var(--terracotta); }
-.bottom-nav a[aria-current="location"]::before {
+.bottom-nav a[aria-current="location"],
+.bottom-nav button[aria-current="location"] { color: var(--terracotta); }
+.bottom-nav a[aria-current="location"]::before,
+.bottom-nav button[aria-expanded="true"]::before {
   content: "";
   position: absolute;
   top: 0;
@@ -379,7 +463,7 @@ h1 em { font-style: italic; font-weight: 500; }
   .tile-ico svg { width: 14px; height: 14px; }
   .tile h3 { font-size: 0.76rem; }
   .tile p { font-size: 0.62rem; }
-  .bottom-nav a { min-height: 42px; font-size: 0.58rem; }
+  .bottom-nav a, .bottom-nav button { min-height: 42px; font-size: 0.58rem; }
 }
 
 @media (min-width: 760px) {
@@ -397,15 +481,22 @@ h1 em { font-style: italic; font-weight: 500; }
     justify-self: center;
     gap: 1.1rem;
   }
-  .desktop-nav a {
+  .desktop-nav a,
+  .desktop-nav button {
     text-decoration: none;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
     color: var(--ink);
     font-size: 0.76rem;
     letter-spacing: 0.07em;
     text-transform: uppercase;
   }
   .desktop-nav a[aria-current="location"],
-  .desktop-nav a:hover { color: var(--terracotta); }
+  .desktop-nav a:hover,
+  .desktop-nav button:hover,
+  .desktop-nav button[aria-expanded="true"] { color: var(--terracotta); }
   .header-tools, .lang-switch { justify-self: end; }
   .welcome-photo { height: 220px; }
   .home-stack { padding: 1.4rem 0 1rem; }

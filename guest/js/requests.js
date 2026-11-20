@@ -10,6 +10,11 @@
     storageKey: "villazeno.demandes"
   };
 
+  /* Google Apps Script web app URL for the sheet “Villa Zen’O – Bookings”.
+     Leave empty until the script is deployed. An empty value skips the sheet
+     and keeps the request in localStorage only. */
+  var APPS_SCRIPT_URL = "";
+
   /* Test routing for request WhatsApp buttons only.
      Flip TEST_MODE to false to open the real recipients again.
      TEST_WHATSAPP is Mehdi, the owner number in Contacts utiles. */
@@ -25,21 +30,56 @@
     return "https://api.whatsapp.com/send?phone=" + number + "&text=" + encodeURIComponent(message);
   }
 
-  function guestRoot() {
-    var path = window.location.pathname;
-    var mark = "/guest/";
-    var at = path.indexOf(mark);
-    var prefix = at === -1 ? "/guest/" : path.slice(0, at + mark.length);
-    return window.location.origin + prefix;
+  function newToken() {
+    var bytes = new Uint8Array(16);
+    if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+    else {
+      for (var i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    }
+    var hex = "";
+    for (var j = 0; j < bytes.length; j++) hex += ("0" + bytes[j].toString(16)).slice(-2);
+    return hex;
   }
 
-  function confirmPageUrl(id, rows) {
-    var summary = rows.map(function (row) { return row[0] + " : " + row[1]; }).join("\n");
-    return guestRoot() + "confirmation.html?id=" + encodeURIComponent(id) + "&r=" + encodeURIComponent(summary);
+  function confirmLink(id, token) {
+    var join = APPS_SCRIPT_URL.indexOf("?") === -1 ? "?" : "&";
+    return APPS_SCRIPT_URL + join + "action=confirm&id=" + encodeURIComponent(id) + "&t=" + encodeURIComponent(token);
   }
 
-  function withStaffConfirm(message, id, rows) {
-    return message + "\n\n✅ Pour confirmer, appuyez ici :\n" + confirmPageUrl(id, rows);
+  function withStaffConfirm(message, id, token) {
+    if (!APPS_SCRIPT_URL || !token) return message;
+    return message + "\n\nPour confirmer la prise en charge de cette demande :\n" + confirmLink(id, token);
+  }
+
+  function sheetPayload(record, token, sousType, destinataire) {
+    var fields = record.fields || {};
+    var details = { token: token };
+    Object.keys(fields).forEach(function (key) {
+      if (key !== "message") details[key] = fields[key];
+    });
+    return {
+      id: record.id,
+      token: token,
+      date_creation: record.created_at,
+      service: record.service,
+      sous_type: sousType || "",
+      nom_client: record.guest && record.guest.name ? record.guest.name : "",
+      details: details,
+      total_dh: record.total == null ? "" : record.total,
+      destinataire: destinataire
+    };
+  }
+
+  function postToSheet(payload) {
+    if (!APPS_SCRIPT_URL || !window.fetch) return;
+    try {
+      window.fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {}
   }
 
   function getGuestFromStay() {
@@ -749,8 +789,10 @@
         var data = readTransfer(transfer);
         var rows = transferRows(data);
         var record = baseRecord("transfert", data.guest, data.fields, data.price);
-        data.fields.message = withStaffConfirm(transferMessage(data.guest, data.fields, data.price), record.id, rows);
+        record.token = newToken();
+        data.fields.message = withStaffConfirm(transferMessage(data.guest, data.fields, data.price), record.id, record.token);
         submitRequest(record);
+        postToSheet(sheetPayload(record, record.token, data.fields.trip_type === "departure" ? "départ" : "arrivée", "Hicham"));
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, data.fields.message));
         showReceived(root, rows);
       });
@@ -781,8 +823,10 @@
           [text("Destination", "Destination"), fields.destination]
         ];
         var record = baseRecord("course", guest, fields, null);
-        fields.message = withStaffConfirm(cityMessage(guest, fields), record.id, rows);
+        record.token = newToken();
+        fields.message = withStaffConfirm(cityMessage(guest, fields), record.id, record.token);
         submitRequest(record);
+        postToSheet(sheetPayload(record, record.token, "en ville", "Hicham"));
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, fields.message));
         showReceived(root, rows);
       });
@@ -811,8 +855,10 @@
         ];
         if (fields.comment) rentalRows.push([text("Commentaire", "Comment"), fields.comment]);
         var record = baseRecord("location_voiture", guest, fields, null);
-        fields.message = withStaffConfirm(rentalMessage(guest, fields), record.id, rentalRows);
+        record.token = newToken();
+        fields.message = withStaffConfirm(rentalMessage(guest, fields), record.id, record.token);
         submitRequest(record);
+        postToSheet(sheetPayload(record, record.token, fields.car_type === "4x4" ? "4x4" : "citadine", "Massillya"));
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.massillya, fields.message));
         showReceived(root, rentalRows);
       });

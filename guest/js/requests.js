@@ -387,7 +387,7 @@
     if (duration) duration.hidden = name !== "airport";
   }
 
-  function fillConfirmation(node, data) {
+  function transferRows(data) {
     var arrival = data.fields.trip_type === "arrival";
     var villa = (data.guest && data.guest.villa) || "Villa Zen’O";
     var trip = arrival
@@ -408,9 +408,28 @@
       [text("Sièges bébé", "Baby seats"), String(data.fields.baby_seats || 0)],
       [text("Total", "Total"), money(data.price.total)]
     );
+    return rows;
+  }
+
+  function renderRows(node, rows) {
     node.innerHTML = rows.map(function (row) {
       return "<div><dt>" + row[0] + "</dt><dd>" + row[1] + "</dd></div>";
     }).join("");
+  }
+
+  function showReceived(root, rows) {
+    framePage();
+    var done = root.querySelector("[data-confirm]");
+    renderRows(done.querySelector("[data-confirm-list]"), rows);
+    root.querySelectorAll("[data-panel]").forEach(function (panel) { panel.hidden = true; });
+    done.hidden = false;
+    var segments = root.querySelector(".segments");
+    if (segments) segments.hidden = true;
+    var pageTitle = root.querySelector("h1");
+    if (pageTitle) pageTitle.hidden = true;
+    var notes = root.querySelector("[data-segment-notes]");
+    if (notes) notes.hidden = true;
+    framePage();
   }
 
   function clock(value) {
@@ -470,6 +489,8 @@
       text("Heure de prise en charge : ", "Pick-up time: ") + fields.pickup_time,
       text("Destination : ", "Destination: ") + fields.destination,
       "",
+      text("Pourriez-vous m’indiquer le tarif de cette course ?", "Could you tell me the fare for this ride?"),
+      "",
       closing()
     ].join("\n");
   }
@@ -510,7 +531,7 @@
       text("Parcours : ", "Journey: ") + usage
     ];
     if (fields.comment) lines.push(text("Commentaire : ", "Comment: ") + fields.comment);
-    lines.push("", closing());
+    lines.push("", text("Pourriez-vous m’indiquer le tarif et les disponibilités ?", "Could you tell me the rate and the availability?"), "", closing());
     return lines.join("\n");
   }
 
@@ -712,17 +733,7 @@
         data.fields.message = transferMessage(data.guest, data.fields, data.price);
         submitRequest(baseRecord("transfert", data.guest, data.fields, data.price));
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, data.fields.message));
-        framePage();
-        transfer.hidden = true;
-        var done = root.querySelector("[data-confirm]");
-        fillConfirmation(done.querySelector("[data-confirm-list]"), data);
-        done.hidden = false;
-        root.querySelector(".segments").hidden = true;
-        var pageTitle = root.querySelector("h1");
-        if (pageTitle) pageTitle.hidden = true;
-        var notes = root.querySelector("[data-segment-notes]");
-        if (notes) notes.hidden = true;
-        framePage();
+        showReceived(root, transferRows(data));
       });
     }
 
@@ -747,6 +758,12 @@
         fields.message = cityMessage(guest, fields);
         submitRequest(baseRecord("course", guest, fields, null));
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, fields.message));
+        showReceived(root, [
+          [text("Personnes", "People"), String(fields.passengers)],
+          [text("Date", "Date"), formatDate(fields.date)],
+          [text("Heure de prise en charge", "Pick-up time"), fields.pickup_time],
+          [text("Destination", "Destination"), fields.destination]
+        ]);
       });
     }
 
@@ -768,6 +785,15 @@
         fields.message = rentalMessage(guest, fields);
         submitRequest(baseRecord("location_voiture", guest, fields, null));
         openGuestWhatsApp(url);
+        var rentalRows = [
+          [text("Prise en charge", "Pick-up"), formatDate(fields.start_date) + " · " + fields.pickup_time],
+          [text("Restitution", "Return"), formatDate(fields.end_date) + " · " + fields.return_time],
+          [text("Véhicule", "Vehicle"), fields.car_type === "4x4" ? "4×4" : text("Citadine", "City car")],
+          [text("Livraison", "Delivery"), fields.delivery === "airport" ? text("À l’aéroport", "To the airport") : text("À la villa", "To the villa")],
+          [text("Parcours", "Journey"), fields.usage === "excursion" ? "Excursion" : text("À Marrakech", "In Marrakech")]
+        ];
+        if (fields.comment) rentalRows.push([text("Commentaire", "Comment"), fields.comment]);
+        showReceived(root, rentalRows);
       });
     }
   }

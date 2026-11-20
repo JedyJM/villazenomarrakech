@@ -1005,4 +1005,4 @@ a.request-submit:active { color: var(--paper); text-decoration: none; }
 }
 .confirm-list div:first-child { border-top: 0; }
 .confirm-list dt { margin: 0; color: var(--muted); font-weight: 400; flex: none; }
-.confirm-list dd { margin: 0; min-width: 0; color: var(--ink); font-weight: 500; text-align: right; overflow-wrap: anywhere; }
+.confirm-list dd { margin: 0; min-width: 0; color: var(--ink); font-weight: 500; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

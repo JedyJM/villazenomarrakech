@@ -373,14 +373,10 @@
     root.querySelectorAll("[data-panel]").forEach(function (panel) {
       panel.hidden = panel.getAttribute("data-panel") !== name;
     });
+    var notes = root.querySelector("[data-segment-notes]");
     var duration = root.querySelector('[data-note="duration"]');
-    var payment = root.querySelector("[data-note-payment]");
+    if (notes) notes.hidden = name === "rental";
     if (duration) duration.hidden = name !== "airport";
-    if (payment) {
-      payment.textContent = name === "rental"
-        ? text("Modalités de règlement à convenir avec l’agence", "Payment to be arranged with the agency")
-        : text("Règlement en espèces, directement au chauffeur", "Cash payment, directly to the driver");
-    }
   }
 
   function fillConfirmation(node, data) {

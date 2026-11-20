@@ -698,6 +698,7 @@ a.tile { color: inherit; text-decoration: none; }
   line-height: 1.35;
 }
 .rental-head h2 { margin: 0; }
+.rental-head .segment-notes { margin: 0.4rem 0 10px; }
 .rental-head .request-lead { margin-top: 0.3rem; }
 .segment-notes {
   display: grid;

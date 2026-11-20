@@ -14,14 +14,15 @@ One row per request. Amounts are in MAD. The French pages display the same amoun
 | created_at | `created_at` | ISO time |
 | service | `service` | `transfert`, `course`, or `location_voiture` |
 | status | `status` | `nouvelle` when the guest saves it |
-| guest_name | `guest.name` | Example for now |
-| guest_phone | `guest.phone` | Example for now |
+| guest_name | `guest.name` | Looked up from the Google Sheet “Villa Zen'O – Bookings”, tab Réservations, by booking id. Not typed by the guest. `getGuestFromStay()` is the placeholder until that lookup exists |
+| guest_phone | `guest.phone` | Same booking lookup as the name. Not typed by the guest |
 | guest_villa | `guest.villa` | |
 | trip_type | `fields.trip_type` | `arrival` or `departure` for a transfer |
 | date | `fields.date` | Transfer date |
 | flight_arrival_time | `fields.flight_arrival_time` | Arrival trips only |
 | pickup_time | `fields.pickup_time` | Departure trips only |
-| passengers | `fields.passengers` | Max 8. Above that, no price |
+| passengers | `fields.passengers` | Up to 8 per vehicle |
+| vehicles | `fields.vehicles` | 1 or 2. Two vehicles split the passengers evenly |
 | luggage | `fields.luggage` | |
 | flight_number | `fields.flight_number` | |
 | arrival_villa | `fields.arrival_villa` | Destination villa |

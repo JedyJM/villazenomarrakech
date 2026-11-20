@@ -679,16 +679,17 @@ a.tile { color: inherit; text-decoration: none; }
   body { padding-bottom: 0; background: #fff; }
 }
 
-.page-request { padding-bottom: 24px; }
-.request { padding: 0.55rem 0 0; }
+.page-request { padding-bottom: calc(var(--nav-space) + 16px); }
+.page-request [hidden] { display: none !important; }
+.request { padding: 0.15rem 0 0; }
 .request-back {
   display: inline-block;
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.1rem;
   color: var(--muted);
   font-size: 0.75rem;
   text-decoration: none;
 }
-.request h1 { margin: 0; font-size: 1.45rem; }
+.request h1 { margin: 0; font-size: 1.28rem; }
 .request h1 em { font-style: italic; font-weight: 500; }
 .request-lead {
   margin: 0;
@@ -702,7 +703,7 @@ a.tile { color: inherit; text-decoration: none; }
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
-  margin: 0.85rem 0 20px;
+  margin: 0.4rem 0 12px;
   padding: 3px;
   background: #fff;
   border: 1px solid rgba(28, 25, 22, 0.12);
@@ -728,9 +729,9 @@ a.tile { color: inherit; text-decoration: none; }
 }
 .form-card {
   display: grid;
-  gap: 0.65rem;
-  margin-top: 0.7rem;
-  padding: 0.75rem;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
   background: #fff;
   border: 1px solid rgba(28, 25, 22, 0.1);
   border-radius: 12px;
@@ -754,16 +755,16 @@ a.tile { color: inherit; text-decoration: none; }
 .picker-value {
   box-sizing: border-box;
   width: 100%;
-  height: 48px;
+  height: 44px;
   margin: 0;
-  padding: 0 0.75rem;
+  padding: 0 0.7rem;
   border: 1px solid rgba(28, 25, 22, 0.14);
   border-radius: 10px;
   background: #fff;
   color: var(--ink);
   font: inherit;
   font-size: 0.92rem;
-  line-height: 48px;
+  line-height: 44px;
 }
 .request .field select {
   appearance: none;
@@ -791,7 +792,7 @@ a.tile { color: inherit; text-decoration: none; }
   position: absolute;
   inset: 0;
   width: 100%;
-  height: 48px;
+  height: 44px;
   margin: 0;
   opacity: 0;
   cursor: pointer;
@@ -812,8 +813,8 @@ a.tile { color: inherit; text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 44px;
-  padding: 0 0.7rem;
+  height: 40px;
+  padding: 0 0.45rem;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -883,7 +884,24 @@ a.tile { color: inherit; text-decoration: none; }
 }
 .switch input:checked + i { background: var(--terracotta); }
 .switch input:checked + i::after { transform: translateX(16px); }
-.price-box { margin-top: 0.75rem; text-align: right; }
+.count-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.count { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.count > span:first-child { color: var(--muted); font-size: 0.68rem; white-space: nowrap; }
+.count .stepper button { width: 28px; height: 28px; font-size: 1rem; }
+.vehicle-prompt, .vehicle-split { margin: 0; color: var(--terracotta-dark); font-size: 0.72rem; line-height: 1.3; }
+.vehicle-split { color: var(--muted); }
+.comment-toggle {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--terracotta);
+  font: inherit;
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+}
+.price-box { margin-top: 8px; text-align: right; }
 .price-total { margin: 0; font-family: var(--serif); font-size: 1.35rem; line-height: 1.1; }
 .price-break { margin: 0.2rem 0 0; color: var(--muted); font-size: 0.72rem; line-height: 1.2; white-space: nowrap; }
 .request-submit {
@@ -892,8 +910,8 @@ a.tile { color: inherit; text-decoration: none; }
   justify-content: center;
   gap: 0.45rem;
   width: 100%;
-  height: 48px;
-  margin-top: 24px;
+  height: 44px;
+  margin-top: 8px;
   border: 0;
   border-radius: 999px;
   background: var(--terracotta);
@@ -913,16 +931,38 @@ a.request-submit:active { color: var(--paper); text-decoration: none; }
 .request-submit svg { width: 16px; height: 16px; display: block; flex: none; }
 .request-submit[disabled] { opacity: 0.45; cursor: not-allowed; }
 .form-error { margin: 0.55rem 0 0; color: var(--terracotta-dark); font-size: 0.78rem; }
-.confirm-card h2, .rental-head h2, .course-card h2 { margin: 0.1rem 0 0; font-size: 1.35rem; }
-.confirm-list { margin: 0.85rem 0 0; }
+.confirm-card h2, .rental-head h2, .course-card h2 { margin: 0; font-size: 1.45rem; }
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 0.35rem;
+}
+.confirm h2 { margin: 0; font-size: 1.7rem; }
+.confirm .request-lead { margin: 0; }
+.confirm .request-submit { margin-top: 0; }
+.confirm-card {
+  padding: 16px;
+  background: #fff;
+  border: 1px solid rgba(28, 25, 22, 0.1);
+  border-radius: 12px;
+}
+.confirm-list { margin: 0; }
 .confirm-list div {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.48rem 0;
+  min-height: 44px;
+  padding: 0;
   border-top: 1px solid rgba(28, 25, 22, 0.08);
   font-size: 0.88rem;
 }
-.confirm-list dt { margin: 0; color: var(--muted); font-weight: 500; }
-.confirm-list dd { margin: 0; }
+.confirm-list div:first-child { border-top: 0; }
+.confirm-list dt { margin: 0; color: var(--muted); font-weight: 400; }
+.confirm-list dd { margin: 0; color: var(--ink); font-weight: 500; }
+.course-card { gap: 0; }
+.course-card .label { margin: 0; }
+.course-card h2 { margin-top: 0.45rem; }
+.course-card .request-lead { margin-top: 0.35rem; }
+.course-card .request-submit { margin-top: 16px; }

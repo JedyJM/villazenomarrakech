@@ -10,12 +10,17 @@
     storageKey: "villazeno.demandes"
   };
 
-  var stay = {
-    name: "Invité",
-    phone: "+212 600 000 000",
-    villa: "Villa Zen’O",
-    example: true
-  };
+  function getGuestFromStay() {
+    // Placeholder. Name and phone will be looked up from the Google Sheet
+    // "Villa Zen'O – Bookings", tab Réservations, using the stay booking id.
+    // The guest does not type them.
+    return {
+      name: isEn() ? "Guest" : "Invité",
+      phone: "+212 600 000 000",
+      villa: "Villa Zen’O",
+      example: true
+    };
+  }
 
   var rates = {
     bandSmall: 350,
@@ -47,30 +52,35 @@
     return "req-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
   }
 
-  function guestFrom(form) {
-    var name = form.querySelector("[name='guest_name']");
-    var phone = form.querySelector("[name='guest_phone']");
-    return {
-      name: name ? name.value.trim() : stay.name,
-      phone: phone ? phone.value.trim() : stay.phone,
-      villa: stay.villa
-    };
+
+  function vehicleLoads(passengers, vehicles) {
+    var n = Math.max(0, Number(passengers) || 0);
+    if (vehicles !== 2) return [n];
+    return [Math.ceil(n / 2), Math.floor(n / 2)];
   }
 
-  function quote(passengers, babyQty) {
+  function bandAmount(count) {
+    if (count <= 0) return 0;
+    return count <= 4 ? rates.bandSmall : rates.bandLarge;
+  }
+
+  function quote(passengers, babyQty, vehicles) {
     var n = Number(passengers);
-    if (!n) return { ready: false, blocked: false };
-    if (n > rates.maxPassengers) return { ready: true, blocked: true };
-    var base = n <= 4 ? rates.bandSmall : rates.bandLarge;
+    var v = Number(vehicles) === 2 ? 2 : 1;
+    if (!n) return { ready: false, prompt: false, vehicles: v, loads: [] };
+    var prompt = v === 1 && n > rates.maxPassengers;
+    var loads = prompt ? [] : vehicleLoads(Math.min(n, rates.maxPassengers * v), v);
+    var base = loads.reduce(function (sum, count) { return sum + bandAmount(count); }, 0);
     var qty = Math.max(0, Math.min(3, Number(babyQty) || 0));
     var amount = qty * rates.babySeat;
     return {
       ready: true,
-      blocked: false,
-      band: n <= 4 ? "1-4" : "5-8",
-      price_base: base,
+      prompt: prompt,
+      vehicles: v,
+      loads: loads,
+      price_base: prompt ? null : base,
       supplements: qty ? [{ code: "baby_seat", quantity: qty, unit_mad: rates.babySeat, amount_mad: amount }] : [],
-      total: base + amount,
+      total: prompt ? null : base + amount,
       currency: "MAD"
     };
   }
@@ -98,11 +108,11 @@
   }
 
   function breakdown(q) {
-    if (!q.ready || q.blocked) return "";
-    var band = q.band === "1-4"
-      ? text("Transfert 1–4 pers. ", "Transfer 1–4 guests ")
-      : text("Transfert 5–8 pers. ", "Transfer 5–8 guests ");
-    var line = band + money(q.price_base);
+    if (!q.ready || q.prompt) return "";
+    var head = q.vehicles === 2
+      ? text("2 véhicules · " + q.loads[0] + "+" + q.loads[1] + " pers. ", "2 vehicles · " + q.loads[0] + "+" + q.loads[1] + " guests ")
+      : text("1 véhicule · " + (q.loads[0] <= 4 ? "1–4" : "5–8") + " pers. ", "1 vehicle · " + (q.loads[0] <= 4 ? "1–4" : "5–8") + " guests ");
+    var line = head + money(q.price_base);
     if (q.supplements.length) {
       var qty = q.supplements[0].quantity;
       var seats = qty > 1
@@ -122,8 +132,8 @@
       return;
     }
     box.hidden = false;
-    if (q.blocked) {
-      total.textContent = text("Contactez la villa", "Contact the villa");
+    if (q.prompt) {
+      total.textContent = text("Pour plus de 8 passagers, passez à 2 véhicules.", "For more than 8 passengers, switch to 2 vehicles.");
       line.hidden = true;
       return;
     }
@@ -204,7 +214,8 @@
     var trip = selectedTrip(form);
     var babyQty = babySeats(form);
     var passengers = form.querySelector("[name='passengers']").value;
-    var price = quote(passengers, babyQty);
+    var vehicles = Number(form.querySelector("[name='vehicles']").value) || 1;
+    var price = quote(passengers, babyQty, vehicles);
     var villa = form.querySelector("[name='villa']").value.trim();
     var fields = {
       trip_type: trip,
@@ -216,11 +227,12 @@
       flight_number: form.querySelector("[name='flight_number']").value.trim(),
       arrival_villa: trip === "arrival" ? villa : "",
       pickup_villa: trip === "departure" ? villa : "",
+      vehicles: vehicles,
       baby_seat: babyQty > 0,
       baby_seats: babyQty,
       comment: form.querySelector("[name='comment']").value.trim()
     };
-    return { fields: fields, price: price, guest: guestFrom(form) };
+    return { fields: fields, price: price, guest: getGuestFromStay() };
   }
 
   function validateTransfer(form) {
@@ -249,9 +261,8 @@
       setInvalid(form, "passengers", true);
       return text("Indiquez le nombre de passagers.", "Enter the number of passengers.");
     }
-    if (Number(passengers) > rates.maxPassengers) {
-      setInvalid(form, "passengers", true);
-      return text("Contactez la villa", "Contact the villa");
+    if ((Number(form.querySelector("[name='vehicles']").value) || 1) === 1 && Number(passengers) > rates.maxPassengers) {
+      return text("Pour plus de 8 passagers, passez à 2 véhicules.", "For more than 8 passengers, switch to 2 vehicles.");
     }
     if (luggage === "" || Number(luggage) < 0) {
       setInvalid(form, "luggage", true);
@@ -287,15 +298,38 @@
     var babyOn = form.querySelector("[name='baby_seat']").checked;
     var seats = form.querySelector("[name='baby_seats']");
     if (babyOn && Number(seats.value) < 1) seats.value = "1";
-    form.querySelector("[data-baby-step]").hidden = !babyOn;
-    var count = babyOn ? Number(seats.value) : 0;
-    form.querySelector("[data-baby-count]").textContent = String(count || 1);
-    form.querySelector("[data-baby-dec]").disabled = count <= 1;
-    form.querySelector("[data-baby-inc]").disabled = count >= 3;
-    var price = quote(form.querySelector("[name='passengers']").value, count);
+    var babyCount = babyOn ? Math.max(1, Math.min(3, Number(seats.value) || 1)) : 0;
+    seats.value = String(babyCount || 1);
+    var babyStep = form.querySelector("[data-baby-step]");
+    if (babyStep) babyStep.hidden = !babyOn;
+    var babyFigure = form.querySelector("[data-baby-count]");
+    if (babyFigure) babyFigure.textContent = String(babyCount || 1);
+    var babyDec = form.querySelector("[data-baby-dec]");
+    var babyInc = form.querySelector("[data-baby-inc]");
+    if (babyDec) babyDec.disabled = babyCount <= 1;
+    if (babyInc) babyInc.disabled = babyCount >= 3;
+    ["passengers", "luggage", "vehicles"].forEach(function (name) {
+      var input = form.querySelector("[name='" + name + "']");
+      var figure = form.querySelector("[data-" + name + "-count]");
+      if (input && figure) figure.textContent = input.value;
+    });
+    var vehicles = Number(form.querySelector("[name='vehicles']").value) || 1;
+    var passengers = Number(form.querySelector("[name='passengers']").value) || 1;
+    var prompt = form.querySelector("[data-vehicle-prompt]");
+    if (prompt) prompt.hidden = !(vehicles === 1 && passengers >= rates.maxPassengers);
+    var price = quote(passengers, babyCount, vehicles);
     renderPrice(form.querySelector("[data-price-box]"), price);
+    var split = form.querySelector("[data-vehicle-split]");
+    if (split) {
+      split.hidden = vehicles !== 2 || price.prompt;
+      if (!split.hidden) {
+        split.innerHTML = price.loads.map(function (count, index) {
+          return text("Véhicule ", "Vehicle ") + (index + 1) + " · " + count + text(" pers. ", " guests ") + money(bandAmount(count));
+        }).join("<br>");
+      }
+    }
     var button = form.querySelector("[data-transfer-submit]");
-    if (button) button.disabled = !!price.blocked;
+    if (button) button.disabled = !!price.prompt;
   }
 
   function showSegment(root, name) {
@@ -311,10 +345,7 @@
         "Aéroport de Marrakech · environ 35 min · règlement en espèces au chauffeur",
         "Marrakech airport · about 35 min · payment in cash to the driver"
       ),
-      city: text(
-        "Avec Hicham · règlement en espèces au chauffeur",
-        "With Hicham · payment in cash to the driver"
-      ),
+      city: "",
       rental: ""
     };
     if (lead) {
@@ -334,6 +365,7 @@
       [text("Heure", "Time"), time],
       [text("Vol", "Flight"), data.fields.flight_number],
       [text("Passagers", "Passengers"), String(data.fields.passengers)],
+      [text("Véhicules", "Vehicles"), String(data.fields.vehicles || 1)],
       [text("Sièges bébé", "Baby seats"), String(data.fields.baby_seats || 0)],
       [text("Total", "Total"), money(data.price.total)]
     ];
@@ -343,8 +375,8 @@
   }
 
   function cityMessage(guest) {
-    var name = guest.name || stay.name;
-    var villa = guest.villa || stay.villa;
+    var name = guest.name;
+    var villa = guest.villa;
     return text(
       "Bonjour Hicham, je suis " + name + ", à la " + villa + ". Je souhaite réserver une course.\nDate : …\nHeure : …\nDestination : …",
       "Hello Hicham, I am " + name + ", at " + villa + ". I would like to book a ride.\nDate: …\nTime: …\nDestination: …"
@@ -421,15 +453,10 @@
   }
 
   function init() {
-    if (isEn()) stay.name = "Guest";
     var root = document.querySelector("[data-request-page]");
     if (!root) return;
     var transfer = root.querySelector("[data-transfer-form]");
     var rental = root.querySelector("[data-rental-form]");
-    var nameInput = root.querySelector("[name='guest_name']");
-    var phoneInput = root.querySelector("[name='guest_phone']");
-    if (nameInput && !nameInput.value) nameInput.value = stay.name;
-    if (phoneInput && !phoneInput.value) phoneInput.value = stay.phone;
     var today = todayISO();
     root.querySelectorAll("input[type='date'], input[type='time']").forEach(function (input) {
       if (input.type === "date") input.min = today;
@@ -447,15 +474,42 @@
     if (transfer) {
       var errorNode = transfer.querySelector("[data-errors]");
       syncTransfer(transfer);
-      transfer.querySelector("[data-baby-dec]").addEventListener("click", function () {
-        var input = transfer.querySelector("[name='baby_seats']");
-        input.value = String(Math.max(1, Number(input.value) - 1));
-        syncTransfer(transfer);
-      });
-      transfer.querySelector("[data-baby-inc]").addEventListener("click", function () {
-        var input = transfer.querySelector("[name='baby_seats']");
-        input.value = String(Math.min(3, Number(input.value) + 1));
-        syncTransfer(transfer);
+      transfer.addEventListener("click", function (event) {
+        var step = event.target.closest("[data-step]");
+        if (step) {
+          var name = step.getAttribute("data-step");
+          var input = transfer.querySelector("[name='" + name + "']");
+          var dir = Number(step.getAttribute("data-dir"));
+          var vehicles = Number(transfer.querySelector("[name='vehicles']").value) || 1;
+          var next = Number(input.value) + dir;
+          if (name === "passengers") {
+            var max = rates.maxPassengers * vehicles;
+            if (vehicles === 1 && Number(input.value) >= rates.maxPassengers && dir > 0) {
+              var note = transfer.querySelector("[data-vehicle-prompt]");
+              if (note) note.hidden = false;
+              return;
+            }
+            next = Math.max(1, Math.min(max, next));
+          } else if (name === "vehicles") {
+            next = Math.max(1, Math.min(2, next));
+            var pax = transfer.querySelector("[name='passengers']");
+            if (next === 1 && Number(pax.value) > rates.maxPassengers) pax.value = String(rates.maxPassengers);
+          } else if (name === "luggage") {
+            next = Math.max(0, Math.min(16, next));
+          } else if (name === "baby") {
+            next = Math.max(1, Math.min(3, Number(transfer.querySelector("[name='baby_seats']").value) + dir));
+            transfer.querySelector("[name='baby_seats']").value = String(next);
+            syncTransfer(transfer);
+            return;
+          }
+          input.value = String(next);
+          syncTransfer(transfer);
+          return;
+        }
+        if (event.target.closest("[data-comment-toggle]")) {
+          var box = transfer.querySelector("[data-comment]");
+          box.hidden = !box.hidden;
+        }
       });
       transfer.addEventListener("change", function () { syncTransfer(transfer); });
       transfer.addEventListener("input", function () { syncTransfer(transfer); });
@@ -470,12 +524,17 @@
         var done = root.querySelector("[data-confirm]");
         fillConfirmation(done.querySelector("[data-confirm-list]"), data);
         done.hidden = false;
+        root.querySelector(".segments").hidden = true;
+        var pageTitle = root.querySelector("h1");
+        if (pageTitle) pageTitle.hidden = true;
+        var lead = root.querySelector("[data-segment-lead]");
+        if (lead) lead.hidden = true;
       });
       var cityLink = root.querySelector("[data-city-link]");
       if (cityLink) {
-        cityLink.href = cityUrl(guestFrom(transfer));
+        cityLink.href = cityUrl(getGuestFromStay());
         cityLink.addEventListener("click", function () {
-          var guest = guestFrom(transfer);
+          var guest = getGuestFromStay();
           var message = cityMessage(guest);
           cityLink.href = cityUrl(guest);
           submitRequest(baseRecord("course", guest, {
@@ -495,11 +554,7 @@
         var message = validateRental(rental);
         showError(rentalError, message);
         if (message) return;
-        var guest = {
-          name: (nameInput && nameInput.value.trim()) || stay.name,
-          phone: (phoneInput && phoneInput.value.trim()) || stay.phone,
-          villa: stay.villa
-        };
+        var guest = getGuestFromStay();
         var fields = readRental(rental, guest);
         var url = rentalUrl(guest, fields);
         fields.message = rentalMessage(guest, fields);
@@ -511,6 +566,7 @@
 
   window.GuestRequests = {
     config: config,
+    getGuestFromStay: getGuestFromStay,
     quote: quote,
     breakdown: breakdown,
     formatDate: formatDate,

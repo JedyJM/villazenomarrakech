@@ -13,7 +13,8 @@
   --serif: "Playfair Display", "Times New Roman", serif;
   --sans: "Inter", system-ui, -apple-system, sans-serif;
   --header: 46px;
-  --nav-space: calc(3.35rem + env(safe-area-inset-bottom, 0px));
+  --nav-bar: 3.25rem;
+  --nav-space: calc(var(--nav-bar) + 1px + env(safe-area-inset-bottom, 0px));
   --max: 1080px;
 }
 
@@ -418,10 +419,12 @@ h1 em { font-style: italic; font-weight: 500; }
   z-index: 50;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  background: rgba(255, 250, 243, 0.96);
-  backdrop-filter: blur(14px);
+  height: var(--nav-space);
+  box-sizing: border-box;
+  overflow: hidden;
+  background: var(--paper);
   border-top: 1px solid var(--line);
-  padding: 0.1rem 0.1rem calc(0.12rem + env(safe-area-inset-bottom, 0px));
+  padding: 0 0 env(safe-area-inset-bottom, 0px);
 }
 .bottom-nav a,
 .bottom-nav button {
@@ -432,8 +435,9 @@ h1 em { font-style: italic; font-weight: 500; }
   justify-content: center;
   gap: 0.08rem;
   width: 100%;
-  min-height: 46px;
-  padding: 0.28rem 0.15rem 0.2rem;
+  min-height: 0;
+  height: 100%;
+  padding: 0.4rem 0.15rem 0.25rem;
   text-decoration: none;
   background: none;
   border: 0;
@@ -464,12 +468,13 @@ h1 em { font-style: italic; font-weight: 500; }
   left: 24%;
   right: 24%;
   height: 2px;
+  z-index: 1;
   background: var(--gold);
   border-radius: 2px;
 }
 
 @media (max-width: 759px) and (max-height: 700px) {
-  :root { --header: 40px; --nav-space: calc(3.05rem + env(safe-area-inset-bottom, 0px)); }
+  :root { --header: 40px; }
   .welcome-photo { height: 36px; }
   .home-stack { gap: 0.32rem; padding-top: 0.28rem; }
   .home-tools { gap: 0.28rem; }
@@ -486,7 +491,7 @@ h1 em { font-style: italic; font-weight: 500; }
   .tile-ico svg { width: 14px; height: 14px; }
   .tile h3 { font-size: 0.8rem; }
   .tile p { font-size: 0.75rem; }
-  .bottom-nav a, .bottom-nav button { min-height: 42px; font-size: 0.58rem; }
+  .bottom-nav a, .bottom-nav button { font-size: 0.58rem; }
 }
 
 @media (min-width: 760px) {

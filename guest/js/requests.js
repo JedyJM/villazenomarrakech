@@ -25,7 +25,9 @@
     menage: "212661147610",
     piscine: "212661147610",
     activites: "212661147610",
-    massage: "212661147610"
+    massage: "212661147610",
+    /* Mama Fouzia. The real number is not set yet. */
+    cuisine: "212661147610"
   };
 
   function requestWhatsApp(realNumber, message) {
@@ -842,8 +844,244 @@
     showServiceReceived(root, rows);
   }
 
+  function bindMeals(root) {
+    var form = root.querySelector("[data-meal-form]");
+    if (!form || !window.MEAL_PRICES) return;
+    var prices = window.MEAL_PRICES;
+    var error = form.querySelector("[data-errors]");
+    var recap = document.querySelector("[data-meal-recap]");
+    var names = { breakfast: "Petit-déjeuner", lunch: "Déjeuner", dinner: "Dîner" };
+    var spoken = { breakfast: "le petit-déjeuner", lunch: "le déjeuner", dinner: "le dîner" };
+    var windows = { breakfast: [9 * 60, 12 * 60], lunch: [12 * 60, 16 * 60], dinner: [19 * 60, 21 * 60] };
+    var maxCount = 16;
+
+    function euro(amount) {
+      return amount + "\u00A0€";
+    }
+    function personWord(n) {
+      return n + " personne" + (n > 1 ? "s" : "");
+    }
+    function mealKind() {
+      return form.querySelector("[name='meal']").value;
+    }
+    function clockLabel(value) {
+      var parts = value.split(":");
+      var hour = String(Number(parts[0]));
+      if (parts[1] === "00") return hour + "\u00A0h";
+      return hour + "\u00A0h\u00A0" + parts[1];
+    }
+    function fillTimes(kind) {
+      var select = form.querySelector("[name='time']");
+      var previous = select.value;
+      var range = windows[kind];
+      var html = "<option value=\"\">Choisir</option>";
+      for (var t = range[0]; t <= range[1]; t += 30) {
+        var h = Math.floor(t / 60);
+        var m = t % 60;
+        var value = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+        html += "<option value=\"" + value + "\">" + clockLabel(value) + "</option>";
+      }
+      select.innerHTML = html;
+      if (select.querySelector("option[value='" + previous + "']")) select.value = previous;
+    }
+    function readDish(dish) {
+      var input = dish.querySelector("input[type='hidden']");
+      var count = Math.max(0, Math.min(maxCount, Number(input.value) || 0));
+      input.value = String(count);
+      dish.querySelector("[data-dish-count]").textContent = String(count);
+      dish.querySelector("[data-dish-step='-1']").disabled = count <= 0;
+      dish.querySelector("[data-dish-step='1']").disabled = count >= maxCount;
+      return count;
+    }
+    function readBreakfast() {
+      var input = form.querySelector("[name='breakfast']");
+      var count = Math.max(0, Math.min(maxCount, Number(input.value) || 0));
+      input.value = String(count);
+      form.querySelector("[data-breakfast-count]").textContent = String(count);
+      form.querySelector("[data-meal-step='breakfast'][data-dir='-1']").disabled = count <= 0;
+      form.querySelector("[data-meal-step='breakfast'][data-dir='1']").disabled = count >= maxCount;
+      return count;
+    }
+    function paintPrices() {
+      var kind = mealKind();
+      var table = kind === "dinner" ? prices.dinner : prices.lunch;
+      form.querySelectorAll(".dish").forEach(function (dish) {
+        var price = table[dish.getAttribute("data-cat")];
+        dish.querySelector("[data-meal-price]").textContent = euro(price);
+      });
+    }
+    function showMeal(kind) {
+      form.querySelector("[name='meal']").value = kind;
+      form.querySelectorAll("[data-meal]").forEach(function (button) {
+        button.setAttribute("aria-selected", button.getAttribute("data-meal") === kind ? "true" : "false");
+      });
+      form.querySelector("[data-meal-panel='breakfast']").hidden = kind !== "breakfast";
+      form.querySelector("[data-meal-panel='menu']").hidden = kind === "breakfast";
+      fillTimes(kind);
+      paintPrices();
+      paintMeal();
+    }
+    function chosenDishes() {
+      var kind = mealKind();
+      var table = kind === "dinner" ? prices.dinner : prices.lunch;
+      var items = [];
+      form.querySelectorAll(".dish").forEach(function (dish) {
+        var count = readDish(dish);
+        if (!count) return;
+        var price = table[dish.getAttribute("data-cat")];
+        items.push({ label: dish.getAttribute("data-label"), count: count, price: price, sum: count * price });
+      });
+      return items;
+    }
+    function paintMeal() {
+      var kind = mealKind();
+      var people = 0;
+      var total = 0;
+      if (kind === "breakfast") {
+        people = readBreakfast();
+        total = people * prices.breakfast;
+      } else {
+        chosenDishes().forEach(function (item) {
+          people += item.count;
+          total += item.sum;
+        });
+      }
+      if (recap) recap.textContent = personWord(people) + " · Total " + euro(total);
+      return { people: people, total: total };
+    }
+    function tomorrowISO() {
+      var d = new Date();
+      d.setDate(d.getDate() + 1);
+      var m = String(d.getMonth() + 1).padStart(2, "0");
+      var day = String(d.getDate()).padStart(2, "0");
+      return d.getFullYear() + "-" + m + "-" + day;
+    }
+    form.querySelector("[name='date']").min = tomorrowISO();
+    form.querySelectorAll(".care-cat").forEach(function (item) {
+      item.addEventListener("toggle", function () {
+        if (!item.open) return;
+        form.querySelectorAll(".care-cat").forEach(function (other) {
+          if (other !== item) other.open = false;
+        });
+      });
+    });
+    form.addEventListener("click", function (event) {
+      var tab = event.target.closest("[data-meal]");
+      if (tab) showMeal(tab.getAttribute("data-meal"));
+      var salad = event.target.closest("[data-salad]");
+      if (salad) {
+        var on = salad.getAttribute("aria-pressed") === "true";
+        salad.setAttribute("aria-pressed", on ? "false" : "true");
+      }
+      var step = event.target.closest("[data-meal-step], [data-dish-step]");
+      if (step) {
+        var dish = step.closest(".dish");
+        var input = dish ? dish.querySelector("input[type='hidden']") : form.querySelector("[name='breakfast']");
+        input.value = String(Number(input.value) + Number(step.getAttribute("data-dir") || step.getAttribute("data-dish-step")));
+        showError(error, "");
+      }
+      if (tab || salad || step) paintMeal();
+    });
+    var typingTimer = 0;
+    function typingField(el) {
+      if (!el || !el.tagName) return false;
+      var tag = el.tagName;
+      return tag === "TEXTAREA" || tag === "SELECT" || (tag === "INPUT" && el.type !== "hidden");
+    }
+    document.addEventListener("focusin", function (event) {
+      if (!form.contains(event.target) || !typingField(event.target)) return;
+      window.clearTimeout(typingTimer);
+      document.body.classList.add("is-typing");
+    });
+    document.addEventListener("focusout", function (event) {
+      if (!form.contains(event.target) || !typingField(event.target)) return;
+      window.clearTimeout(typingTimer);
+      typingTimer = window.setTimeout(function () {
+        if (!typingField(document.activeElement)) document.body.classList.remove("is-typing");
+      }, 160);
+    });
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      clearInvalid(form);
+      var kind = mealKind();
+      var quote = paintMeal();
+      var date = form.querySelector("[name='date']").value;
+      var time = form.querySelector("[name='time']").value;
+      if (!date || date < form.querySelector("[name='date']").min) {
+        setInvalid(form, "date", true);
+        showError(error, "Les repas se commandent pour le lendemain.");
+        return;
+      }
+      if (!time) {
+        setInvalid(form, "time", true);
+        showError(error, "Veuillez choisir une heure.");
+        return;
+      }
+      var dishes = kind === "breakfast" ? [] : chosenDishes();
+      if (kind === "breakfast" && !quote.people) {
+        showError(error, "Veuillez indiquer le nombre de personnes.");
+        return;
+      }
+      if (kind !== "breakfast" && !dishes.length) {
+        showError(error, "Veuillez choisir au moins un plat.");
+        return;
+      }
+      showError(error, "");
+      var guest = getGuestFromStay();
+      var salads = Array.prototype.map.call(form.querySelectorAll("[data-salad][aria-pressed='true']"), function (button) {
+        return button.getAttribute("data-salad");
+      });
+      var allergies = form.querySelector("[name='allergies']").value.trim();
+      var fields = {
+        meal: kind,
+        meal_label: names[kind],
+        date: date,
+        time: time,
+        time_label: clockLabel(time),
+        salads: salads,
+        dishes: dishes,
+        people: quote.people,
+        allergies: allergies
+      };
+      var rows = [
+        ["Repas", names[kind]],
+        ["Date", formatDate(date)],
+        ["Heure", fields.time_label]
+      ];
+      if (salads.length) rows.push(["Salades", salads.join(", ")]);
+      dishes.forEach(function (item) {
+        rows.push([item.label, item.count + " · " + euro(item.sum)]);
+      });
+      if (kind === "breakfast") rows.push(["Personnes", String(quote.people)]);
+      rows.push(["Total", personWord(quote.people) + " · " + euro(quote.total)]);
+      if (allergies) rows.push(["Allergies ou demandes", allergies]);
+      var lines = [
+        "Bonjour,",
+        "",
+        "Je séjourne actuellement à la " + guest.villa + " et souhaiterais commander " + spoken[kind] + ".",
+        "",
+        "Nom : " + staffName(guest),
+        "Repas : " + names[kind],
+        "Date : " + formatDateFr(date),
+        "Heure : " + fields.time_label
+      ];
+      if (salads.length) lines.push("Salades : " + salads.join(", "));
+      dishes.forEach(function (item) {
+        lines.push(item.label + " : " + item.count + " · " + euro(item.sum));
+      });
+      if (kind === "breakfast") lines.push("Personnes : " + quote.people);
+      lines.push("Total : " + personWord(quote.people) + " · " + euro(quote.total));
+      if (allergies) lines.push("Allergies ou demandes : " + allergies);
+      lines.push("", "Merci d’avance.");
+      fields.message = lines.join("\n");
+      dispatchService(root, baseRecord("restauration", guest, fields, { price_base: quote.total, supplements: [], total: quote.total, blocked: false }), rows, kind, "Cuisine", RECIPIENTS.cuisine);
+    });
+    showMeal("lunch");
+  }
+
   function initServices(root) {
     paintHeating(root);
+    bindMeals(root);
     var menage = root.querySelector("[data-menage-form]");
     if (menage) {
       var menageError = menage.querySelector("[data-errors]");

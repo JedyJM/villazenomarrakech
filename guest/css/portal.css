@@ -694,6 +694,62 @@ a.tile { color: inherit; text-decoration: none; }
 }
 
 .page-request { padding-bottom: calc(var(--nav-space) + 16px); }
+.page-meal { padding-bottom: calc(var(--nav-space) + 5.2rem); }
+.page-meal .meal-lead { margin: 0.1rem 0 0.35rem; }
+.page-meal .segments { margin: 0 0 6px; }
+.meal-kicker {
+  margin: 0.15rem 0 0;
+  font-size: 0.84rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.meal-formula { margin: 0; font-size: 0.9rem; line-height: 1.5; }
+.meal-chips.chips { grid-template-columns: 1fr; gap: 4px; }
+.meal-chips button {
+  justify-content: flex-start;
+  height: 36px;
+  padding: 0 0.75rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.page-meal .form-card { padding: 12px; gap: 8px; }
+.page-meal .care-cat summary { min-height: 40px; }
+.meal-dishes { display: grid; gap: 0; padding: 0 0 0.35rem; }
+.dish {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 38px;
+}
+.dish-name { font-size: 0.74rem; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.dish-price { color: var(--muted); font-size: 0.74rem; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.dish .stepper { gap: 0.2rem; }
+.dish .stepper button { width: 26px; height: 26px; font-size: 1rem; }
+.meal-chips button { height: 32px; font-size: 0.8rem; }
+.meal-note {
+  margin: 0.15rem 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.meal-recap {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--nav-space);
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0.4rem 1rem;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+body.is-typing .meal-recap { display: none; }
 .page-staff {
   display: flex;
   align-items: center;

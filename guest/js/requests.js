@@ -948,7 +948,7 @@
     var activity = root.querySelector("[data-activity-form]");
     if (activity) {
       var activityError = activity.querySelector("[data-errors]");
-      var fleetNames = { quad: ["Nombre de quads", "Personnes par quad"], dromadaire: ["Nombre de dromadaires", "Personnes par dromadaire"] };
+      var mixNoun = { quad: ["quad", "quads"], dromadaire: ["dromadaire", "dromadaires"] };
       bindComment(activity);
       function readCount(name, min, max) {
         var input = activity.querySelector("[name='" + name + "']");
@@ -962,35 +962,57 @@
         if (inc) inc.disabled = count >= max;
         return count;
       }
+      function mixQuote(kind) {
+        var lines = [];
+        var vehicles = 0;
+        var people = 0;
+        var total = 0;
+        activity.querySelectorAll('[data-mix="' + kind + '"] input[type="hidden"]').forEach(function (input) {
+          var count = readCount(input.name, 0, 8);
+          var price = Number(input.getAttribute("data-price"));
+          var seats = Number(input.getAttribute("data-seats"));
+          vehicles += count;
+          people += count * seats;
+          total += count * price;
+          lines.push({
+            count: count,
+            price: price,
+            seats: seats,
+            wa: input.getAttribute("data-wa"),
+            sum: count * price
+          });
+        });
+        return { lines: lines, vehicles: vehicles, people: people, total: total };
+      }
       function paintActivity() {
         var chosen = activity.querySelector("input[name='activity']:checked");
-        var fleet = activity.querySelector("[data-fleet]");
+        var kind = chosen ? chosen.value : "";
+        activity.querySelectorAll("[data-mix]").forEach(function (block) {
+          block.hidden = block.getAttribute("data-mix") !== kind;
+        });
         var horse = activity.querySelector("[data-horse-people]");
-        var priced = chosen && chosen.getAttribute("data-base") !== "";
-        if (fleet) fleet.hidden = !priced;
-        if (horse) horse.hidden = !chosen || priced;
-        if (chosen && fleetNames[chosen.value]) {
-          activity.querySelector("[data-fleet-label]").textContent = fleetNames[chosen.value][0];
-          activity.querySelector("[data-per-label]").textContent = fleetNames[chosen.value][1];
-        }
-        var vehicles = readCount("vehicles", 1, 4);
-        var per = readCount("per", 1, 2);
+        if (horse) horse.hidden = kind !== "cheval";
+        ["quad1", "quad2", "drom1", "drom2"].forEach(function (name) { readCount(name, 0, 8); });
         var riders = readCount("riders", 1, 6);
         var box = activity.querySelector("[data-price-box]");
+        var priced = kind === "quad" || kind === "dromadaire";
         if (!box || !priced) {
           if (box) box.hidden = true;
-          return { total: null, vehicles: vehicles, per: per, riders: riders };
+          if (kind === "cheval") showError(activityError, "");
+          return { total: null, riders: riders, lines: [] };
         }
-        var base = Number(chosen.getAttribute("data-base"));
-        var extra = per === 2 ? (Number(chosen.getAttribute("data-extra")) || 0) : 0;
-        var unit = base + extra;
-        var total = unit * vehicles;
-        box.hidden = false;
-        box.querySelector("[data-price-total]").textContent = "Total " + moneyFr(total);
-        var line = box.querySelector("[data-price-break]");
-        line.hidden = false;
-        line.textContent = vehicles + " × " + moneyFr(unit);
-        return { total: total, vehicles: vehicles, per: per, riders: riders, unit: unit };
+        var quote = mixQuote(kind);
+        var used = quote.lines.filter(function (line) { return line.count > 0; });
+        box.hidden = !used.length;
+        if (used.length) {
+          box.querySelector("[data-price-total]").textContent = "Total " + moneyFr(quote.total);
+          var line = box.querySelector("[data-price-break]");
+          line.hidden = false;
+          line.textContent = used.map(function (item) { return item.count + " × " + item.price; }).join(" + ");
+        }
+        quote.riders = riders;
+        if (quote.vehicles) showError(activityError, "");
+        return quote;
       }
       activity.addEventListener("click", function (event) {
         var step = event.target.closest("[data-count]");
@@ -1002,6 +1024,7 @@
         if (step || event.target.closest("input[name='activity']") || event.target.closest(".pick")) paintActivity();
       });
       activity.addEventListener("change", paintActivity);
+      paintActivity();
       activity.addEventListener("submit", function (event) {
         event.preventDefault();
         clearInvalid(activity);
@@ -1010,18 +1033,23 @@
           showError(activityError, "Veuillez choisir une activité.");
           return;
         }
+        var quote = paintActivity();
+        var priced = chosen.value === "quad" || chosen.value === "dromadaire";
+        if (priced && !quote.vehicles) {
+          showError(activityError, chosen.value === "quad" ? "Veuillez indiquer au moins un quad." : "Veuillez indiquer au moins un dromadaire.");
+          return;
+        }
         var when = requireWhen(activity);
         showError(activityError, when);
         if (when) return;
         var guest = getGuestFromStay();
-        var quote = paintActivity();
-        var priced = chosen.getAttribute("data-base") !== "";
         var fields = {
           activity: chosen.value,
           activity_label: chosen.getAttribute("data-label"),
           duration: chosen.getAttribute("data-duration") || "",
+          lines: priced ? quote.lines : [],
           vehicles: priced ? quote.vehicles : "",
-          per: priced ? quote.per : "",
+          people: priced ? quote.people : "",
           riders: priced ? "" : quote.riders,
           date: activity.querySelector("[name='date']").value,
           time: clock(activity.querySelector("[name='time']").value),
@@ -1031,13 +1059,16 @@
         var rows = [["Activité", fields.activity_label]];
         if (fields.duration) rows.push(["Durée", fields.duration]);
         if (priced) {
-          rows.push([fleetNames[chosen.value][0], String(quote.vehicles)]);
-          rows.push([fleetNames[chosen.value][1], String(quote.per)]);
+          quote.lines.forEach(function (item) {
+            if (item.count) rows.push([item.wa, item.count + " · " + moneyFr(item.sum)]);
+          });
+          var noun = mixNoun[chosen.value];
+          rows.push(["Total " + noun[1], quote.vehicles + " " + (quote.vehicles > 1 ? noun[1] : noun[0]) + ", " + quote.people + " " + (quote.people > 1 ? "personnes" : "personne")]);
         } else {
           rows.push(["Personnes", String(quote.riders)]);
         }
         rows.push(["Date", formatDate(fields.date)], ["Heure", fields.time], ["Départ", guest.villa]);
-        if (quote.total != null) rows.push(["Total", moneyFr(quote.total)]);
+        if (quote.total != null && quote.vehicles) rows.push(["Total", moneyFr(quote.total)]);
         if (fields.comment) rows.push(["Note", fields.comment]);
         var lines = [
           "Bonjour,",
@@ -1049,8 +1080,11 @@
         ];
         if (fields.duration) lines.push("Durée : " + fields.duration);
         if (priced) {
-          lines.push(fleetNames[chosen.value][0] + " : " + quote.vehicles);
-          lines.push(fleetNames[chosen.value][1] + " : " + quote.per);
+          quote.lines.forEach(function (item) {
+            if (item.count) lines.push(item.wa + " : " + item.count + " · " + moneyFr(item.sum));
+          });
+          var word = mixNoun[chosen.value];
+          lines.push("Total " + word[1] + " : " + quote.vehicles + " " + (quote.vehicles > 1 ? word[1] : word[0]) + ", " + quote.people + " " + (quote.people > 1 ? "personnes" : "personne"));
           lines.push("Total : " + moneyFr(quote.total));
         } else {
           lines.push("Personnes : " + quote.riders);
@@ -1064,7 +1098,7 @@
         if (!priced) lines.push("", "Pourriez-vous m’indiquer le tarif ?");
         lines.push("", "Merci d’avance.");
         fields.message = lines.join("\n");
-        var price = quote.total == null ? null : { price_base: quote.total, supplements: [], total: quote.total, blocked: false };
+        var price = !priced || !quote.vehicles ? null : { price_base: quote.total, supplements: [], total: quote.total, blocked: false };
         dispatchService(root, baseRecord("activites", guest, fields, price), rows, chosen.value, "Activités", RECIPIENTS.activites);
       });
     }

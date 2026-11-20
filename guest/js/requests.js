@@ -233,7 +233,9 @@
     var price = quote(passengers, babyQty, vehicles);
     var originEl = form.querySelector("[name='origin_city']");
     var villaEl = form.querySelector("[name='villa']");
-    var origin = originEl ? originEl.value.trim() : "";
+    var flightRow = form.querySelector("[data-flight-row]");
+    var askFlight = !flightRow || !flightRow.hidden;
+    var origin = askFlight && originEl ? originEl.value.trim() : "";
     var villa = villaEl ? villaEl.value.trim() : "";
     var fields = {
       trip_type: trip,
@@ -242,7 +244,7 @@
       pickup_time: trip === "departure" ? form.querySelector("[name='time']").value : "",
       passengers: Number(passengers) || null,
       luggage: form.querySelector("[name='luggage']").value === "" ? null : Number(form.querySelector("[name='luggage']").value),
-      flight_number: form.querySelector("[name='flight_number']").value.trim(),
+      flight_number: askFlight ? form.querySelector("[name='flight_number']").value.trim() : "",
       origin_city: origin,
       arrival_villa: originEl ? "" : (trip === "arrival" ? villa : ""),
       pickup_villa: originEl ? "" : (trip === "departure" ? villa : ""),
@@ -261,7 +263,9 @@
     var time = form.querySelector("[name='time']").value;
     var passengers = form.querySelector("[name='passengers']").value;
     var luggage = form.querySelector("[name='luggage']").value;
-    var flight = form.querySelector("[name='flight_number']").value.trim();
+    var flightRow = form.querySelector("[data-flight-row]");
+    var askFlight = !flightRow || !flightRow.hidden;
+    var flight = askFlight ? form.querySelector("[name='flight_number']").value.trim() : "x";
     var originEl = form.querySelector("[name='origin_city']");
     var villaEl = form.querySelector("[name='villa']");
     var origin = originEl ? originEl.value.trim() : "";
@@ -277,7 +281,7 @@
       setInvalid(form, "time", true);
       return trip === "arrival"
         ? text("Veuillez indiquer l’heure d’arrivée du vol.", "Please enter the flight arrival time.")
-        : text("Veuillez indiquer l’heure de prise en charge.", "Please enter the pick-up time.");
+        : text("Veuillez indiquer l’heure de prise en charge.", "Please enter the pick-up time at the villa.");
     }
     if (!passengers) {
       setInvalid(form, "passengers", true);
@@ -290,18 +294,18 @@
       setInvalid(form, "luggage", true);
       return text("Veuillez indiquer le nombre de bagages.", "Please enter the number of bags.");
     }
-    if (!flight) {
+    if (askFlight && !flight) {
       setInvalid(form, "flight_number", true);
       return text("Veuillez indiquer le numéro de vol.", "Please enter the flight number.");
     }
-    if (originEl) {
+    if (askFlight && originEl) {
       if (!origin) {
         setInvalid(form, "origin_city", true);
         return trip === "arrival"
           ? text("Veuillez indiquer la ville de provenance.", "Please enter the city of origin.")
           : text("Veuillez indiquer la destination.", "Please enter the destination.");
       }
-    } else if (!villa) {
+    } else if (villaEl && !villa) {
       setInvalid(form, "villa", true);
       return trip === "arrival"
         ? text("Indiquez la villa d’arrivée.", "Enter the arrival villa.")
@@ -317,14 +321,10 @@
     if (timeLabel) {
       timeLabel.textContent = trip === "arrival"
         ? text("Heure d’arrivée du vol", "Flight arrival time")
-        : text("Heure du vol", "Flight time");
+        : text("Heure de prise en charge", "Pick-up time");
     }
-    var originLabel = form.querySelector("[data-origin-label]");
-    if (originLabel) {
-      originLabel.textContent = trip === "arrival"
-        ? text("Ville de provenance", "City of origin")
-        : text("Destination", "Destination");
-    }
+    var flightRow = form.querySelector("[data-flight-row]");
+    if (flightRow) flightRow.hidden = trip === "departure";
     if (villaLabel) {
       villaLabel.textContent = trip === "departure"
         ? text("Villa de départ", "Departure villa")
@@ -391,16 +391,16 @@
     var arrival = data.fields.trip_type === "arrival";
     var villa = (data.guest && data.guest.villa) || "Villa Zen’O";
     var trip = arrival
-      ? "Aéroport de Marrakech → " + villa
-      : villa + " → Aéroport de Marrakech";
+      ? "Aéroport RAK → " + villa
+      : villa + " → Aéroport RAK";
     var time = data.fields.flight_arrival_time || data.fields.pickup_time;
     var rows = [
       [text("Trajet", "Trip"), trip],
       [text("Date", "Date"), formatDate(data.fields.date)],
-      [arrival ? text("Heure d’arrivée du vol", "Flight arrival time") : text("Heure du vol", "Flight time"), time],
-      [text("Vol", "Flight"), data.fields.flight_number]
+      [arrival ? text("Heure d’arrivée du vol", "Flight arrival time") : text("Heure de prise en charge", "Pick-up time"), time]
     ];
-    if (data.fields.origin_city) rows.push([arrival ? text("Ville de provenance", "City of origin") : text("Destination", "Destination"), data.fields.origin_city]);
+    if (data.fields.flight_number) rows.push([text("Vol", "Flight"), data.fields.flight_number]);
+    if (data.fields.origin_city) rows.push([text("Ville de provenance", "City of origin"), data.fields.origin_city]);
     rows.push(
       [text("Passagers", "Passengers"), String(data.fields.passengers)],
       [text("Bagages", "Luggage"), String(data.fields.luggage)],
@@ -429,25 +429,27 @@
       "",
       arrival
         ? text(
-          "Je séjournerai prochainement à la " + villa + " et souhaite réserver un transfert depuis l’aéroport.",
-          "I will soon be staying at " + villa + " and would like to reserve a transfer from the airport."
+          "Je séjournerai prochainement à la " + villa + " et souhaite réserver un transfert depuis l’aéroport RAK.",
+          "I will soon be staying at " + villa + " and would like to reserve a transfer from RAK airport."
         )
         : text(
-          "Je séjourne actuellement à la " + villa + " et souhaite réserver un transfert vers l’aéroport.",
-          "I am currently staying at " + villa + " and would like to reserve a transfer to the airport."
+          "Je séjourne actuellement à la " + villa + " et souhaite réserver un transfert vers l’aéroport RAK.",
+          "I am currently staying at " + villa + " and would like to reserve a transfer to RAK airport."
         ),
       "",
       text("Nom : ", "Name: ") + guest.name,
-      text("Trajet : ", "Journey: ") + (arrival ? "Aéroport de Marrakech → " + villa : villa + " → Aéroport de Marrakech"),
+      text("Trajet : ", "Journey: ") + (arrival ? "Aéroport RAK → " + villa : villa + " → Aéroport RAK"),
       text("Date : ", "Date: ") + formatDate(fields.date),
-      (arrival ? text("Heure d’arrivée du vol : ", "Flight arrival time: ") : text("Heure du vol : ", "Flight time: ")) + clock(fields.flight_arrival_time || fields.pickup_time),
+      (arrival ? text("Heure d’arrivée du vol : ", "Flight arrival time: ") : text("Heure de prise en charge : ", "Pick-up time: ")) + clock(fields.flight_arrival_time || fields.pickup_time),
       text("Passagers : ", "Passengers: ") + fields.passengers,
       text("Bagages : ", "Luggage: ") + fields.luggage,
-      text("Véhicules : ", "Vehicles: ") + fields.vehicles,
-      text("Vol : ", "Flight: ") + fields.flight_number,
-      (arrival ? text("Ville de provenance : ", "City of origin: ") : text("Destination : ", "Destination: ")) + fields.origin_city,
-      text("Sièges bébé : ", "Baby seats: ") + (fields.baby_seats ? fields.baby_seats : text("Aucun", "None"))
+      text("Véhicules : ", "Vehicles: ") + fields.vehicles
     ];
+    if (fields.flight_number) lines.push(text("Vol : ", "Flight: ") + fields.flight_number);
+    if (fields.origin_city) lines.push(text("Ville de provenance : ", "City of origin: ") + fields.origin_city);
+    lines.push(
+      text("Sièges bébé : ", "Baby seats: ") + (fields.baby_seats ? fields.baby_seats : text("Aucun", "None"))
+    );
     if (fields.comment) lines.push(text("Commentaire : ", "Comment: ") + fields.comment);
     lines.push(text("Total : ", "Total: ") + money(price.total), "", closing());
     return lines.join("\n");

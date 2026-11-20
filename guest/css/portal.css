@@ -731,7 +731,7 @@ a.tile { color: inherit; text-decoration: none; }
   display: grid;
   gap: 10px;
   margin-top: 10px;
-  padding: 12px;
+  padding: 16px;
   background: #fff;
   border: 1px solid rgba(28, 25, 22, 0.1);
   border-radius: 12px;
@@ -829,24 +829,14 @@ a.tile { color: inherit; text-decoration: none; }
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
-  min-height: 48px;
-  margin: 0.1rem -0.75rem 0;
-  padding: 0 0.75rem;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
   border-top: 1px solid rgba(28, 25, 22, 0.08);
 }
-.baby-row span { font-size: 0.92rem; }
-.baby-step[hidden] { display: none !important; }
-.baby-step {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  min-height: 48px;
-  margin: 0 -0.75rem;
-  padding: 0 0.75rem;
-  border-top: 1px solid rgba(28, 25, 22, 0.08);
-}
-.baby-step > span:first-child { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+.baby-row > span:first-child { font-size: 0.92rem; }
+.baby-controls { display: flex; align-items: center; gap: 0.55rem; margin-left: auto; }
+[data-baby-step][hidden] { display: none !important; }
 .stepper { display: flex; align-items: center; gap: 0.35rem; }
 .stepper button {
   width: 32px;
@@ -863,7 +853,15 @@ a.tile { color: inherit; text-decoration: none; }
   cursor: pointer;
 }
 .stepper button:disabled { opacity: 0.35; cursor: default; }
-.stepper [data-baby-count] { min-width: 1.2rem; text-align: center; font-size: 0.92rem; }
+.stepper > span { min-width: 1.2rem; text-align: center; font-size: 0.92rem; }
+.people-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-height: 44px;
+}
+.people-row > span:first-child { color: var(--muted); font-size: 0.78rem; }
 .switch { position: relative; width: 42px; height: 26px; flex: none; }
 .switch input { position: absolute; inset: 0; margin: 0; opacity: 0; }
 .switch i {
@@ -885,7 +883,7 @@ a.tile { color: inherit; text-decoration: none; }
 .switch input:checked + i { background: var(--terracotta); }
 .switch input:checked + i::after { transform: translateX(16px); }
 .count-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.count { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.count { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
 .count > span:first-child { color: var(--muted); font-size: 0.68rem; white-space: nowrap; }
 .count .stepper button { width: 28px; height: 28px; font-size: 1rem; }
 .vehicle-prompt, .vehicle-split { margin: 0; color: var(--terracotta-dark); font-size: 0.72rem; line-height: 1.3; }
@@ -931,7 +929,7 @@ a.request-submit:active { color: var(--paper); text-decoration: none; }
 .request-submit svg { width: 16px; height: 16px; display: block; flex: none; }
 .request-submit[disabled] { opacity: 0.45; cursor: not-allowed; }
 .form-error { margin: 0.55rem 0 0; color: var(--terracotta-dark); font-size: 0.78rem; }
-.confirm-card h2, .rental-head h2, .course-card h2 { margin: 0; font-size: 1.45rem; }
+.confirm-card h2, .rental-head h2 { margin: 0; font-size: 1.45rem; }
 .confirm {
   display: flex;
   flex-direction: column;
@@ -961,8 +959,3 @@ a.request-submit:active { color: var(--paper); text-decoration: none; }
 .confirm-list div:first-child { border-top: 0; }
 .confirm-list dt { margin: 0; color: var(--muted); font-weight: 400; }
 .confirm-list dd { margin: 0; color: var(--ink); font-weight: 500; }
-.course-card { gap: 0; }
-.course-card .label { margin: 0; }
-.course-card h2 { margin-top: 0.45rem; }
-.course-card .request-lead { margin-top: 0.35rem; }
-.course-card .request-submit { margin-top: 16px; }

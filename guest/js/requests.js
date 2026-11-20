@@ -10,6 +10,21 @@
     storageKey: "villazeno.demandes"
   };
 
+  /* Test routing for request WhatsApp buttons only.
+     Flip TEST_MODE to false to open the real recipients again.
+     TEST_WHATSAPP is Mehdi, the owner number in Contacts utiles. */
+  var TEST_MODE = true;
+  var TEST_WHATSAPP = "212661147610";
+  var RECIPIENTS = {
+    hicham: "212661775422",
+    massillya: "212616172974"
+  };
+
+  function requestWhatsApp(realNumber, message) {
+    var number = TEST_MODE ? TEST_WHATSAPP : realNumber;
+    return "https://wa.me/" + number + "?text=" + encodeURIComponent(message);
+  }
+
   function getGuestFromStay() {
     // Placeholder. Name and phone will be looked up from the Google Sheet
     // "Villa Zen'O – Bookings", tab Réservations, using the stay booking id.
@@ -304,8 +319,8 @@
     if (babyStep) babyStep.hidden = !babyOn;
     var babyFigure = form.querySelector("[data-baby-count]");
     if (babyFigure) babyFigure.textContent = String(babyCount || 1);
-    var babyDec = form.querySelector("[data-baby-dec]");
-    var babyInc = form.querySelector("[data-baby-inc]");
+    var babyDec = form.querySelector('[data-step="baby"][data-dir="-1"]');
+    var babyInc = form.querySelector('[data-step="baby"][data-dir="1"]');
     if (babyDec) babyDec.disabled = babyCount <= 1;
     if (babyInc) babyInc.disabled = babyCount >= 3;
     ["passengers", "luggage", "vehicles"].forEach(function (name) {
@@ -320,13 +335,20 @@
     var price = quote(passengers, babyCount, vehicles);
     renderPrice(form.querySelector("[data-price-box]"), price);
     var split = form.querySelector("[data-vehicle-split]");
-    if (split) {
-      split.hidden = vehicles !== 2 || price.prompt;
-      if (!split.hidden) {
-        split.innerHTML = price.loads.map(function (count, index) {
-          return text("Véhicule ", "Vehicle ") + (index + 1) + " · " + count + text(" pers. ", " guests ") + money(bandAmount(count));
-        }).join("<br>");
+    var line = form.querySelector("[data-price-break]");
+    if (split && line && price.ready && !price.prompt && price.vehicles === 2) {
+      line.hidden = true;
+      split.hidden = false;
+      var rows = price.loads.map(function (count, index) {
+        return text("Véhicule ", "Vehicle ") + (index + 1) + " · " + count + text(" pers. ", " guests ") + money(bandAmount(count));
+      });
+      if (price.supplements.length) {
+        var qty = price.supplements[0].quantity;
+        rows.push((qty > 1 ? text(qty + " sièges bébé ", qty + " baby seats ") : text("1 siège bébé ", "1 baby seat ")) + money(price.supplements[0].amount_mad));
       }
+      split.innerHTML = rows.join("<br>");
+    } else if (split) {
+      split.hidden = true;
     }
     var button = form.querySelector("[data-transfer-submit]");
     if (button) button.disabled = !!price.prompt;
@@ -342,8 +364,8 @@
     var lead = root.querySelector("[data-segment-lead]");
     var leads = {
       airport: text(
-        "Aéroport de Marrakech · environ 35 min · règlement en espèces au chauffeur",
-        "Marrakech airport · about 35 min · payment in cash to the driver"
+        "Aéroport de Marrakech · 35 min · espèces au chauffeur",
+        "Marrakech airport · 35 min · cash to driver"
       ),
       city: "",
       rental: ""
@@ -374,17 +396,15 @@
     }).join("");
   }
 
-  function cityMessage(guest) {
-    var name = guest.name;
-    var villa = guest.villa;
+  function cityMessage(guest, fields) {
     return text(
-      "Bonjour Hicham, je suis " + name + ", à la " + villa + ". Je souhaite réserver une course.\nDate : …\nHeure : …\nDestination : …",
-      "Hello Hicham, I am " + name + ", at " + villa + ". I would like to book a ride.\nDate: …\nTime: …\nDestination: …"
+      "Bonjour Hicham, je suis " + guest.name + ", à la " + guest.villa + ".\nPersonnes : " + fields.passengers + "\nDate de prise en charge : " + formatDate(fields.date) + "\nHeure de prise en charge : " + fields.pickup_time + "\nDestination : " + fields.destination,
+      "Hello Hicham, I am " + guest.name + ", at " + guest.villa + ".\nPeople: " + fields.passengers + "\nPickup date: " + formatDate(fields.date) + "\nPickup time: " + fields.pickup_time + "\nDestination: " + fields.destination
     );
   }
 
-  function cityUrl(guest) {
-    return "https://wa.me/212661775422?text=" + encodeURIComponent(cityMessage(guest));
+  function cityUrl(guest, fields) {
+    return requestWhatsApp(RECIPIENTS.hicham, cityMessage(guest, fields));
   }
 
   function rentalMessage(guest, fields) {
@@ -402,7 +422,56 @@
   }
 
   function rentalUrl(guest, fields) {
-    return "https://wa.me/212616172974?text=" + encodeURIComponent(rentalMessage(guest, fields));
+    return requestWhatsApp(RECIPIENTS.massillya, rentalMessage(guest, fields));
+  }
+
+  function readCity(form) {
+    return {
+      passengers: Number(form.querySelector("[name='passengers']").value) || 1,
+      date: form.querySelector("[name='date']").value,
+      pickup_time: form.querySelector("[name='time']").value.slice(0, 5),
+      destination: form.querySelector("[name='destination']").value.trim(),
+      villa: getGuestFromStay().villa,
+      channel: "whatsapp",
+      to: "Hicham",
+      phone: RECIPIENTS.hicham
+    };
+  }
+
+  function validateCity(form) {
+    clearInvalid(form);
+    var date = form.querySelector("[name='date']").value;
+    var time = form.querySelector("[name='time']").value;
+    var destination = form.querySelector("[name='destination']").value.trim();
+    var passengers = Number(form.querySelector("[name='passengers']").value);
+    if (!passengers || passengers < 1 || passengers > 8) {
+      return text("Indiquez entre 1 et 8 personnes.", "Enter between 1 and 8 people.");
+    }
+    if (!date || date < todayISO()) {
+      setInvalid(form, "date", true);
+      return text("Indiquez une date de prise en charge à venir.", "Enter a pickup date that is not in the past.");
+    }
+    if (!time) {
+      setInvalid(form, "time", true);
+      return text("Indiquez l’heure de prise en charge.", "Enter the pickup time.");
+    }
+    if (!destination) {
+      setInvalid(form, "destination", true);
+      return text("Indiquez la destination.", "Enter the destination.");
+    }
+    return "";
+  }
+
+  function syncCity(form) {
+    var input = form.querySelector("[name='passengers']");
+    var count = Math.max(1, Math.min(8, Number(input.value) || 1));
+    input.value = String(count);
+    var figure = form.querySelector("[data-city-count]");
+    if (figure) figure.textContent = String(count);
+    var dec = form.querySelector('[data-city-step="-1"]');
+    var inc = form.querySelector('[data-city-step="1"]');
+    if (dec) dec.disabled = count <= 1;
+    if (inc) inc.disabled = count >= 8;
   }
 
   function validateRental(form) {
@@ -530,21 +599,30 @@
         var lead = root.querySelector("[data-segment-lead]");
         if (lead) lead.hidden = true;
       });
-      var cityLink = root.querySelector("[data-city-link]");
-      if (cityLink) {
-        cityLink.href = cityUrl(getGuestFromStay());
-        cityLink.addEventListener("click", function () {
-          var guest = getGuestFromStay();
-          var message = cityMessage(guest);
-          cityLink.href = cityUrl(guest);
-          submitRequest(baseRecord("course", guest, {
-            channel: "whatsapp",
-            to: "Hicham",
-            phone: "212661775422",
-            message: message
-          }, null));
-        });
-      }
+    }
+
+    var city = root.querySelector("[data-city-form]");
+    if (city) {
+      var cityError = city.querySelector("[data-errors]");
+      syncCity(city);
+      city.addEventListener("click", function (event) {
+        var step = event.target.closest("[data-city-step]");
+        if (!step) return;
+        var input = city.querySelector("[name='passengers']");
+        input.value = String(Number(input.value) + Number(step.getAttribute("data-city-step")));
+        syncCity(city);
+      });
+      city.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var message = validateCity(city);
+        showError(cityError, message);
+        if (message) return;
+        var guest = getGuestFromStay();
+        var fields = readCity(city);
+        fields.message = cityMessage(guest, fields);
+        submitRequest(baseRecord("course", guest, fields, null));
+        openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, fields.message));
+      });
     }
 
     if (rental) {
@@ -571,6 +649,9 @@
     breakdown: breakdown,
     formatDate: formatDate,
     submitRequest: submitRequest,
+    TEST_MODE: TEST_MODE,
+    TEST_WHATSAPP: TEST_WHATSAPP,
+    RECIPIENTS: RECIPIENTS,
     cityUrl: cityUrl,
     rentalUrl: rentalUrl
   };

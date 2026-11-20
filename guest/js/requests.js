@@ -297,7 +297,9 @@
     if (originEl) {
       if (!origin) {
         setInvalid(form, "origin_city", true);
-        return text("Veuillez indiquer la ville de provenance.", "Please enter the city of origin.");
+        return trip === "arrival"
+          ? text("Veuillez indiquer la ville de provenance.", "Please enter the city of origin.")
+          : text("Veuillez indiquer la destination.", "Please enter the destination.");
       }
     } else if (!villa) {
       setInvalid(form, "villa", true);
@@ -315,7 +317,13 @@
     if (timeLabel) {
       timeLabel.textContent = trip === "arrival"
         ? text("Heure d’arrivée du vol", "Flight arrival time")
-        : text("Heure de prise en charge", "Pick-up time");
+        : text("Heure du vol", "Flight time");
+    }
+    var originLabel = form.querySelector("[data-origin-label]");
+    if (originLabel) {
+      originLabel.textContent = trip === "arrival"
+        ? text("Ville de provenance", "City of origin")
+        : text("Destination", "Destination");
     }
     if (villaLabel) {
       villaLabel.textContent = trip === "departure"
@@ -380,17 +388,19 @@
   }
 
   function fillConfirmation(node, data) {
-    var trip = data.fields.trip_type === "arrival"
-      ? text("Arrivée, de l’aéroport à la villa", "Arrival, from the airport to the villa")
-      : text("Départ, de la villa à l’aéroport", "Departure, from the villa to the airport");
+    var arrival = data.fields.trip_type === "arrival";
+    var villa = (data.guest && data.guest.villa) || "Villa Zen’O";
+    var trip = arrival
+      ? "Aéroport de Marrakech → " + villa
+      : villa + " → Aéroport de Marrakech";
     var time = data.fields.flight_arrival_time || data.fields.pickup_time;
     var rows = [
       [text("Trajet", "Trip"), trip],
       [text("Date", "Date"), formatDate(data.fields.date)],
-      [text("Heure", "Time"), time],
+      [arrival ? text("Heure d’arrivée du vol", "Flight arrival time") : text("Heure du vol", "Flight time"), time],
       [text("Vol", "Flight"), data.fields.flight_number]
     ];
-    if (data.fields.origin_city) rows.push([text("Ville de provenance", "City of origin"), data.fields.origin_city]);
+    if (data.fields.origin_city) rows.push([arrival ? text("Ville de provenance", "City of origin") : text("Destination", "Destination"), data.fields.origin_city]);
     rows.push(
       [text("Passagers", "Passengers"), String(data.fields.passengers)],
       [text("Bagages", "Luggage"), String(data.fields.luggage)],
@@ -413,23 +423,29 @@
 
   function transferMessage(guest, fields, price) {
     var arrival = fields.trip_type === "arrival";
+    var villa = guest.villa || "Villa Zen’O";
     var lines = [
       "Bonjour,",
       "",
-      text(
-        "Je séjourne à la " + guest.villa + " et souhaite réserver un transfert.",
-        "I am staying at " + guest.villa + " and would like to reserve a transfer."
-      ),
+      arrival
+        ? text(
+          "Je séjournerai prochainement à la " + villa + " et souhaite réserver un transfert depuis l’aéroport.",
+          "I will soon be staying at " + villa + " and would like to reserve a transfer from the airport."
+        )
+        : text(
+          "Je séjourne actuellement à la " + villa + " et souhaite réserver un transfert vers l’aéroport.",
+          "I am currently staying at " + villa + " and would like to reserve a transfer to the airport."
+        ),
       "",
       text("Nom : ", "Name: ") + guest.name,
-      text("Trajet : ", "Journey: ") + (arrival ? text("Arrivée", "Arrival") : text("Départ", "Departure")),
+      text("Trajet : ", "Journey: ") + (arrival ? "Aéroport de Marrakech → " + villa : villa + " → Aéroport de Marrakech"),
       text("Date : ", "Date: ") + formatDate(fields.date),
-      (arrival ? text("Heure d’arrivée du vol : ", "Flight arrival time: ") : text("Heure de prise en charge : ", "Pick-up time: ")) + clock(fields.flight_arrival_time || fields.pickup_time),
+      (arrival ? text("Heure d’arrivée du vol : ", "Flight arrival time: ") : text("Heure du vol : ", "Flight time: ")) + clock(fields.flight_arrival_time || fields.pickup_time),
       text("Passagers : ", "Passengers: ") + fields.passengers,
       text("Bagages : ", "Luggage: ") + fields.luggage,
       text("Véhicules : ", "Vehicles: ") + fields.vehicles,
       text("Vol : ", "Flight: ") + fields.flight_number,
-      text("Ville de provenance : ", "City of origin: ") + fields.origin_city,
+      (arrival ? text("Ville de provenance : ", "City of origin: ") : text("Destination : ", "Destination: ")) + fields.origin_city,
       text("Sièges bébé : ", "Baby seats: ") + (fields.baby_seats ? fields.baby_seats : text("Aucun", "None"))
     ];
     if (fields.comment) lines.push(text("Commentaire : ", "Comment: ") + fields.comment);
@@ -442,8 +458,8 @@
       "Bonjour,",
       "",
       text(
-        "Je séjourne à la " + guest.villa + " et souhaite réserver une course en ville.",
-        "I am staying at " + guest.villa + " and would like to reserve a city ride."
+        "Je séjourne actuellement à la " + guest.villa + " et souhaite réserver une course en ville.",
+        "I am currently staying at " + guest.villa + " and would like to reserve a city ride."
       ),
       "",
       text("Nom : ", "Name: ") + guest.name,
@@ -481,8 +497,8 @@
       "Bonjour,",
       "",
       text(
-        "Je séjourne à la " + guest.villa + " et souhaite réserver un véhicule auprès de l’agence Massillya.",
-        "I am staying at " + guest.villa + " and would like to reserve a car with Massillya."
+        "Je séjourne actuellement à la " + guest.villa + " et souhaite réserver un véhicule auprès de l’agence Massillya.",
+        "I am currently staying at " + guest.villa + " and would like to reserve a car with Massillya."
       ),
       "",
       text("Nom : ", "Name: ") + guest.name,

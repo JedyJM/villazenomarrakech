@@ -26,148 +26,58 @@
 <a href="#sejour" data-nav="sejour">Mon séjour</a>
 <a href="#services" data-nav="services">Services</a>
 </nav>
-<div class="header-tools">
-<a class="btn btn-wa header-wa" data-guest-whatsapp href="#contact-villa" aria-label="Contacter la villa sur WhatsApp">WhatsApp</a>
 <div class="lang-switch" aria-label="Langue">
 <a href="./" hreflang="fr" lang="fr" aria-current="page">FR</a>
 <a href="en/" hreflang="en" lang="en">EN</a>
 </div>
 </div>
-</div>
 </header>
 
 <main id="contenu">
-<div class="welcome">
+<section class="home" id="accueil" aria-labelledby="accueil-title">
 <figure class="welcome-photo">
 <img src="../images/hero-piscine.webp" alt="Piscine et jardin de la Villa Zen’O, dans la Palmeraie de Marrakech" width="1152" height="864" fetchpriority="high">
 </figure>
-<div class="wrap intro-grid">
-<section class="greeting" id="accueil" aria-labelledby="accueil-title">
-<p class="eyebrow">Espace invité</p>
+<div class="wrap home-stack">
 <h1 id="accueil-title"><em>Marhaba</em> à la Villa Zen’O</h1>
-<p class="lead">Bienvenue. Les services de la villa pour votre séjour sont réunis ici.</p>
-<div class="welcome-actions" id="contact-villa">
-<a class="btn btn-wa" data-guest-whatsapp href="#contact-villa">
-<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-Contacter la villa sur WhatsApp
-</a>
-</div>
-<p class="wa-label">Message prérempli</p>
-<p class="wa-message" id="wa-message">Bonjour, je suis un invité de la Villa Zen'O et j'aimerais vous contacter.</p>
-<p class="wa-fallback" data-wa-fallback hidden>Le lien WhatsApp n’a pas pu être préparé.</p>
-</section>
-
+<div class="home-tools">
 <section class="stay" id="sejour" aria-labelledby="sejour-title">
-<p class="eyebrow">Mon séjour</p>
-<h2 id="sejour-title">Page à venir</h2>
-<p class="stay-intro">Aucun séjour n’est encore relié à cet écran. L’aperçu ci-dessous est un exemple fictif.</p>
-<article class="stay-card" aria-label="Exemple de séjour, données fictives">
-<p class="example-banner"><strong>Exemple</strong> Ceci n’est pas un séjour réel.</p>
-<p class="field-label">Prénom</p>
+<article class="stay-card" aria-label="Exemple de séjour. Invité. Arrivée le 12 décembre 2026, départ le 19 décembre 2026.">
+<div class="stay-kicker"><h2 id="sejour-title">Mon séjour</h2><span class="mini-example">Exemple</span></div>
 <p class="guest-name">Exemple : Invité</p>
-<dl class="stay-dates">
-<div>
-<dt>Arrivée</dt>
-<dd><time datetime="2026-12-12">12 décembre 2026</time> <span class="example-mark">Exemple</span></dd>
-</div>
-<div>
-<dt>Départ</dt>
-<dd><time datetime="2026-12-19">19 décembre 2026</time> <span class="example-mark">Exemple</span></dd>
-</div>
-</dl>
-<p class="stay-note">Le prénom et les dates sont fictifs. Ils servent uniquement d’exemple et ne désignent aucun invité.</p>
+<p class="stay-range"><time datetime="2026-12-12">12 déc. 2026</time><span aria-hidden="true">→</span><time datetime="2026-12-19">19 déc. 2026</time></p>
 </article>
 </section>
+<section class="wifi" aria-labelledby="wifi-title">
+<div class="wifi-row">
+<h2 class="wifi-title" id="wifi-title">Wi-Fi</h2>
+<p class="wifi-net"><span class="visually-hidden">Réseau </span><span data-wifi-network></span></p>
+<button type="button" class="wifi-copy" data-wifi-copy data-label-copy="Copier" data-label-copied="Copié">
+<span class="visually-hidden">Mot de passe </span><span data-wifi-password></span>
+<span class="wifi-action" data-wifi-action>Copier</span>
+</button>
 </div>
+<button type="button" class="wifi-scan" data-wifi-scan>
+<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2M18 14v2M14 18h2M18 18h2v2h-2z"/></svg>
+Scannez pour connecter un autre appareil
+</button>
+<p class="visually-hidden" data-wifi-status aria-live="polite"></p>
+</section>
 </div>
-
 <section class="services" id="services" aria-labelledby="services-title">
-<div class="wrap">
-<p class="eyebrow">Services</p>
-<h2 id="services-title">Pendant le séjour</h2>
-<p class="services-intro">Huit services de la villa. Les fiches ne s’ouvrent pas encore : détails à venir. Aucun tarif, aucun partenaire et aucune disponibilité ne sont indiqués.</p>
-<ul class="tiles" role="list">
-<li role="listitem">
-<article class="tile">
-<div class="tile-photo"><img src="../images/service-chauffeur.webp" alt="Chauffeur en costume à côté d’un van noir, palmiers en arrière-plan" loading="lazy"></div>
-<div class="tile-body">
-<div class="tile-heading"><p class="tile-index">01</p><h3>Transfert</h3></div>
-<p>Transferts aéroport, chauffeur privé et location de véhicule.</p>
-<p class="tile-soon">Détails à venir</p>
-</div>
-</article>
-</li>
-<li role="listitem">
-<article class="tile">
-<div class="tile-photo"><img src="../images/service-fouzia.webp" alt="Table de petit-déjeuner dressée au bord de la piscine" loading="lazy"></div>
-<div class="tile-body">
-<div class="tile-heading"><p class="tile-index">02</p><h3>Restauration</h3></div>
-<p>Petit-déjeuner, déjeuner, dîner et menus de Mama Fouzia.</p>
-<p class="tile-soon">Détails à venir</p>
-</div>
-</article>
-</li>
-<li role="listitem">
-<article class="tile">
-<div class="tile-photo"><img class="crop-caption" src="../images/service-massage.webp" alt="Massage du visage à la lumière de bougies" loading="lazy"></div>
-<div class="tile-body">
-<div class="tile-heading"><p class="tile-index">03</p><h3>Massage</h3></div>
-<p>Massage à la villa.</p>
-<p class="tile-soon">Détails à venir</p>
-</div>
-</article>
-</li>
-<li role="listitem">
-<article class="tile">
-<div class="tile-photo"><img src="../images/service-activites.webp" alt="Dromadaire et quad dans une palmeraie, avec l’Atlas au loin" loading="lazy"></div>
-<div class="tile-body">
-<div class="tile-heading"><p class="tile-index">04</p><h3>Activités</h3></div>
-<p>Quad, dromadaires et balade à cheval.</p>
-<p class="tile-soon">Détails à venir</p>
-</div>
-</article>
-</li>
-<li role="listitem">
-<article class="tile">
-<div class="tile-photo"><img src="../images/piscine-jour.webp" alt="Piscine de la villa au soleil, palmiers et terrasse" loading="lazy"></div>
-<div class="tile-body">
-<div class="tile-heading"><p class="tile-index">05</p><h3>Piscine</h3></div>
-<p>La piscine de la villa.</p>
-<p class="tile-soon">Détails à venir</p>
-</div>
-</article>
-</li>
-<li role="listitem">
-<article class="tile">
-<div class="tile-photo"><img class="crop-towels" src="../images/service-menage.webp" alt="Serviettes blanches pliées, préparées pour le ménage" loading="lazy"></div>
-<div class="tile-body">
-<div class="tile-heading"><p class="tile-index">06</p><h3>Ménage</h3></div>
-<p>Ménage pendant le séjour.</p>
-<p class="tile-soon">Détails à venir</p>
-</div>
-</article>
-</li>
-<li role="listitem">
-<article class="tile">
-<div class="tile-photo"><img class="crop-caption" src="../images/service-jemaa.webp" alt="Place Jemaa el-Fna à Marrakech au coucher du soleil" loading="lazy"></div>
-<div class="tile-body">
-<div class="tile-heading"><p class="tile-index">07</p><h3>Découvrir Marrakech</h3></div>
-<p>Pistes pour découvrir Marrakech.</p>
-<p class="tile-soon">Détails à venir</p>
-</div>
-</article>
-</li>
-<li role="listitem">
-<article class="tile">
-<div class="tile-photo"><img src="../images/entree.webp" alt="Séjour de la villa ouvert sur le jardin et la piscine" loading="lazy"></div>
-<div class="tile-body">
-<div class="tile-heading"><p class="tile-index">08</p><h3>La Villa</h3></div>
-<p>La maison et ses espaces.</p>
-<p class="tile-soon">Détails à venir</p>
-</div>
-</article>
-</li>
+<h2 class="services-title" id="services-title">Services</h2>
+<p class="visually-hidden">Les fiches ne s’ouvrent pas encore.</p>
+<ul class="tiles">
+<li><article class="tile"><span class="tile-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 15h16M6 15l1.5-5h9L18 15"/><circle cx="7.5" cy="17.5" r="1.4"/><circle cx="16.5" cy="17.5" r="1.4"/></svg></span><h3>Transfert</h3><p>Aéroport, chauffeur, location</p></article></li>
+<li><article class="tile"><span class="tile-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 10h14v8a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><h3>Restauration</h3><p>Cuisine de Mama Fouzia</p></article></li>
+<li><article class="tile"><span class="tile-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-6-3.6-6-8a4 4 0 0 1 6-3 4 4 0 0 1 6 3c0 4.4-6 8-6 8z"/></svg></span><h3>Massage</h3><p>Massages et soins à la villa</p></article></li>
+<li><article class="tile"><span class="tile-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/></svg></span><h3>Activités</h3><p>Quad, dromadaire ou cheval</p></article></li>
+<li><article class="tile"><span class="tile-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 15c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 2-2"/><path d="M3 19c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 2-2"/></svg></span><h3>Piscine</h3><p>Piscine de 18 m et jacuzzi</p></article></li>
+<li><article class="tile"><span class="tile-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 18h16M7 18V8l5-3 5 3v10"/><path d="M10 18v-4h4v4"/></svg></span><h3>Ménage</h3><p>Ménage quotidien, 9h–17h</p></article></li>
+<li><article class="tile"><span class="tile-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z"/><circle cx="12" cy="10" r="2"/></svg></span><h3>Découvrir Marrakech</h3><p>Restaurants, visites et adresses</p></article></li>
+<li><article class="tile"><span class="tile-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 11.5 12 5l8 6.5V20H4z"/><path d="M10 20v-5h4v5"/></svg></span><h3>La Villa</h3><p>4 suites dans la Palmeraie</p></article></li>
 </ul>
+</section>
 </div>
 </section>
 </main>
@@ -194,11 +104,22 @@ Mon séjour
 <svg viewBox="0 0 24 24" aria-hidden="true"><path class="stroke" d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>
 Services
 </a>
-<a data-guest-whatsapp data-nav="whatsapp" href="#contact-villa" aria-label="WhatsApp, contacter la villa">
-<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+<a data-guest-whatsapp data-nav="whatsapp" href="#accueil" aria-label="WhatsApp, contacter la villa">
+<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.41-.14-.95-.32-1.64-.63-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.16-1.54-1.16-2.94s.73-2.08 1-2.37c.24-.26.64-.38.85-.38h.61c.2 0 .46-.04.72.55.27.64.9 2.2.98 2.36.08.16.13.35.03.56-.1.21-.15.34-.3.52-.14.18-.3.4-.43.53-.14.14-.29.3-.12.58.16.28.73 1.2 1.57 1.95 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.17-.19.7-.81.89-1.09.19-.28.38-.23.64-.14.26.09 1.66.78 1.94.92.28.14.47.21.54.33.07.12.07.68-.17 1.36z"/></svg>
 WhatsApp
 </a>
 </nav>
+
+<dialog class="qr-dialog" id="wifi-qr-dialog" aria-labelledby="wifi-qr-label">
+<div class="qr-card">
+<p id="wifi-qr-label">Scannez pour connecter un autre appareil</p>
+<canvas data-wifi-qr width="240" height="240"></canvas>
+<p class="qr-ssid" data-wifi-network></p>
+<button type="button" class="qr-close" data-wifi-qr-close>Fermer</button>
+</div>
+</dialog>
+<script src="js/wifi-config.js"></script>
+<script src="js/qrcode.js"></script>
 <script src="../js/config.js"></script>
 <script src="js/portal.js"></script>
 </body>

@@ -1,14 +1,17 @@
 /* Guest portal behaviour.
-   The WhatsApp number is read from /js/config.js (VILLA_ZENO.whatsappNumber).
-   It is not copied here. The prefilled text is the guest message in the page,
-   not the public booking message stored in that config file. */
+   Wi-Fi values come from wifi-config.js. The WhatsApp number is read from
+   /js/config.js. The prefilled text is the guest message, not the booking message. */
 (function () {
   "use strict";
 
+  var portal = window.GUEST_PORTAL || { wifi: {}, wifiPayload: function () { return ""; } };
+  var lang = (document.documentElement.lang || "fr").slice(0, 2);
+  var isEn = lang === "en";
   var cfg = window.VILLA_ZENO || {};
   var number = String(cfg.whatsappNumber || "").replace(/\D/g, "");
-  var messageNode = document.getElementById("wa-message");
-  var message = messageNode ? messageNode.textContent.replace(/\s+/g, " ").trim() : "";
+  var message = isEn
+    ? "Hello, I am a guest at Villa Zen'O and I would like to get in touch."
+    : "Bonjour, je suis un invité de la Villa Zen'O et j'aimerais vous contacter.";
   var href = number && message ? "https://wa.me/" + number + "?text=" + encodeURIComponent(message) : "";
 
   document.querySelectorAll("[data-guest-whatsapp]").forEach(function (el) {
@@ -20,13 +23,108 @@
     el.href = href;
   });
 
-  var fallback = document.querySelector("[data-wa-fallback]");
-  if (fallback) fallback.hidden = Boolean(href);
+  document.querySelectorAll("[data-wifi-network]").forEach(function (node) {
+    node.textContent = portal.wifi.network || "";
+  });
+  document.querySelectorAll("[data-wifi-password]").forEach(function (node) {
+    node.textContent = portal.wifi.password || "";
+  });
+
+  var copyButton = document.querySelector("[data-wifi-copy]");
+  var statusNode = document.querySelector("[data-wifi-status]");
+  if (copyButton && portal.wifi.password) {
+    var labelCopy = copyButton.getAttribute("data-label-copy") || "Copy";
+    var labelCopied = copyButton.getAttribute("data-label-copied") || "Copied";
+    var actionNode = copyButton.querySelector("[data-wifi-action]");
+    var resetTimer = 0;
+
+    function setCopied(ok) {
+      if (actionNode) actionNode.textContent = ok ? labelCopied : labelCopy;
+      copyButton.classList.toggle("is-copied", ok);
+      if (statusNode) {
+        statusNode.textContent = ok
+          ? (isEn ? "Password copied." : "Mot de passe copié.")
+          : (isEn ? "The password could not be copied." : "Le mot de passe n’a pas pu être copié.");
+      }
+      window.clearTimeout(resetTimer);
+      if (ok) {
+        resetTimer = window.setTimeout(function () {
+          if (actionNode) actionNode.textContent = labelCopy;
+          copyButton.classList.remove("is-copied");
+        }, 1800);
+      }
+    }
+
+    function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+      return new Promise(function (resolve, reject) {
+        var area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.left = "-9999px";
+        document.body.appendChild(area);
+        area.select();
+        try {
+          var ok = document.execCommand("copy");
+          document.body.removeChild(area);
+          ok ? resolve() : reject(new Error("copy"));
+        } catch (err) {
+          document.body.removeChild(area);
+          reject(err);
+        }
+      });
+    }
+
+    copyButton.addEventListener("click", function () {
+      copyText(portal.wifi.password).then(function () { setCopied(true); }).catch(function () { setCopied(false); });
+    });
+  }
+
+  function drawWifiQr(canvas) {
+    if (!canvas || typeof qrcode !== "function") return;
+    var payload = portal.wifiPayload();
+    if (!payload) return;
+    var qr = qrcode(0, "M");
+    qr.addData(payload);
+    qr.make();
+    var count = qr.getModuleCount();
+    var quiet = 4;
+    var modulePx = 8;
+    var size = (count + quiet * 2) * modulePx;
+    canvas.width = size;
+    canvas.height = size;
+    var ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = "#1c1916";
+    for (var row = 0; row < count; row++) {
+      for (var col = 0; col < count; col++) {
+        if (qr.isDark(row, col)) ctx.fillRect((col + quiet) * modulePx, (row + quiet) * modulePx, modulePx, modulePx);
+      }
+    }
+  }
+
+  var dialog = document.getElementById("wifi-qr-dialog");
+  var scanButton = document.querySelector("[data-wifi-scan]");
+  if (dialog && scanButton) {
+    var canvas = dialog.querySelector("[data-wifi-qr]");
+    scanButton.addEventListener("click", function () {
+      drawWifiQr(canvas);
+      if (typeof dialog.showModal === "function") dialog.showModal();
+    });
+    dialog.querySelectorAll("[data-wifi-qr-close]").forEach(function (button) {
+      button.addEventListener("click", function () { dialog.close(); });
+    });
+    dialog.addEventListener("click", function (event) {
+      if (event.target === dialog) dialog.close();
+    });
+  }
 
   var header = document.querySelector(".site-header");
   function onScroll() {
     if (!header) return;
-    header.classList.toggle("is-scrolled", window.scrollY > 8);
+    header.classList.toggle("is-scrolled", window.scrollY > 4);
   }
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });
@@ -46,28 +144,4 @@
       setCurrent(key);
     });
   });
-
-  var sections = ["accueil", "sejour", "services"].map(function (id) {
-    return document.getElementById(id);
-  }).filter(Boolean);
-
-  if (sections.length && "IntersectionObserver" in window) {
-    var ratios = {};
-    var observer = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        ratios[entry.target.id] = entry.isIntersecting ? entry.intersectionRatio : 0;
-      });
-      var best = "";
-      var bestRatio = 0;
-      sections.forEach(function (section) {
-        var ratio = ratios[section.id] || 0;
-        if (ratio > bestRatio) {
-          best = section.id;
-          bestRatio = ratio;
-        }
-      });
-      if (best) setCurrent(best);
-    }, { rootMargin: "-28% 0px -48% 0px", threshold: [0, 0.2, 0.45, 0.7, 1] });
-    sections.forEach(function (section) { observer.observe(section); });
-  }
 })();

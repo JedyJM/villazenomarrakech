@@ -89,7 +89,7 @@
     var display = input.parentElement.querySelector("[data-picker-value]");
     if (!display) return;
     if (!input.value) {
-      display.textContent = "—";
+      display.textContent = input.type === "date" ? text("jj/mm/aaaa", "dd/mm/yyyy") : "hh:mm";
       display.classList.add("is-empty");
       return;
     }
@@ -361,8 +361,8 @@
       ? text("À l’aéroport", "To the airport")
       : text("À la villa", "To the villa");
     var usage = fields.usage === "excursion"
-      ? "Excursion / road trip"
-      : text("Trajets dans Marrakech", "Around Marrakech");
+      ? "Excursion"
+      : text("Dans Marrakech", "In Marrakech");
     return text(
       "Bonjour Papa,\nJe souhaite louer une voiture avec Massillya.\nNom : " + guest.name + "\nVilla : " + guest.villa + "\nDébut : " + fields.start_date + "\nFin : " + fields.end_date + "\nVéhicule : " + typeLabel + "\nPersonnes : " + fields.people + "\nLivraison : " + delivery + "\nUtilisation : " + usage + "\nCommentaire : " + (fields.comment || "—"),
       "Hello Papa,\nI would like to rent a car with Massillya.\nName: " + guest.name + "\nVilla: " + guest.villa + "\nStart: " + fields.start_date + "\nEnd: " + fields.end_date + "\nVehicle: " + typeLabel + "\nPeople: " + fields.people + "\nDelivery: " + delivery + "\nUse: " + usage + "\nComment: " + (fields.comment || "—")

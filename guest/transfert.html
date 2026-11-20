@@ -34,8 +34,8 @@
 <h1>Transfert</h1>
 <div class="segments" role="tablist" aria-label="Type de demande">
 <button type="button" role="tab" data-show="airport" aria-selected="true">Aéroport</button>
-<button type="button" role="tab" data-show="city" aria-selected="false">Course en ville</button>
-<button type="button" role="tab" data-show="rental" aria-selected="false">Location de voiture</button>
+<button type="button" role="tab" data-show="city" aria-selected="false">En ville</button>
+<button type="button" role="tab" data-show="rental" aria-selected="false">Location</button>
 </div>
 <p class="request-lead" data-segment-lead>Aéroport de Marrakech · environ 35 min · règlement en espèces au chauffeur</p>
 <section data-panel="airport">
@@ -54,8 +54,8 @@
 <label><input type="radio" name="trip" value="departure"> Départ</label>
 </div>
 <div class="field-row">
-<div class="field"><label for="date">Date</label><div class="picker"><span class="picker-value is-empty" data-picker-value>—</span><input class="picker-native" id="date" name="date" type="date" lang="fr" required></div></div>
-<div class="field"><label for="time" data-time-label>Heure d’arrivée du vol</label><div class="picker"><span class="picker-value is-empty" data-picker-value>—</span><input class="picker-native" id="time" name="time" type="time" lang="fr" step="60" required></div></div>
+<div class="field"><label for="date">Date</label><div class="picker"><span class="picker-value is-empty" data-picker-value>jj/mm/aaaa</span><input class="picker-native" id="date" name="date" type="date" lang="fr" required></div></div>
+<div class="field"><label for="time" data-time-label>Heure d’arrivée du vol</label><div class="picker"><span class="picker-value is-empty" data-picker-value>hh:mm</span><input class="picker-native" id="time" name="time" type="time" lang="fr" step="60" required></div></div>
 </div>
 <div class="field-row">
 <div class="field"><label for="passengers">Passagers</label><select id="passengers" name="passengers" required><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option value="9">Plus de 8</option></select></div>
@@ -103,15 +103,15 @@
 </section>
 <section data-panel="rental" hidden>
 <div class="rental-head">
-<p class="request-lead">Location de voiture · contact Papa</p>
 <h2>Massillya</h2>
+<p class="request-lead">Location de voiture · contact Papa</p>
 </div>
 <form class="rental-form" data-rental-form novalidate>
 <p class="form-error" data-errors hidden></p>
 <div class="form-card">
 <div class="field-row">
-<div class="field"><label for="start">Début</label><div class="picker"><span class="picker-value is-empty" data-picker-value>—</span><input class="picker-native" id="start" name="start_date" type="date" lang="fr" required></div></div>
-<div class="field"><label for="end">Fin</label><div class="picker"><span class="picker-value is-empty" data-picker-value>—</span><input class="picker-native" id="end" name="end_date" type="date" lang="fr" required></div></div>
+<div class="field"><label for="start">Début</label><div class="picker"><span class="picker-value is-empty" data-picker-value>jj/mm/aaaa</span><input class="picker-native" id="start" name="start_date" type="date" lang="fr" required></div></div>
+<div class="field"><label for="end">Fin</label><div class="picker"><span class="picker-value is-empty" data-picker-value>jj/mm/aaaa</span><input class="picker-native" id="end" name="end_date" type="date" lang="fr" required></div></div>
 </div>
 <div class="field"><span class="card-kicker">Type</span>
 <div class="pair">
@@ -128,8 +128,8 @@
 </div>
 <div class="field"><span class="card-kicker">Utilisation</span>
 <div class="pair">
-<label><input type="radio" name="usage" value="marrakech"> Trajets dans Marrakech</label>
-<label><input type="radio" name="usage" value="excursion"> Excursion / road trip</label>
+<label><input type="radio" name="usage" value="marrakech"> Dans Marrakech</label>
+<label><input type="radio" name="usage" value="excursion"> Excursion</label>
 </div>
 </div>
 <div class="field"><label for="rental-comment">Commentaire (facultatif)</label><textarea id="rental-comment" name="comment" rows="2"></textarea></div>

@@ -11,4 +11,13 @@ var GUEST_SHELL_EN = '<nav class="bottom-nav" aria-label="Guest space navigation
   var en = (document.documentElement.lang || "fr").slice(0, 2) === "en";
   var html = (en ? GUEST_SHELL_EN : GUEST_SHELL_FR).replace(/__HOME__/g, home);
   document.body.insertAdjacentHTML("beforeend", html);
+  var nav = document.querySelector(".bottom-nav");
+  if (nav && window.visualViewport) {
+    var pin = function () {
+      var x = window.visualViewport.offsetLeft || 0;
+      nav.style.transform = x ? "translateX(" + (-x) + "px)" : "";
+    };
+    window.visualViewport.addEventListener("resize", pin);
+    window.visualViewport.addEventListener("scroll", pin);
+  }
 })();

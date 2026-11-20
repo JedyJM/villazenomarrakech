@@ -22,7 +22,7 @@
 
   function requestWhatsApp(realNumber, message) {
     var number = TEST_MODE ? TEST_WHATSAPP : realNumber;
-    return "https://wa.me/" + number + "?text=" + encodeURIComponent(message);
+    return "https://api.whatsapp.com/send?phone=" + number + "&text=" + encodeURIComponent(message);
   }
 
   function getGuestFromStay() {
@@ -607,8 +607,21 @@
   }
 
   function openGuestWhatsApp(url) {
-    var opened = window.open(url, "_blank", "noopener");
-    if (!opened) window.location.href = url;
+    var link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  function framePage() {
+    var active = document.activeElement;
+    if (active && active.blur) active.blur();
+    window.scrollTo(0, 0);
+    document.documentElement.scrollLeft = 0;
+    document.body.scrollLeft = 0;
   }
 
   function init() {
@@ -681,6 +694,7 @@
         data.fields.message = transferMessage(data.guest, data.fields, data.price);
         submitRequest(baseRecord("transfert", data.guest, data.fields, data.price));
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, data.fields.message));
+        framePage();
         transfer.hidden = true;
         var done = root.querySelector("[data-confirm]");
         fillConfirmation(done.querySelector("[data-confirm-list]"), data);
@@ -690,6 +704,7 @@
         if (pageTitle) pageTitle.hidden = true;
         var notes = root.querySelector("[data-segment-notes]");
         if (notes) notes.hidden = true;
+        framePage();
       });
     }
 

@@ -168,4 +168,49 @@
       setCurrent(key);
     });
   });
+
+  var nav = document.querySelector(".bottom-nav");
+  if (nav) {
+    var fieldFocused = false;
+    var keyboardTimer = 0;
+    function isTypingField(el) {
+      if (!el || !el.tagName) return false;
+      var tag = el.tagName;
+      if (tag === "TEXTAREA" || tag === "SELECT") return true;
+      if (tag !== "INPUT") return false;
+      var type = (el.type || "text").toLowerCase();
+      return ["hidden", "checkbox", "radio", "button", "submit", "reset", "file", "range", "image"].indexOf(type) === -1;
+    }
+    function keyboardOpen() {
+      var view = window.visualViewport;
+      if (!view) return false;
+      return window.innerHeight - view.height > 80;
+    }
+    function paintNav() {
+      var hide = fieldFocused && (keyboardOpen() || window.matchMedia("(pointer: coarse)").matches);
+      if (fieldFocused && window.visualViewport && !keyboardOpen() && nav.dataset.keyboardSeen === "1") hide = false;
+      nav.classList.toggle("is-keyboard", hide);
+      nav.setAttribute("aria-hidden", hide ? "true" : "false");
+    }
+    document.addEventListener("focusin", function (event) {
+      if (!isTypingField(event.target)) return;
+      fieldFocused = true;
+      paintNav();
+    });
+    document.addEventListener("focusout", function (event) {
+      if (!isTypingField(event.target)) return;
+      window.clearTimeout(keyboardTimer);
+      keyboardTimer = window.setTimeout(function () {
+        fieldFocused = isTypingField(document.activeElement);
+        if (!fieldFocused) delete nav.dataset.keyboardSeen;
+        paintNav();
+      }, 50);
+    });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", function () {
+        if (keyboardOpen()) nav.dataset.keyboardSeen = "1";
+        paintNav();
+      });
+    }
+  }
 })();

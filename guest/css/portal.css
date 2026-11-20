@@ -548,6 +548,15 @@ a.tile { color: inherit; text-decoration: none; }
   background: var(--paper);
   border-top: 1px solid var(--line);
   padding: 0 0 env(safe-area-inset-bottom, 0px);
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.22s ease, visibility 0s linear;
+}
+.bottom-nav.is-keyboard {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.22s ease, visibility 0s linear 0.22s;
 }
 .bottom-nav a,
 .bottom-nav button {
@@ -677,6 +686,7 @@ a.tile { color: inherit; text-decoration: none; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .bottom-nav { transition: none; }
 }
 @media print {
   .bottom-nav, .skip-link { display: none !important; }

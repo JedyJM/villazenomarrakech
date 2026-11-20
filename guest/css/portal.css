@@ -700,6 +700,14 @@ body.has-meal-recap { padding-bottom: calc(var(--nav-space) + 96px); }
 .page-meal .segments { margin: 0 0 6px; }
 .meal-breakfast { display: grid; gap: 10px; }
 .meal-breakfast[hidden] { display: none; }
+.meal-breakfast .people-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 36px;
+}
+.meal-breakfast .people-row > span:first-child { color: var(--ink); font-size: 0.84rem; }
 .meal-menu { display: grid; gap: 6px; }
 .meal-menu[hidden] { display: none; }
 .meal-kicker {

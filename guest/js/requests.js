@@ -905,6 +905,8 @@
     function paintPrices() {
       var kind = mealKind();
       var table = kind === "dinner" ? prices.dinner : prices.lunch;
+      var unit = form.querySelector("[data-breakfast-price]");
+      if (unit) unit.textContent = euro(prices.breakfast) + "\u00A0/\u00A0pers.";
       form.querySelectorAll(".dish").forEach(function (dish) {
         var price = table[dish.getAttribute("data-cat")];
         dish.querySelector("[data-meal-price]").textContent = euro(price);

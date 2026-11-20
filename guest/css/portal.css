@@ -33,6 +33,19 @@ body {
 }
 img { max-width: 100%; display: block; }
 button, a { font-family: inherit; }
+a[href^="tel:"],
+a[href^="tel:"]:link,
+a[href^="tel:"]:visited,
+a[href^="tel:"]:hover,
+a[href^="tel:"]:active,
+a[href*="wa.me"],
+a[href*="wa.me"]:link,
+a[href*="wa.me"]:visited,
+a[href*="wa.me"]:hover,
+a[href*="wa.me"]:active {
+  text-decoration: none;
+  color: inherit;
+}
 h1, h2, h3, .logo, .guest-name, .footer-logo {
   font-family: var(--serif);
   font-weight: 500;
@@ -341,7 +354,7 @@ p { margin: 0; }
 .contact-row {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 16px;
+  grid-template-columns: minmax(0, 1fr) 32px;
   grid-template-areas: "who phone" "num phone";
   column-gap: 0.55rem;
   row-gap: 0.08rem;
@@ -377,14 +390,32 @@ p { margin: 0; }
   line-height: 1.15;
   font-variant-numeric: tabular-nums;
 }
-.contact-phone {
+.contact-phone,
+.contact-wa {
   grid-area: phone;
-  width: 15px;
-  height: 15px;
-  color: var(--terracotta);
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  box-sizing: border-box;
   justify-self: end;
+  align-self: center;
+  color: var(--terracotta);
+  border: 1px solid rgba(28, 25, 22, 0.14);
+  border-radius: 50%;
 }
-.contact-row .alt {
+.wa-label {
+  margin-left: 0.4rem;
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.contact-row .alt,
+.contact-row .alt:link,
+.contact-row .alt:visited,
+.contact-row .alt:hover,
+.contact-row .alt:active {
   grid-area: num;
   justify-self: start;
   margin-left: 2.05rem;

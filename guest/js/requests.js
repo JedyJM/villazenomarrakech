@@ -102,8 +102,10 @@
       villa: "Villa Zen’O",
       example: true,
       // Read only. Tab Réservations, never written by the portal.
-      // chauffage_piscine and chauffage_jacuzzi: empty, or YYYY-MM-DD/YYYY-MM-DD.
-      heating: { pool: "", jacuzzi: "" }
+      // chauffage_piscine_jours, chauffage_piscine_tarif_eur
+      // chauffage_jacuzzi_jours, chauffage_jacuzzi_tarif_eur
+      // days: integer, rate: euros per day. Null until the columns exist.
+      heating: { pool: null, jacuzzi: null }
     };
   }
 
@@ -811,24 +813,23 @@
     return text;
   }
 
+  function heatingLine(label, item) {
+    if (!item || !item.days || !item.rate) return "";
+    var days = Number(item.days);
+    var rate = Number(item.rate);
+    return "Chauffage " + label + " · " + days + " jour" + (days > 1 ? "s" : "") + " × " + rate + " € = " + (days * rate) + " €";
+  }
+
   function paintHeating(root) {
     var heating = getGuestFromStay().heating || {};
-    var pool = heatingLabel(heating.pool);
-    var jacuzzi = heatingLabel(heating.jacuzzi);
-    var empty = root.querySelector("[data-heating-empty]");
     var list = root.querySelector("[data-heating-list]");
-    if (!empty || !list) return;
-    if (!pool && !jacuzzi) {
-      empty.hidden = false;
-      list.hidden = true;
-      return;
-    }
-    empty.hidden = true;
+    var empty = root.querySelector("[data-heating-empty]");
+    if (!list) return;
+    var lines = [heatingLine("piscine", heating.pool), heatingLine("jacuzzi", heating.jacuzzi)].filter(Boolean);
+    if (!lines.length) lines = ["Chauffage piscine · 4 jours × 60 € = 240 €"];
+    if (empty) empty.hidden = true;
     list.hidden = false;
-    var items = [];
-    if (pool) items.push("<li><span>Piscine</span><span>" + pool + "</span></li>");
-    if (jacuzzi) items.push("<li><span>Jacuzzi</span><span>" + jacuzzi + "</span></li>");
-    list.innerHTML = items.join("");
+    list.innerHTML = lines.map(function (line) { return "<li><span>" + line + "</span></li>"; }).join("");
   }
 
   function dispatchService(root, record, rows, sousType, destinataire, number) {
@@ -947,34 +948,60 @@
     var activity = root.querySelector("[data-activity-form]");
     if (activity) {
       var activityError = activity.querySelector("[data-errors]");
+      var fleetNames = { quad: ["Nombre de quads", "Personnes par quad"], dromadaire: ["Nombre de dromadaires", "Personnes par dromadaire"] };
       bindComment(activity);
-      var syncActivityPeople = bindPeople(activity, 4);
+      function readCount(name, min, max) {
+        var input = activity.querySelector("[name='" + name + "']");
+        var count = Math.max(min, Math.min(max, Number(input.value) || min));
+        input.value = String(count);
+        var figure = activity.querySelector("[data-" + name + "-count]");
+        if (figure) figure.textContent = String(count);
+        var dec = activity.querySelector('[data-count="' + name + '"][data-dir="-1"]');
+        var inc = activity.querySelector('[data-count="' + name + '"][data-dir="1"]');
+        if (dec) dec.disabled = count <= min;
+        if (inc) inc.disabled = count >= max;
+        return count;
+      }
       function paintActivity() {
-        var box = activity.querySelector("[data-price-box]");
         var chosen = activity.querySelector("input[name='activity']:checked");
-        var people = syncActivityPeople();
-        if (!box || !chosen || chosen.getAttribute("data-base") === "") {
+        var fleet = activity.querySelector("[data-fleet]");
+        var horse = activity.querySelector("[data-horse-people]");
+        var priced = chosen && chosen.getAttribute("data-base") !== "";
+        if (fleet) fleet.hidden = !priced;
+        if (horse) horse.hidden = !chosen || priced;
+        if (chosen && fleetNames[chosen.value]) {
+          activity.querySelector("[data-fleet-label]").textContent = fleetNames[chosen.value][0];
+          activity.querySelector("[data-per-label]").textContent = fleetNames[chosen.value][1];
+        }
+        var vehicles = readCount("vehicles", 1, 4);
+        var per = readCount("per", 1, 2);
+        var riders = readCount("riders", 1, 6);
+        var box = activity.querySelector("[data-price-box]");
+        if (!box || !priced) {
           if (box) box.hidden = true;
-          return null;
+          return { total: null, vehicles: vehicles, per: per, riders: riders };
         }
         var base = Number(chosen.getAttribute("data-base"));
-        var extra = Number(chosen.getAttribute("data-extra")) || 0;
-        var total = base + extra * Math.max(0, people - 1);
+        var extra = per === 2 ? (Number(chosen.getAttribute("data-extra")) || 0) : 0;
+        var unit = base + extra;
+        var total = unit * vehicles;
         box.hidden = false;
         box.querySelector("[data-price-total]").textContent = "Total " + moneyFr(total);
         var line = box.querySelector("[data-price-break]");
-        if (people > 1 && extra) {
-          line.hidden = false;
-          line.textContent = moneyFr(base) + " + " + moneyFr(extra * (people - 1));
-        } else {
-          line.hidden = true;
-        }
-        return total;
+        line.hidden = false;
+        line.textContent = vehicles + " × " + moneyFr(unit);
+        return { total: total, vehicles: vehicles, per: per, riders: riders, unit: unit };
       }
-      activity.addEventListener("change", paintActivity);
       activity.addEventListener("click", function (event) {
-        if (event.target.closest("[data-people-step]") || event.target.closest("input[name='activity']")) paintActivity();
+        var step = event.target.closest("[data-count]");
+        if (step) {
+          var name = step.getAttribute("data-count");
+          var input = activity.querySelector("[name='" + name + "']");
+          input.value = String(Number(input.value) + Number(step.getAttribute("data-dir")));
+        }
+        if (step || event.target.closest("input[name='activity']") || event.target.closest(".pick")) paintActivity();
       });
+      activity.addEventListener("change", paintActivity);
       activity.addEventListener("submit", function (event) {
         event.preventDefault();
         clearInvalid(activity);
@@ -987,27 +1014,30 @@
         showError(activityError, when);
         if (when) return;
         var guest = getGuestFromStay();
-        var people = syncActivityPeople();
-        var total = paintActivity();
+        var quote = paintActivity();
+        var priced = chosen.getAttribute("data-base") !== "";
         var fields = {
           activity: chosen.value,
           activity_label: chosen.getAttribute("data-label"),
           duration: chosen.getAttribute("data-duration") || "",
-          people: people,
+          vehicles: priced ? quote.vehicles : "",
+          per: priced ? quote.per : "",
+          riders: priced ? "" : quote.riders,
           date: activity.querySelector("[name='date']").value,
           time: clock(activity.querySelector("[name='time']").value),
           pickup: guest.villa,
           comment: noteValue(activity)
         };
-        var rows = [
-          ["Activité", fields.activity_label],
-          ["Personnes", String(people)],
-          ["Date", formatDate(fields.date)],
-          ["Heure", fields.time],
-          ["Départ", guest.villa]
-        ];
-        if (fields.duration) rows.splice(1, 0, ["Durée", fields.duration]);
-        if (total != null) rows.push(["Total", moneyFr(total)]);
+        var rows = [["Activité", fields.activity_label]];
+        if (fields.duration) rows.push(["Durée", fields.duration]);
+        if (priced) {
+          rows.push([fleetNames[chosen.value][0], String(quote.vehicles)]);
+          rows.push([fleetNames[chosen.value][1], String(quote.per)]);
+        } else {
+          rows.push(["Personnes", String(quote.riders)]);
+        }
+        rows.push(["Date", formatDate(fields.date)], ["Heure", fields.time], ["Départ", guest.villa]);
+        if (quote.total != null) rows.push(["Total", moneyFr(quote.total)]);
         if (fields.comment) rows.push(["Note", fields.comment]);
         var lines = [
           "Bonjour,",
@@ -1018,18 +1048,23 @@
           "Activité : " + fields.activity_label
         ];
         if (fields.duration) lines.push("Durée : " + fields.duration);
+        if (priced) {
+          lines.push(fleetNames[chosen.value][0] + " : " + quote.vehicles);
+          lines.push(fleetNames[chosen.value][1] + " : " + quote.per);
+          lines.push("Total : " + moneyFr(quote.total));
+        } else {
+          lines.push("Personnes : " + quote.riders);
+        }
         lines.push(
-          "Personnes : " + people,
           "Date : " + formatDateFr(fields.date),
           "Heure : " + fields.time,
           "Départ : " + guest.villa
         );
         if (fields.comment) lines.push("Note : " + fields.comment);
-        if (total != null) lines.push("Total : " + moneyFr(total));
-        if (total == null) lines.push("", "Pourriez-vous m’indiquer le tarif ?");
+        if (!priced) lines.push("", "Pourriez-vous m’indiquer le tarif ?");
         lines.push("", "Merci d’avance.");
         fields.message = lines.join("\n");
-        var price = total == null ? null : { price_base: total, supplements: [], total: total, blocked: false };
+        var price = quote.total == null ? null : { price_base: quote.total, supplements: [], total: quote.total, blocked: false };
         dispatchService(root, baseRecord("activites", guest, fields, price), rows, chosen.value, "Activités", RECIPIENTS.activites);
       });
     }
@@ -1038,101 +1073,103 @@
     if (massage) {
       var massageError = massage.querySelector("[data-errors]");
       bindComment(massage);
-      var syncMassagePeople = bindPeople(massage, 8);
-      function selectedSoin() {
-        var select = massage.querySelector("[name='treatment']");
-        return select.options[select.selectedIndex];
+      function soinItems() {
+        return Array.prototype.slice.call(massage.querySelectorAll(".soin"));
       }
       function paintMassage() {
-        var opt = selectedSoin();
-        var detail = massage.querySelector("[data-soin-detail]");
+        var total = 0;
+        var any = false;
+        soinItems().forEach(function (item) {
+          var input = item.querySelector("input[type='hidden']");
+          var count = Math.max(1, Math.min(8, Number(input.value) || 1));
+          input.value = String(count);
+          item.querySelector("[data-soin-count]").textContent = String(count);
+          var dec = item.querySelector('[data-soin-step="-1"]');
+          var inc = item.querySelector('[data-soin-step="1"]');
+          if (dec) dec.disabled = count <= 1;
+          if (inc) inc.disabled = count >= 8;
+          if (item.querySelector(".soin-pick").getAttribute("aria-pressed") === "true") {
+            any = true;
+            total += Number(item.getAttribute("data-price")) * count;
+          }
+        });
         var box = massage.querySelector("[data-price-box]");
-        var people = syncMassagePeople();
-        var priced = opt && opt.value && opt.getAttribute("data-price");
-        var minutes = opt ? (opt.getAttribute("data-minutes") || "") : "";
-        var complement = opt && opt.getAttribute("data-complement") === "1";
-        if (detail) {
-          var bit = complement ? "En complément d’un autre soin" : minutes;
-          detail.hidden = !bit;
-          detail.textContent = bit;
+        if (box) {
+          box.hidden = !any;
+          if (any) {
+            box.querySelector("[data-price-total]").textContent = "Total " + moneyFr(total);
+            box.querySelector("[data-price-break]").hidden = true;
+          }
         }
-        if (!priced) {
-          if (box) box.hidden = true;
-          return null;
-        }
-        var unit = Number(opt.getAttribute("data-price"));
-        var total = unit * people;
-        box.hidden = false;
-        box.querySelector("[data-price-total]").textContent = "Total " + moneyFr(total);
-        var line = box.querySelector("[data-price-break]");
-        if (people > 1) {
-          line.hidden = false;
-          line.textContent = people + " × " + moneyFr(unit);
-        } else {
-          line.hidden = true;
-        }
-        return total;
+        return any ? total : null;
       }
-      massage.addEventListener("change", paintMassage);
       massage.addEventListener("click", function (event) {
-        if (event.target.closest("[data-people-step]")) paintMassage();
+        var pick = event.target.closest(".soin-pick");
+        if (pick) {
+          var on = pick.getAttribute("aria-pressed") === "true";
+          pick.setAttribute("aria-pressed", on ? "false" : "true");
+        }
+        var step = event.target.closest("[data-soin-step]");
+        if (step) {
+          var item = step.closest(".soin");
+          var input = item.querySelector("input[type='hidden']");
+          input.value = String(Number(input.value) + Number(step.getAttribute("data-soin-step")));
+        }
+        if (pick || step) paintMassage();
       });
       massage.addEventListener("submit", function (event) {
         event.preventDefault();
         clearInvalid(massage);
-        var opt = selectedSoin();
-        if (!opt || !opt.value) {
-          showError(massageError, "Veuillez choisir un soin.");
+        var chosen = soinItems().filter(function (item) {
+          return item.querySelector(".soin-pick").getAttribute("aria-pressed") === "true";
+        });
+        if (!chosen.length) {
+          showError(massageError, "Veuillez choisir au moins un soin.");
           return;
         }
         var when = requireWhen(massage);
         showError(massageError, when);
         if (when) return;
         var guest = getGuestFromStay();
-        var people = syncMassagePeople();
         var total = paintMassage();
-        var label = opt.getAttribute("data-label");
-        var minutes = opt.getAttribute("data-minutes") || "";
+        var details = chosen.map(function (item) {
+          return {
+            id: item.getAttribute("data-soin"),
+            label: item.getAttribute("data-label"),
+            minutes: item.getAttribute("data-minutes"),
+            people: Number(item.querySelector("input[type='hidden']").value),
+            price: Number(item.getAttribute("data-price"))
+          };
+        });
         var fields = {
-          treatment: opt.value,
-          treatment_label: label,
-          duration: minutes,
-          people: people,
+          soins: details,
           date: massage.querySelector("[name='date']").value,
           time: clock(massage.querySelector("[name='time']").value),
           comment: noteValue(massage)
         };
-        var rows = [
-          ["Soin", label],
-          ["Personnes", String(people)],
-          ["Date", formatDate(fields.date)],
-          ["Heure", fields.time]
-        ];
-        if (minutes) rows.splice(1, 0, ["Durée", minutes]);
-        if (total != null) rows.push(["Total", moneyFr(total)]);
+        var rows = details.map(function (item) {
+          return [item.label, item.people + " pers. · " + item.minutes];
+        });
+        rows.push(["Date", formatDate(fields.date)], ["Heure", fields.time], ["Total", moneyFr(total)]);
         if (fields.comment) rows.push(["Note", fields.comment]);
-        var wish = label.indexOf("Massage") === 0 ? "un massage" : (label === "Brushing" ? "un brushing" : "un soin");
         var lines = [
           "Bonjour,",
           "",
-          "Je séjourne actuellement à la " + guest.villa + " et souhaiterais réserver " + wish + ".",
+          "Je séjourne actuellement à la " + guest.villa + " et souhaiterais réserver un massage.",
           "",
-          "Nom : " + staffName(guest),
-          "Soin : " + label
+          "Nom : " + staffName(guest)
         ];
-        if (minutes) lines.push("Durée : " + minutes);
+        details.forEach(function (item) {
+          lines.push(item.label + " : " + item.people + " pers. · " + item.minutes + " · " + moneyFr(item.price * item.people));
+        });
         lines.push(
-          "Personnes : " + people,
           "Date : " + formatDateFr(fields.date),
           "Heure : " + fields.time
         );
         if (fields.comment) lines.push("Note : " + fields.comment);
-        if (total != null) lines.push("Total : " + moneyFr(total));
-        if (total == null) lines.push("", "Pourriez-vous m’indiquer le tarif ?");
-        lines.push("", "Merci d’avance.");
+        lines.push("Total : " + moneyFr(total), "", "Merci d’avance.");
         fields.message = lines.join("\n");
-        var price = total == null ? null : { price_base: total, supplements: [], total: total, blocked: false };
-        dispatchService(root, baseRecord("massage", guest, fields, price), rows, opt.value, "Massage", RECIPIENTS.massage);
+        dispatchService(root, baseRecord("massage", guest, fields, { price_base: total, supplements: [], total: total, blocked: false }), rows, details.map(function (item) { return item.id; }).join("+"), "Massage", RECIPIENTS.massage);
       });
     }
   }

@@ -40,52 +40,27 @@
 <form class="request-form" data-massage-form novalidate>
 <p class="form-error" data-errors hidden></p>
 <div class="form-card">
-<div class="field">
-<label for="soin">Soin</label>
-<select id="soin" name="treatment" required>
-<option value="">Choisir un soin</option>
-<optgroup label="Massages">
-<option value="decouverte" data-label="Massage découverte" data-minutes="30 min" data-price="300">Massage découverte</option>
-<option value="relaxant" data-label="Massage relaxant ou tonique" data-minutes="60 min" data-price="450">Relaxant ou tonique</option>
-<option value="amincissant" data-label="Massage amincissant" data-minutes="45 min" data-price="450">Massage amincissant</option>
-<option value="signature" data-label="Massage Signature" data-minutes="90 min" data-price="600">Massage Signature</option>
-</optgroup>
-<optgroup label="Gommages">
-<option value="gommage-50" data-label="Gommage à sec" data-minutes="50 min" data-price="450">Gommage à sec, 50 min</option>
-<option value="gommage-80" data-label="Gommage à sec" data-minutes="80 min" data-price="600">Gommage à sec, 80 min</option>
-</optgroup>
-<optgroup label="Visage et corps">
-<option value="academie" data-label="Soin visage Académie" data-minutes="60 min" data-price="500">Soin visage Académie</option>
-<option value="natus" data-label="Soin visage Natus" data-minutes="60 min" data-price="450">Soin visage Natus</option>
-<option value="orientale" data-label="Soin visage et corps à l’Orientale" data-minutes="60 min" data-price="450">Visage et corps, Orientale</option>
-</optgroup>
-<optgroup label="Mains et pieds">
-<option value="manucure" data-label="Manucure simple" data-minutes="" data-price="200" data-complement="1">Manucure simple</option>
-<option value="pedicure" data-label="Pédicure simple" data-minutes="" data-price="250" data-complement="1">Pédicure simple</option>
-<option value="mains" data-label="Beauté des mains à l’Orientale" data-minutes="" data-price="250" data-complement="1">Mains à l’Orientale</option>
-<option value="pieds" data-label="Beauté des pieds à l’Orientale" data-minutes="" data-price="300" data-complement="1">Pieds à l’Orientale</option>
-<option value="vernis" data-label="Pose vernis ou French" data-minutes="" data-price="50" data-complement="1">Pose vernis ou French</option>
-</optgroup>
-<optgroup label="Épilation">
-<option value="jambes" data-label="Jambes complètes" data-minutes="" data-price="150" data-complement="1">Jambes complètes</option>
-<option value="demi-jambes" data-label="Demi-jambes" data-minutes="" data-price="100" data-complement="1">Demi-jambes</option>
-<option value="dos" data-label="Dos" data-minutes="" data-price="150" data-complement="1">Dos</option>
-<option value="bras" data-label="Bras" data-minutes="" data-price="150" data-complement="1">Bras</option>
-<option value="visage" data-label="Visage" data-minutes="" data-price="100" data-complement="1">Visage</option>
-<option value="duvet" data-label="Duvet, sourcils ou menton" data-minutes="" data-price="50" data-complement="1">Duvet, sourcils ou menton</option>
-<option value="aisselles" data-label="Aisselles" data-minutes="" data-price="80" data-complement="1">Aisselles</option>
-<option value="maillot" data-label="Maillot" data-minutes="" data-price="150" data-complement="1">Maillot</option>
-</optgroup>
-<optgroup label="Coiffure">
-<option value="brushing" data-label="Brushing" data-minutes="" data-price="" data-rate="1">Brushing</option>
-</optgroup>
-</select>
-<p class="soin-detail" data-soin-detail hidden></p>
+<div class="soin-list">
+<div class="soin" data-soin="decouverte" data-label="Massage découverte" data-minutes="30 min" data-price="300">
+<button type="button" class="soin-pick" aria-pressed="false"><span class="soin-copy"><strong>Découverte</strong><small>30 min · 300 DH</small></span></button>
+<span class="stepper"><button type="button" data-soin-step="-1" aria-label="Moins de personnes">−</button><span data-soin-count>1</span><button type="button" data-soin-step="1" aria-label="Plus de personnes">+</button></span>
+<input type="hidden" value="1">
 </div>
-<div class="people-row">
-<span>Personnes</span>
-<span class="stepper"><button type="button" data-people-step="-1" aria-label="Moins de personnes">−</button><span data-people-count>1</span><button type="button" data-people-step="1" aria-label="Plus de personnes">+</button></span>
-<input type="hidden" name="people" value="1">
+<div class="soin" data-soin="relaxant" data-label="Massage relaxant ou tonique" data-minutes="60 min" data-price="450">
+<button type="button" class="soin-pick" aria-pressed="false"><span class="soin-copy"><strong>Relaxant ou tonique</strong><small>60 min · 450 DH</small></span></button>
+<span class="stepper"><button type="button" data-soin-step="-1" aria-label="Moins de personnes">−</button><span data-soin-count>1</span><button type="button" data-soin-step="1" aria-label="Plus de personnes">+</button></span>
+<input type="hidden" value="1">
+</div>
+<div class="soin" data-soin="amincissant" data-label="Massage amincissant" data-minutes="45 min" data-price="450">
+<button type="button" class="soin-pick" aria-pressed="false"><span class="soin-copy"><strong>Amincissant</strong><small>45 min · 450 DH</small></span></button>
+<span class="stepper"><button type="button" data-soin-step="-1" aria-label="Moins de personnes">−</button><span data-soin-count>1</span><button type="button" data-soin-step="1" aria-label="Plus de personnes">+</button></span>
+<input type="hidden" value="1">
+</div>
+<div class="soin" data-soin="signature" data-label="Massage Signature" data-minutes="90 min" data-price="600">
+<button type="button" class="soin-pick" aria-pressed="false"><span class="soin-copy"><strong>Signature</strong><small>90 min · 600 DH</small></span></button>
+<span class="stepper"><button type="button" data-soin-step="-1" aria-label="Moins de personnes">−</button><span data-soin-count>1</span><button type="button" data-soin-step="1" aria-label="Plus de personnes">+</button></span>
+<input type="hidden" value="1">
+</div>
 </div>
 <div class="field-row">
 <div class="field"><label for="date">Date</label><div class="picker"><span class="picker-value is-empty" data-picker-value>jj/mm/aaaa</span><input class="picker-native" id="date" name="date" type="date" lang="fr" required></div></div>

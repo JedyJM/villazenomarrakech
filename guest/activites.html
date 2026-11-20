@@ -34,21 +34,34 @@
 <h1>Activités</h1>
 <ul class="segment-notes" data-segment-notes>
 <li><svg viewBox="0 0 24 24" aria-hidden="true"><path class="stroke" d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle class="stroke" cx="12" cy="10" r="3"/></svg><span>Prise en charge à la villa</span></li>
-<li><svg viewBox="0 0 24 24" aria-hidden="true"><rect class="stroke" x="3" y="6" width="18" height="12" rx="2"/><circle class="stroke" cx="12" cy="12" r="2.2"/></svg><span>Espèces, la veille, à la sécurité</span></li>
+<li><svg viewBox="0 0 24 24" aria-hidden="true"><rect class="stroke" x="3" y="6" width="18" height="12" rx="2"/><circle class="stroke" cx="12" cy="12" r="2.2"/></svg><span>Espèces, la veille, auprès de l’agent de sécurité</span></li>
 </ul>
 <section data-panel="form">
 <form class="request-form" data-activity-form novalidate>
 <p class="form-error" data-errors hidden></p>
 <div class="form-card">
+<!-- Activity icons. Quad: “atv”, UIX Icons Regular, MD Rakib Shekh, MIT. https://github.com/mdrakibshekh/uix-icons — Tabler, Phosphor and game-icons.net have no side-view quad. Dromadaire: “camel”, IconOven, MIT. https://iconoven.com/icons Cheval: “horse”, Tabler Icons, MIT. https://tabler.io/icons/icon/horse -->
 <div class="pick-list">
-<label class="pick"><input type="radio" name="activity" value="quad" data-label="Excursion en quad" data-duration="1 heure" data-base="300" data-extra="50" data-sentence="une excursion en quad"><span class="pick-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.2" cy="7.2" r="2.15"/><circle cx="18.8" cy="7.2" r="2.15"/><circle cx="5.2" cy="17.4" r="2.15"/><circle cx="18.8" cy="17.4" r="2.15"/><path d="M7.3 7.2h9.4M7.3 17.4h9.4M5.2 9.3v6M18.8 9.3v6"/><path d="M9.2 9.6h5.6v5.2H9.2z"/><path d="M8.2 4.6h7.6M12 4.6v2.6"/></svg></span><span class="pick-copy"><strong>Quad</strong><small>1 heure · +50 DH / pers. suppl.</small></span><span class="pick-price">300 DH</span></label>
-<label class="pick"><input type="radio" name="activity" value="dromadaire" data-label="Balade à dos de dromadaire" data-duration="1 heure" data-base="200" data-extra="50" data-sentence="une balade à dos de dromadaire"><span class="pick-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 19v-3.4M6 19V14.2M13.6 19v-4M16.8 19v-3.2"/><path d="M2.5 15.6h3.4c.4 0 1-.9 2.1-3.6C8.8 8.6 10.8 7.4 12.4 10c.7 1.2 1.2 2.8 2.2 3.2h2.2"/><path d="M16.8 13.2c.9-2.6 1.5-4.8.3-6.2"/><path d="M17.1 7c1.3.1 2.4 1.1 2.2 2.4-.1.6-.5 1-1 1.2"/><path d="M16.4 6.4 17.8 4.8"/></svg></span><span class="pick-copy"><strong>Dromadaire</strong><small>1 heure · +50 DH / pers. suppl.</small></span><span class="pick-price">200 DH</span></label>
-<label class="pick"><input type="radio" name="activity" value="cheval" data-label="Balade à cheval" data-duration="" data-base="" data-extra="0" data-sentence="une balade à cheval"><span class="pick-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 20.5c.6-4.6 1.6-7.4 4-9.6"/><path d="M8.6 9.2 6.2 4.4l3.6 2.6"/><path d="M11.6 10.6c2-.9 4.2-.4 5.6 1.1 1.2 1.3 2.4 1.5 3.5.4"/><path d="M20.7 12.1c1.1.6 1.3 1.9.4 2.8-1.1 1.1-2.7.8-3.5-.2"/><path d="M17.2 14.8c-.8 1.8-2.1 3.2-4.2 4.2"/><circle cx="15.4" cy="12.2" r=".75" fill="currentColor" stroke="none"/></svg></span><span class="pick-copy"><strong>Cheval</strong><small>Durée à convenir</small></span><span class="pick-price">Sur demande</span></label>
+<label class="pick"><input type="radio" name="activity" value="quad" data-label="Excursion en quad" data-duration="1 heure" data-base="300" data-extra="50" data-sentence="une excursion en quad"><span class="pick-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.75 17a3.25 3.25 0 1 0 6.5 0a3.25 3.25 0 1 0-6.5 0m12 0a3.25 3.25 0 1 0 6.5 0a3.25 3.25 0 1 0-6.5 0M2.5 12.5c1-1.25 2.25-2 4-2h2l1 2h5l1-2h2c1.75 0 3 .75 4 2m-13-4h4m3 2l1-4H19"/></svg></span><span class="pick-copy"><strong>Quad</strong><small>1 heure · +50 DH / pers. suppl.</small></span><span class="pick-price">300 DH</span></label>
+<label class="pick"><input type="radio" name="activity" value="dromadaire" data-label="Balade à dos de dromadaire" data-duration="1 heure" data-base="200" data-extra="50" data-sentence="une balade à dos de dromadaire"><span class="pick-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 14.25C3.75 9.75 6 6.5 9 6.5c2.5 0 3.75 2.25 4.75 4.75l2.25-4c.4-.7 1.1-1 1.9-1h1.6A1.75 1.75 0 0 1 21.25 8a1 1 0 0 1-1 1h-1.5l-2.25 5.5c-.5.75-1.5 1.25-2.5 1.25H5.25a1.5 1.5 0 0 1-1.5-1.5m2 1.5v5.5m2.5-5.5v5.5m4.75-5.5v5.5M15.5 15l.25 6.25"/><path d="M18.25 8.5h.01"/></svg></span><span class="pick-copy"><strong>Dromadaire</strong><small>1 heure · +50 DH / pers. suppl.</small></span><span class="pick-price">200 DH</span></label>
+<label class="pick"><input type="radio" name="activity" value="cheval" data-label="Balade à cheval" data-duration="" data-base="" data-extra="0" data-sentence="une balade à cheval"><span class="pick-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10l-.85 8.507a1.357 1.357 0 0 0 1.35 1.493h.146a2 2 0 0 0 1.857 -1.257l.994 -2.486a2 2 0 0 1 1.857 -1.257h1.292a2 2 0 0 1 1.857 1.257l.994 2.486a2 2 0 0 0 1.857 1.257h.146a1.37 1.37 0 0 0 1.364 -1.494l-.864 -9.506h-8c0 -3 -3 -5 -6 -5l-3 6l2 2l3 -2"/><path d="M22 14v-2a3 3 0 0 0 -3 -3"/></svg></span><span class="pick-copy"><strong>Cheval</strong><small>Durée à convenir</small></span><span class="pick-price">Sur demande</span></label>
+</div>
+<div data-fleet hidden>
+<div class="people-row">
+<span data-fleet-label>Nombre de quads</span>
+<span class="stepper"><button type="button" data-count="vehicles" data-dir="-1" aria-label="Moins">−</button><span data-vehicles-count>1</span><button type="button" data-count="vehicles" data-dir="1" aria-label="Plus">+</button></span>
+<input type="hidden" name="vehicles" value="1">
 </div>
 <div class="people-row">
+<span data-per-label>Personnes par quad</span>
+<span class="stepper"><button type="button" data-count="per" data-dir="-1" aria-label="Moins de personnes par véhicule">−</button><span data-per-count>1</span><button type="button" data-count="per" data-dir="1" aria-label="Plus de personnes par véhicule">+</button></span>
+<input type="hidden" name="per" value="1">
+</div>
+</div>
+<div class="people-row" data-horse-people hidden>
 <span>Personnes</span>
-<span class="stepper"><button type="button" data-people-step="-1" aria-label="Moins de personnes">−</button><span data-people-count>2</span><button type="button" data-people-step="1" aria-label="Plus de personnes">+</button></span>
-<input type="hidden" name="people" value="2">
+<span class="stepper"><button type="button" data-count="riders" data-dir="-1" aria-label="Moins de personnes">−</button><span data-riders-count>1</span><button type="button" data-count="riders" data-dir="1" aria-label="Plus de personnes">+</button></span>
+<input type="hidden" name="riders" value="1">
 </div>
 <div class="field-row">
 <div class="field"><label for="date">Date</label><div class="picker"><span class="picker-value is-empty" data-picker-value>jj/mm/aaaa</span><input class="picker-native" id="date" name="date" type="date" lang="fr" required></div></div>

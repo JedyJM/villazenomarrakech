@@ -929,7 +929,38 @@ a.tile { color: inherit; text-decoration: none; }
   gap: 0.6rem;
   min-height: 44px;
 }
-.people-row > span:first-child { color: var(--muted); font-size: 0.78rem; }
+.people-row > span:first-child { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+.soin-list { display: grid; gap: 8px; }
+.soin {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+.soin-pick {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid rgba(28, 25, 22, 0.12);
+  border-radius: 12px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.soin-copy { min-width: 0; }
+.soin-copy strong, .soin-copy small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.soin-copy strong { font-weight: 500; font-size: 0.9rem; }
+.soin-copy small { color: var(--muted); font-size: 0.72rem; }
+.soin-pick[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); }
+.soin-pick[aria-pressed="true"] strong { color: var(--paper); }
+.soin-pick[aria-pressed="true"] small { color: rgba(255, 250, 243, 0.72); }
+.guide-prose { margin: 0; color: var(--ink); font-size: 0.84rem; line-height: 1.45; white-space: normal; }
+.guide-prose + .guide-prose { margin-top: 0.65rem; }
 .switch { position: relative; width: 42px; height: 26px; flex: none; }
 .switch input { position: absolute; inset: 0; margin: 0; opacity: 0; }
 .switch i {

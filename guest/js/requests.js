@@ -267,37 +267,37 @@
     var origin = originEl ? originEl.value.trim() : "";
     var villa = villaEl ? villaEl.value.trim() : "";
     if (trip !== "arrival" && trip !== "departure") {
-      return text("Choisissez une arrivée ou un départ.", "Choose an arrival or a departure.");
+      return text("Veuillez choisir une arrivée ou un départ.", "Please choose an arrival or a departure.");
     }
     if (!date || date < todayISO()) {
       setInvalid(form, "date", true);
-      return text("Indiquez une date à venir.", "Enter a date that is not in the past.");
+      return text("Veuillez indiquer une date à venir.", "Please enter a date that is not in the past.");
     }
     if (!time) {
       setInvalid(form, "time", true);
       return trip === "arrival"
-        ? text("Indiquez l’heure d’arrivée du vol.", "Enter the flight arrival time.")
-        : text("Indiquez l’heure de prise en charge.", "Enter the pick-up time.");
+        ? text("Veuillez indiquer l’heure d’arrivée du vol.", "Please enter the flight arrival time.")
+        : text("Veuillez indiquer l’heure de prise en charge.", "Please enter the pick-up time.");
     }
     if (!passengers) {
       setInvalid(form, "passengers", true);
-      return text("Indiquez le nombre de passagers.", "Enter the number of passengers.");
+      return text("Veuillez indiquer le nombre de passagers.", "Please enter the number of passengers.");
     }
     if ((Number(form.querySelector("[name='vehicles']").value) || 1) === 1 && Number(passengers) > rates.maxPassengers) {
       return text("Pour plus de 8 passagers, passez à 2 véhicules.", "For more than 8 passengers, switch to 2 vehicles.");
     }
     if (luggage === "" || Number(luggage) < 0) {
       setInvalid(form, "luggage", true);
-      return text("Indiquez le nombre de bagages.", "Enter the number of bags.");
+      return text("Veuillez indiquer le nombre de bagages.", "Please enter the number of bags.");
     }
     if (!flight) {
       setInvalid(form, "flight_number", true);
-      return text("Indiquez le numéro de vol.", "Enter the flight number.");
+      return text("Veuillez indiquer le numéro de vol.", "Please enter the flight number.");
     }
     if (originEl) {
       if (!origin) {
         setInvalid(form, "origin_city", true);
-        return text("Indiquez la ville de provenance.", "Enter the city of origin.");
+        return text("Veuillez indiquer la ville de provenance.", "Please enter the city of origin.");
       }
     } else if (!villa) {
       setInvalid(form, "villa", true);
@@ -373,25 +373,20 @@
     root.querySelectorAll("[data-panel]").forEach(function (panel) {
       panel.hidden = panel.getAttribute("data-panel") !== name;
     });
-    var lead = root.querySelector("[data-segment-lead]");
-    var leads = {
-      airport: text(
-        "Aéroport de Marrakech · 35 min · espèces au chauffeur",
-        "Marrakech airport · 35 min · cash to driver"
-      ),
-      city: "",
-      rental: ""
-    };
-    if (lead) {
-      lead.textContent = leads[name] || "";
-      lead.hidden = !leads[name];
+    var duration = root.querySelector('[data-note="duration"]');
+    var payment = root.querySelector("[data-note-payment]");
+    if (duration) duration.hidden = name !== "airport";
+    if (payment) {
+      payment.textContent = name === "rental"
+        ? text("Modalités de règlement à convenir avec l’agence", "Payment to be arranged with the agency")
+        : text("Règlement en espèces, directement au chauffeur", "Cash payment, directly to the driver");
     }
   }
 
   function fillConfirmation(node, data) {
     var trip = data.fields.trip_type === "arrival"
-      ? text("Arrivée aéroport → villa", "Airport arrival → villa")
-      : text("Départ villa → aéroport", "Villa → airport departure");
+      ? text("Arrivée, de l’aéroport à la villa", "Arrival, from the airport to the villa")
+      : text("Départ, de la villa à l’aéroport", "Departure, from the villa to the airport");
     var time = data.fields.flight_arrival_time || data.fields.pickup_time;
     var rows = [
       [text("Trajet", "Trip"), trip],
@@ -402,6 +397,7 @@
     if (data.fields.origin_city) rows.push([text("Ville de provenance", "City of origin"), data.fields.origin_city]);
     rows.push(
       [text("Passagers", "Passengers"), String(data.fields.passengers)],
+      [text("Bagages", "Luggage"), String(data.fields.luggage)],
       [text("Véhicules", "Vehicles"), String(data.fields.vehicles || 1)],
       [text("Sièges bébé", "Baby seats"), String(data.fields.baby_seats || 0)],
       [text("Total", "Total"), money(data.price.total)]
@@ -411,11 +407,57 @@
     }).join("");
   }
 
+  function clock(value) {
+    return value ? String(value).slice(0, 5) : "";
+  }
+
+  function closing() {
+    return text("Merci d’avance.", "Thank you in advance.");
+  }
+
+  function transferMessage(guest, fields, price) {
+    var arrival = fields.trip_type === "arrival";
+    var lines = [
+      "Bonjour,",
+      "",
+      text(
+        "Je séjourne à la " + guest.villa + " et souhaite réserver un transfert.",
+        "I am staying at " + guest.villa + " and would like to reserve a transfer."
+      ),
+      "",
+      text("Nom : ", "Name: ") + guest.name,
+      text("Trajet : ", "Journey: ") + (arrival ? text("Arrivée", "Arrival") : text("Départ", "Departure")),
+      text("Date : ", "Date: ") + formatDate(fields.date),
+      (arrival ? text("Heure d’arrivée du vol : ", "Flight arrival time: ") : text("Heure de prise en charge : ", "Pick-up time: ")) + clock(fields.flight_arrival_time || fields.pickup_time),
+      text("Passagers : ", "Passengers: ") + fields.passengers,
+      text("Bagages : ", "Luggage: ") + fields.luggage,
+      text("Véhicules : ", "Vehicles: ") + fields.vehicles,
+      text("Vol : ", "Flight: ") + fields.flight_number,
+      text("Ville de provenance : ", "City of origin: ") + fields.origin_city,
+      text("Sièges bébé : ", "Baby seats: ") + (fields.baby_seats ? fields.baby_seats : text("Aucun", "None"))
+    ];
+    if (fields.comment) lines.push(text("Commentaire : ", "Comment: ") + fields.comment);
+    lines.push(text("Total : ", "Total: ") + money(price.total), "", closing());
+    return lines.join("\n");
+  }
+
   function cityMessage(guest, fields) {
-    return text(
-      "Bonjour Hicham, je suis " + guest.name + ", à la " + guest.villa + ".\nPersonnes : " + fields.passengers + "\nDate de prise en charge : " + formatDate(fields.date) + "\nHeure de prise en charge : " + fields.pickup_time + "\nDestination : " + fields.destination,
-      "Hello Hicham, I am " + guest.name + ", at " + guest.villa + ".\nPeople: " + fields.passengers + "\nPickup date: " + formatDate(fields.date) + "\nPickup time: " + fields.pickup_time + "\nDestination: " + fields.destination
-    );
+    return [
+      "Bonjour,",
+      "",
+      text(
+        "Je séjourne à la " + guest.villa + " et souhaite réserver une course en ville.",
+        "I am staying at " + guest.villa + " and would like to reserve a city ride."
+      ),
+      "",
+      text("Nom : ", "Name: ") + guest.name,
+      text("Nombre de personnes : ", "Number of guests: ") + fields.passengers,
+      text("Date de prise en charge : ", "Pick-up date: ") + formatDate(fields.date),
+      text("Heure de prise en charge : ", "Pick-up time: ") + fields.pickup_time,
+      text("Destination : ", "Destination: ") + fields.destination,
+      "",
+      closing()
+    ].join("\n");
   }
 
   function cityUrl(guest, fields) {
@@ -423,17 +465,39 @@
   }
 
   function rentalMessage(guest, fields) {
-    var typeLabel = fields.car_type === "4x4" ? "4x4" : text("Citadine", "City car");
+    var typeLabel = fields.car_type === "4x4" ? "4×4" : text("Citadine", "City car");
     var delivery = fields.delivery === "airport"
       ? text("À l’aéroport", "To the airport")
       : text("À la villa", "To the villa");
     var usage = fields.usage === "excursion"
       ? "Excursion"
-      : text("Dans Marrakech", "In Marrakech");
-    return text(
-      "Bonjour,\nJe souhaite louer une voiture avec l’agence Massillya.\nNom : " + guest.name + "\nVilla : " + guest.villa + "\nDébut : " + fields.start_date + "\nFin : " + fields.end_date + "\nVéhicule : " + typeLabel + "\nLivraison : " + delivery + "\nUtilisation : " + usage + "\nCommentaire : " + (fields.comment || "—"),
-      "Hello,\nI would like to rent a car with Massillya.\nName: " + guest.name + "\nVilla: " + guest.villa + "\nStart: " + fields.start_date + "\nEnd: " + fields.end_date + "\nVehicle: " + typeLabel + "\nDelivery: " + delivery + "\nUse: " + usage + "\nComment: " + (fields.comment || "—")
-    );
+      : text("À Marrakech", "In Marrakech");
+    var when = fields.pickup_time
+      ? text(
+        "Prise en charge : " + formatDate(fields.start_date) + " à " + fields.pickup_time + "\nRestitution : " + formatDate(fields.end_date) + " à " + fields.return_time,
+        "Pick-up: " + formatDate(fields.start_date) + " at " + fields.pickup_time + "\nReturn: " + formatDate(fields.end_date) + " at " + fields.return_time
+      )
+      : text(
+        "Début : " + fields.start_date + "\nFin : " + fields.end_date,
+        "Start: " + fields.start_date + "\nEnd: " + fields.end_date
+      );
+    var lines = [
+      "Bonjour,",
+      "",
+      text(
+        "Je séjourne à la " + guest.villa + " et souhaite réserver un véhicule auprès de l’agence Massillya.",
+        "I am staying at " + guest.villa + " and would like to reserve a car with Massillya."
+      ),
+      "",
+      text("Nom : ", "Name: ") + guest.name,
+      when,
+      text("Véhicule : ", "Vehicle: ") + typeLabel,
+      text("Livraison : ", "Delivery: ") + delivery,
+      text("Parcours : ", "Journey: ") + usage
+    ];
+    if (fields.comment) lines.push(text("Commentaire : ", "Comment: ") + fields.comment);
+    lines.push("", closing());
+    return lines.join("\n");
   }
 
   function rentalUrl(guest, fields) {
@@ -460,19 +524,19 @@
     var destination = form.querySelector("[name='destination']").value.trim();
     var passengers = Number(form.querySelector("[name='passengers']").value);
     if (!passengers || passengers < 1 || passengers > 8) {
-      return text("Indiquez entre 1 et 8 personnes.", "Enter between 1 and 8 people.");
+      return text("Veuillez indiquer entre 1 et 8 personnes.", "Please enter between 1 and 8 people.");
     }
     if (!date || date < todayISO()) {
       setInvalid(form, "date", true);
-      return text("Indiquez une date de prise en charge à venir.", "Enter a pickup date that is not in the past.");
+      return text("Veuillez indiquer une date de prise en charge à venir.", "Please enter a pick-up date that is not in the past.");
     }
     if (!time) {
       setInvalid(form, "time", true);
-      return text("Indiquez l’heure de prise en charge.", "Enter the pickup time.");
+      return text("Veuillez indiquer l’heure de prise en charge.", "Please enter the pick-up time.");
     }
     if (!destination) {
       setInvalid(form, "destination", true);
-      return text("Indiquez la destination.", "Enter the destination.");
+      return text("Veuillez indiquer la destination.", "Please enter the destination.");
     }
     return "";
   }
@@ -489,33 +553,55 @@
     if (inc) inc.disabled = count >= 8;
   }
 
+  function inputValue(form, name) {
+    var el = form.querySelector("[name='" + name + "']");
+    return el ? el.value : "";
+  }
+
   function validateRental(form) {
     clearInvalid(form);
-    var start = form.querySelector("[name='start_date']").value;
-    var end = form.querySelector("[name='end_date']").value;
+    var start = inputValue(form, "start_date");
+    var end = inputValue(form, "end_date");
+    var startTime = inputValue(form, "pickup_time");
+    var endTime = inputValue(form, "return_time");
+    var hasTime = !!form.querySelector("[name='pickup_time']");
     var type = form.querySelector("input[name='car_type']:checked");
     var delivery = form.querySelector("input[name='delivery']:checked");
     var usage = form.querySelector("input[name='usage']:checked");
     if (!start || start < todayISO()) {
       setInvalid(form, "start_date", true);
-      return text("Indiquez une date de début à venir.", "Enter a start date that is not in the past.");
+      return text("Veuillez indiquer une date de prise en charge à venir.", "Please enter a pick-up date that is not in the past.");
+    }
+    if (hasTime && !startTime) {
+      setInvalid(form, "pickup_time", true);
+      return text("Veuillez indiquer l’heure de prise en charge.", "Please enter the pick-up time.");
     }
     if (!end || end < start) {
       setInvalid(form, "end_date", true);
-      return text("La fin doit être le même jour ou après le début.", "The end date must be on or after the start.");
+      return text("La restitution doit suivre la prise en charge.", "The return must be after the pick-up.");
     }
-    if (!type) {
-      return text("Choisissez Citadine ou 4x4.", "Choose a city car or a 4x4.");
+    if (hasTime && !endTime) {
+      setInvalid(form, "return_time", true);
+      return text("Veuillez indiquer l’heure de restitution.", "Please enter the return time.");
     }
-    if (!delivery) return text("Choisissez la livraison : à la villa ou à l’aéroport.", "Choose delivery to the villa or to the airport.");
-    if (!usage) return text("Choisissez l’utilisation.", "Choose how the car will be used.");
+    if (hasTime && end === start && endTime <= startTime) {
+      setInvalid(form, "return_time", true);
+      return text("L’heure de restitution doit être postérieure à la prise en charge.", "The return time must be after the pick-up.");
+    }
+    if (!type) return text("Veuillez choisir une citadine ou un 4×4.", "Please choose a city car or a 4×4.");
+    if (!delivery) return text("Veuillez préciser le lieu de livraison.", "Please choose where the car should be delivered.");
+    if (!usage) return text("Veuillez préciser le parcours.", "Please choose the type of journey.");
     return "";
   }
 
-  function readRental(form, guest) {
+  function readRental(form) {
+    var pickup = clock(inputValue(form, "pickup_time"));
+    var back = clock(inputValue(form, "return_time"));
     return {
-      start_date: form.querySelector("[name='start_date']").value,
-      end_date: form.querySelector("[name='end_date']").value,
+      start_date: inputValue(form, "start_date"),
+      end_date: inputValue(form, "end_date"),
+      pickup_time: pickup,
+      return_time: back,
       car_type: form.querySelector("input[name='car_type']:checked").value,
       delivery: form.querySelector("input[name='delivery']:checked").value,
       usage: form.querySelector("input[name='usage']:checked").value,
@@ -596,7 +682,9 @@
         showError(errorNode, message);
         if (message) return;
         var data = readTransfer(transfer);
+        data.fields.message = transferMessage(data.guest, data.fields, data.price);
         submitRequest(baseRecord("transfert", data.guest, data.fields, data.price));
+        openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, data.fields.message));
         transfer.hidden = true;
         var done = root.querySelector("[data-confirm]");
         fillConfirmation(done.querySelector("[data-confirm-list]"), data);
@@ -604,8 +692,8 @@
         root.querySelector(".segments").hidden = true;
         var pageTitle = root.querySelector("h1");
         if (pageTitle) pageTitle.hidden = true;
-        var lead = root.querySelector("[data-segment-lead]");
-        if (lead) lead.hidden = true;
+        var notes = root.querySelector("[data-segment-notes]");
+        if (notes) notes.hidden = true;
       });
     }
 
@@ -635,13 +723,18 @@
 
     if (rental) {
       var rentalError = rental.querySelector("[data-errors]");
+      rental.addEventListener("click", function (event) {
+        if (!event.target.closest("[data-comment-toggle]")) return;
+        var box = rental.querySelector("[data-comment]");
+        box.hidden = !box.hidden;
+      });
       rental.addEventListener("submit", function (event) {
         event.preventDefault();
         var message = validateRental(rental);
         showError(rentalError, message);
         if (message) return;
         var guest = getGuestFromStay();
-        var fields = readRental(rental, guest);
+        var fields = readRental(rental);
         var url = rentalUrl(guest, fields);
         fields.message = rentalMessage(guest, fields);
         submitRequest(baseRecord("location_voiture", guest, fields, null));

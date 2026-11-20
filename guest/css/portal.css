@@ -699,11 +699,30 @@ a.tile { color: inherit; text-decoration: none; }
 }
 .rental-head h2 { margin: 0; }
 .rental-head .request-lead { margin-top: 0.3rem; }
+.segment-notes {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.segment-notes li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.segment-notes svg { width: 14px; height: 14px; flex: none; }
+.segment-notes .stroke { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .segments {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
-  margin: 0.4rem 0 12px;
+  margin: 0.35rem 0 8px;
   padding: 3px;
   background: #fff;
   border: 1px solid rgba(28, 25, 22, 0.12);

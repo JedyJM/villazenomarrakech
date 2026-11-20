@@ -42,8 +42,10 @@ One row per request. Amounts are in MAD. The French pages display the same amoun
 | course_pickup_time | `fields.pickup_time` | City ride, 24-hour pickup time |
 | course_destination | `fields.destination` | City ride |
 | course_message | `fields.message` | City ride text opened in WhatsApp. Includes the guest name and villa from `getGuestFromStay()` |
-| rental_start | `fields.start_date` | Service `location_voiture` |
-| rental_end | `fields.end_date` | |
+| rental_start | `fields.start_date` | Pick-up date |
+| rental_start_time | `fields.pickup_time` | Pick-up time, 24-hour |
+| rental_end | `fields.end_date` | Return date |
+| rental_end_time | `fields.return_time` | Return time, 24-hour |
 | car_type | `fields.car_type` | `citadine` or `4x4` |
 | delivery | `fields.delivery` | `villa` or `airport` |
 | usage | `fields.usage` | `marrakech` or `excursion` |

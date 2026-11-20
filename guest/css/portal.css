@@ -186,11 +186,21 @@ h1 em { font-style: italic; font-weight: 500; }
 }
 .wifi-row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   flex-wrap: wrap;
-  gap: 0.22rem 0.45rem;
+  gap: 0.28rem 0.55rem;
 }
-.wifi-title { flex: none; }
+.wifi-title { flex: none; align-self: center; }
+.wifi-field { display: flex; flex-direction: column; gap: 0.08rem; min-width: 0; }
+.wifi-field:last-child { margin-left: auto; }
+.wifi-k {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1;
+}
 .wifi-net {
   margin: 0;
   font-size: 0.78rem;
@@ -198,7 +208,6 @@ h1 em { font-style: italic; font-weight: 500; }
   letter-spacing: 0.01em;
 }
 .wifi-copy {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;

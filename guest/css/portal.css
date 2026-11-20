@@ -267,76 +267,142 @@ p { margin: 0; }
   margin: auto 0 0;
   width: min(32rem, 100%);
   max-width: 100%;
-  max-height: min(86dvh, 640px);
+  max-height: calc(100dvh - 0.6rem);
   background: transparent;
+  outline: none;
 }
+.contacts-dialog:focus { outline: none; }
 .contacts-dialog::backdrop { background: rgba(28, 25, 22, 0.48); }
 .contacts-card {
+  display: flex;
+  flex-direction: column;
   background: var(--paper);
   color: var(--ink);
-  border-radius: 16px 16px 0 0;
-  max-height: min(86dvh, 640px);
-  overflow: auto;
-  padding: 0.85rem 0.9rem 1.15rem;
+  border-radius: 18px 18px 0 0;
+  max-height: calc(100dvh - 0.6rem);
+  overflow: hidden;
 }
 .contacts-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
-  position: sticky;
-  top: -0.85rem;
-  margin: -0.85rem -0.9rem 0.7rem;
-  padding: 0.85rem 0.9rem 0.55rem;
+  gap: 0.75rem;
+  flex: none;
+  padding: 0.85rem 1rem 0.7rem;
+  border-bottom: 1px solid rgba(28, 25, 22, 0.08);
   background: var(--paper);
 }
 .contacts-head h2 {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.32rem;
 }
-.contacts-card h3 {
-  margin: 0.85rem 0 0.15rem;
+.contacts-head h2:focus { outline: none; }
+.sheet-close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--terracotta);
   font-family: var(--sans);
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  line-height: 1;
+  padding: 0.35rem 0.05rem;
+  cursor: pointer;
+}
+.sheet-close:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: 3px;
+}
+.contacts-body {
+  overflow: auto;
+  padding: 0.35rem 0.85rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+}
+.contacts-card h3 {
+  margin: 0.62rem 0 0.28rem;
+  font-family: var(--sans);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--terracotta);
 }
-.contacts-source, .contacts-note {
-  margin: 0 0 0.4rem;
-  color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.4;
-}
+.contacts-body > section:first-child h3 { margin-top: 0.45rem; }
 .contact-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  border: 1px solid rgba(28, 25, 22, 0.1);
+  border-radius: 12px;
+  background: #fff;
+}
+.contact-row {
+  position: relative;
   display: grid;
-  gap: 0.35rem;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  grid-template-areas: "who phone" "num phone";
+  column-gap: 0.55rem;
+  row-gap: 0.08rem;
+  align-items: center;
+  min-height: 2.7rem;
+  padding: 0.38rem 0.75rem 0.4rem;
 }
-.contact-list a {
-  display: flex;
-  flex-direction: column;
-  gap: 0.05rem;
-  min-height: 44px;
-  justify-content: center;
-  padding: 0.4rem 0.65rem;
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--ink);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.92rem;
+.contact-row + .contact-row { border-top: 1px solid rgba(28, 25, 22, 0.08); }
+.contact-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
-.contact-list a span {
-  font-weight: 500;
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
+.contact-hit:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: -2px;
+}
+.contact-row .who {
+  grid-area: who;
   color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
 }
-.contacts-note a { color: var(--terracotta-dark); }
+.contact-row .num {
+  grid-area: num;
+  justify-self: start;
+  align-self: end;
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.contact-phone {
+  grid-area: phone;
+  width: 15px;
+  height: 15px;
+  color: var(--terracotta);
+  justify-self: end;
+}
+.contact-row .alt {
+  grid-area: num;
+  justify-self: start;
+  margin-left: 2.05rem;
+  align-self: end;
+  z-index: 2;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.contact-row .alt:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: 2px;
+}
+.contact-row:active { background: rgba(140, 63, 42, 0.04); }
 .qr-dialog {
   border: 0;
   padding: 0;

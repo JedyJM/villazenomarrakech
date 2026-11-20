@@ -126,7 +126,11 @@
   if (contactsDialog) {
     contactButtons.forEach(function (button) {
       button.addEventListener("click", function () {
-        if (typeof contactsDialog.showModal === "function") contactsDialog.showModal();
+        if (typeof contactsDialog.showModal === "function") {
+          contactsDialog.showModal();
+          var title = contactsDialog.querySelector("h2");
+          if (title) title.focus();
+        }
         contactButtons.forEach(function (item) { item.setAttribute("aria-expanded", "true"); });
       });
     });

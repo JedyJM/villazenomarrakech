@@ -118,37 +118,38 @@ WhatsApp
 </a>
 </nav>
 
-<dialog class="contacts-dialog" id="contacts-dialog" aria-labelledby="contacts-title">
+<dialog class="contacts-dialog" id="contacts-dialog" aria-labelledby="contacts-title" tabindex="-1">
 <div class="contacts-card">
 <div class="contacts-head">
-<h2 id="contacts-title">Useful contacts</h2>
-<button type="button" class="qr-close" data-contacts-close>Close</button>
+<h2 id="contacts-title" tabindex="-1">Useful contacts</h2>
+<button type="button" class="sheet-close" data-contacts-close>Close</button>
 </div>
+<div class="contacts-body">
 <section>
-<h3>The villa</h3>
+<h3>Owner</h3>
 <ul class="contact-list">
-<li><a href="tel:+212661147610"><span>Mehdi</span>+212 661 147 610</a></li>
+<li class="contact-row"><a class="contact-hit" href="tel:+212661147610" aria-label="Mehdi, +212 661 147 610"></a><span class="who" aria-hidden="true">Mehdi</span><span class="num" aria-hidden="true">+212 661 147 610</span><svg class="contact-phone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg></li>
 </ul>
 </section>
 <section>
 <h3>Private driver</h3>
 <ul class="contact-list">
-<li><a href="tel:+212661775422"><span>Hicham</span>+212 661 775 422</a></li>
+<li class="contact-row"><a class="contact-hit" href="tel:+212661775422" aria-label="Hicham, +212 661 775 422"></a><span class="who" aria-hidden="true">Hicham</span><span class="num" aria-hidden="true">+212 661 775 422</span><svg class="contact-phone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg></li>
 </ul>
 </section>
 <section>
 <h3>Emergencies</h3>
 <ul class="contact-list">
-<li><a href="tel:150"><span>Fire / ambulance</span>150</a></li>
-<li><a href="tel:190"><span>Police</span>190</a></li>
-<li><a href="tel:177"><span>Royal Gendarmerie</span>177</a></li>
-<li><a href="tel:141"><span>Medical emergencies</span>141</a></li>
-<li><a href="tel:+212606088088"><span>SOS doctor</span>+212 606 088 088</a></li>
-<li><a href="tel:+212524443724"><span>Private ambulance</span>+212 524 443 724</a></li>
-<li><a href="tel:+212524422446"><span>SAMU Marrakech</span>+212 524 422 446</a></li>
+<li class="contact-row has-alt"><a class="contact-hit" href="tel:150" aria-label="Fire / ambulance, 150"></a><span class="who" aria-hidden="true">Fire / ambulance</span><span class="num" aria-hidden="true">150</span><a class="alt" href="tel:15">· from a landline: 15</a><svg class="contact-phone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg></li>
+<li class="contact-row has-alt"><a class="contact-hit" href="tel:190" aria-label="Police, 190"></a><span class="who" aria-hidden="true">Police</span><span class="num" aria-hidden="true">190</span><a class="alt" href="tel:19">· from a landline: 19</a><svg class="contact-phone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg></li>
+<li class="contact-row"><a class="contact-hit" href="tel:177" aria-label="Royal Gendarmerie, 177"></a><span class="who" aria-hidden="true">Royal Gendarmerie</span><span class="num" aria-hidden="true">177</span><svg class="contact-phone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg></li>
+<li class="contact-row"><a class="contact-hit" href="tel:141" aria-label="Medical emergencies, 141"></a><span class="who" aria-hidden="true">Medical emergencies</span><span class="num" aria-hidden="true">141</span><svg class="contact-phone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg></li>
+<li class="contact-row"><a class="contact-hit" href="tel:+212606088088" aria-label="SOS doctor, +212 606 088 088"></a><span class="who" aria-hidden="true">SOS doctor</span><span class="num" aria-hidden="true">+212 606 088 088</span><svg class="contact-phone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg></li>
+<li class="contact-row"><a class="contact-hit" href="tel:+212524443724" aria-label="Private ambulance, +212 524 443 724"></a><span class="who" aria-hidden="true">Private ambulance</span><span class="num" aria-hidden="true">+212 524 443 724</span><svg class="contact-phone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg></li>
+<li class="contact-row"><a class="contact-hit" href="tel:+212524422446" aria-label="SAMU Marrakech, +212 524 422 446"></a><span class="who" aria-hidden="true">SAMU Marrakech</span><span class="num" aria-hidden="true">+212 524 422 446</span><svg class="contact-phone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg></li>
 </ul>
-<p class="contacts-note">From a landline: <a href="tel:15">fire / ambulance 15</a>, <a href="tel:19">police 19</a>.</p>
 </section>
+</div>
 </div>
 </dialog>
 <dialog class="qr-dialog" id="wifi-qr-dialog" aria-labelledby="wifi-qr-label">

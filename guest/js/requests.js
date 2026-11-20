@@ -21,7 +21,11 @@
   var TEST_WHATSAPP = "212661147610";
   var RECIPIENTS = {
     hicham: "212661775422",
-    massillya: "212616172974"
+    massillya: "212616172974",
+    menage: "212661147610",
+    piscine: "212661147610",
+    activites: "212661147610",
+    massage: "212661147610"
   };
 
   function requestWhatsApp(realNumber, message) {
@@ -96,7 +100,10 @@
       name: isEn() ? "Guest" : "Invité",
       phone: "+212 600 000 000",
       villa: "Villa Zen’O",
-      example: true
+      example: true,
+      // Read only. Tab Réservations, never written by the portal.
+      // chauffage_piscine and chauffage_jacuzzi: empty, or YYYY-MM-DD/YYYY-MM-DD.
+      heating: { pool: "", jacuzzi: "" }
     };
   }
 
@@ -732,6 +739,404 @@
     document.body.scrollLeft = 0;
   }
 
+  function showServiceReceived(root, rows) {
+    root.querySelectorAll("[data-service-extra]").forEach(function (node) { node.hidden = true; });
+    showReceived(root, rows);
+  }
+
+  function bindComment(form) {
+    form.addEventListener("click", function (event) {
+      if (!event.target.closest("[data-comment-toggle]")) return;
+      var box = form.querySelector("[data-comment]");
+      if (box) box.hidden = !box.hidden;
+    });
+  }
+
+  function bindPeople(form, max) {
+    function sync() {
+      var input = form.querySelector("[name='people']");
+      var count = Math.max(1, Math.min(max, Number(input.value) || 1));
+      input.value = String(count);
+      var figure = form.querySelector("[data-people-count]");
+      if (figure) figure.textContent = String(count);
+      var dec = form.querySelector('[data-people-step="-1"]');
+      var inc = form.querySelector('[data-people-step="1"]');
+      if (dec) dec.disabled = count <= 1;
+      if (inc) inc.disabled = count >= max;
+      return count;
+    }
+    form.addEventListener("click", function (event) {
+      var step = event.target.closest("[data-people-step]");
+      if (!step) return;
+      var input = form.querySelector("[name='people']");
+      input.value = String(Number(input.value) + Number(step.getAttribute("data-people-step")));
+      sync();
+    });
+    sync();
+    return sync;
+  }
+
+  function noteValue(form) {
+    var el = form.querySelector("[name='comment']");
+    return el ? el.value.trim() : "";
+  }
+
+  function requireWhen(form) {
+    var date = form.querySelector("[name='date']").value;
+    var time = form.querySelector("[name='time']").value;
+    if (!date || date < todayISO()) {
+      setInvalid(form, "date", true);
+      return "Veuillez indiquer une date à venir.";
+    }
+    if (!time) {
+      setInvalid(form, "time", true);
+      return "Veuillez indiquer l’heure.";
+    }
+    return "";
+  }
+
+  function joinFr(parts) {
+    if (parts.length < 2) return parts[0] || "";
+    if (parts.length === 2) return parts[0] + " et " + parts[1];
+    return parts.slice(0, -1).join(", ") + " et " + parts[parts.length - 1];
+  }
+
+  function heatingLabel(value) {
+    var text = String(value || "").trim();
+    if (!text) return "";
+    var parts = text.split("/");
+    if (parts.length === 2 && parts[0].length === 10 && parts[1].length === 10) {
+      return formatDateFr(parts[0]) + " – " + formatDateFr(parts[1]);
+    }
+    return text;
+  }
+
+  function paintHeating(root) {
+    var heating = getGuestFromStay().heating || {};
+    var pool = heatingLabel(heating.pool);
+    var jacuzzi = heatingLabel(heating.jacuzzi);
+    var empty = root.querySelector("[data-heating-empty]");
+    var list = root.querySelector("[data-heating-list]");
+    if (!empty || !list) return;
+    if (!pool && !jacuzzi) {
+      empty.hidden = false;
+      list.hidden = true;
+      return;
+    }
+    empty.hidden = true;
+    list.hidden = false;
+    var items = [];
+    if (pool) items.push("<li><span>Piscine</span><span>" + pool + "</span></li>");
+    if (jacuzzi) items.push("<li><span>Jacuzzi</span><span>" + jacuzzi + "</span></li>");
+    list.innerHTML = items.join("");
+  }
+
+  function dispatchService(root, record, rows, sousType, destinataire, number) {
+    record.token = newToken();
+    var message = withStaffConfirm(record.fields.message, record.id, record.token);
+    record.fields.message = message;
+    submitRequest(record);
+    openGuestWhatsApp(requestWhatsApp(number, message));
+    postToSheet(sheetPayload(record, record.token, sousType, destinataire, rows));
+    showServiceReceived(root, rows);
+  }
+
+  function initServices(root) {
+    paintHeating(root);
+    var menage = root.querySelector("[data-menage-form]");
+    if (menage) {
+      var menageError = menage.querySelector("[data-errors]");
+      bindComment(menage);
+      menage.addEventListener("submit", function (event) {
+        event.preventDefault();
+        clearInvalid(menage);
+        var scope = menage.querySelector("input[name='scope']:checked");
+        var when = requireWhen(menage);
+        if (!scope) {
+          showError(menageError, "Veuillez choisir le périmètre.");
+          return;
+        }
+        showError(menageError, when);
+        if (when) return;
+        var guest = getGuestFromStay();
+        var label = scope.getAttribute("data-label");
+        var fields = {
+          scope: scope.value,
+          scope_label: label,
+          date: menage.querySelector("[name='date']").value,
+          time: clock(menage.querySelector("[name='time']").value),
+          comment: noteValue(menage)
+        };
+        var rows = [
+          ["Périmètre", label],
+          ["Date", formatDate(fields.date)],
+          ["Heure", fields.time]
+        ];
+        if (fields.comment) rows.push(["Note", fields.comment]);
+        var lines = [
+          "Bonjour,",
+          "",
+          "Je séjourne actuellement à la " + guest.villa + " et souhaiterais un service de ménage.",
+          "",
+          "Nom : " + staffName(guest),
+          "Périmètre : " + label,
+          "Date : " + formatDateFr(fields.date),
+          "Heure : " + fields.time
+        ];
+        if (fields.comment) lines.push("Note : " + fields.comment);
+        lines.push("", "Merci d’avance.");
+        fields.message = lines.join("\n");
+        dispatchService(root, baseRecord("menage", guest, fields, null), rows, scope.value === "chambres" ? "chambres" : "maison", "Ménage", RECIPIENTS.menage);
+      });
+    }
+
+    var pool = root.querySelector("[data-pool-form]");
+    if (pool) {
+      var poolError = pool.querySelector("[data-errors]");
+      var phrases = { piscine: "de la piscine", jacuzzi: "du jacuzzi", jardin: "du jardin" };
+      bindComment(pool);
+      pool.addEventListener("click", function (event) {
+        var chip = event.target.closest("[data-clean]");
+        if (!chip) return;
+        chip.setAttribute("aria-pressed", chip.getAttribute("aria-pressed") === "true" ? "false" : "true");
+      });
+      pool.addEventListener("submit", function (event) {
+        event.preventDefault();
+        clearInvalid(pool);
+        var chosen = Array.prototype.slice.call(pool.querySelectorAll("[data-clean][aria-pressed='true']"));
+        if (!chosen.length) {
+          showError(poolError, "Veuillez choisir au moins un espace.");
+          return;
+        }
+        var when = requireWhen(pool);
+        showError(poolError, when);
+        if (when) return;
+        var guest = getGuestFromStay();
+        var labels = chosen.map(function (chip) { return chip.getAttribute("data-label"); });
+        var spoken = chosen.map(function (chip) { return phrases[chip.getAttribute("data-clean")]; });
+        var fields = {
+          areas: chosen.map(function (chip) { return chip.getAttribute("data-clean"); }),
+          areas_label: labels.join(", "),
+          date: pool.querySelector("[name='date']").value,
+          time: clock(pool.querySelector("[name='time']").value),
+          comment: noteValue(pool)
+        };
+        var rows = [
+          ["Entretien", labels.join(", ")],
+          ["Date", formatDate(fields.date)],
+          ["Heure", fields.time]
+        ];
+        if (fields.comment) rows.push(["Note", fields.comment]);
+        var lines = [
+          "Bonjour,",
+          "",
+          "Je séjourne actuellement à la " + guest.villa + " et souhaiterais un entretien " + joinFr(spoken) + ".",
+          "",
+          "Nom : " + staffName(guest),
+          "Entretien : " + labels.join(", "),
+          "Date : " + formatDateFr(fields.date),
+          "Heure : " + fields.time
+        ];
+        if (fields.comment) lines.push("Note : " + fields.comment);
+        lines.push("", "Merci d’avance.");
+        fields.message = lines.join("\n");
+        dispatchService(root, baseRecord("piscine", guest, fields, null), rows, "nettoyage", "Piscine", RECIPIENTS.piscine);
+      });
+    }
+
+    var activity = root.querySelector("[data-activity-form]");
+    if (activity) {
+      var activityError = activity.querySelector("[data-errors]");
+      bindComment(activity);
+      var syncActivityPeople = bindPeople(activity, 4);
+      function paintActivity() {
+        var box = activity.querySelector("[data-price-box]");
+        var chosen = activity.querySelector("input[name='activity']:checked");
+        var people = syncActivityPeople();
+        if (!box || !chosen || chosen.getAttribute("data-base") === "") {
+          if (box) box.hidden = true;
+          return null;
+        }
+        var base = Number(chosen.getAttribute("data-base"));
+        var extra = Number(chosen.getAttribute("data-extra")) || 0;
+        var total = base + extra * Math.max(0, people - 1);
+        box.hidden = false;
+        box.querySelector("[data-price-total]").textContent = "Total " + moneyFr(total);
+        var line = box.querySelector("[data-price-break]");
+        if (people > 1 && extra) {
+          line.hidden = false;
+          line.textContent = moneyFr(base) + " + " + moneyFr(extra * (people - 1));
+        } else {
+          line.hidden = true;
+        }
+        return total;
+      }
+      activity.addEventListener("change", paintActivity);
+      activity.addEventListener("click", function (event) {
+        if (event.target.closest("[data-people-step]") || event.target.closest("input[name='activity']")) paintActivity();
+      });
+      activity.addEventListener("submit", function (event) {
+        event.preventDefault();
+        clearInvalid(activity);
+        var chosen = activity.querySelector("input[name='activity']:checked");
+        if (!chosen) {
+          showError(activityError, "Veuillez choisir une activité.");
+          return;
+        }
+        var when = requireWhen(activity);
+        showError(activityError, when);
+        if (when) return;
+        var guest = getGuestFromStay();
+        var people = syncActivityPeople();
+        var total = paintActivity();
+        var fields = {
+          activity: chosen.value,
+          activity_label: chosen.getAttribute("data-label"),
+          duration: chosen.getAttribute("data-duration") || "",
+          people: people,
+          date: activity.querySelector("[name='date']").value,
+          time: clock(activity.querySelector("[name='time']").value),
+          pickup: guest.villa,
+          comment: noteValue(activity)
+        };
+        var rows = [
+          ["Activité", fields.activity_label],
+          ["Personnes", String(people)],
+          ["Date", formatDate(fields.date)],
+          ["Heure", fields.time],
+          ["Départ", guest.villa]
+        ];
+        if (fields.duration) rows.splice(1, 0, ["Durée", fields.duration]);
+        if (total != null) rows.push(["Total", moneyFr(total)]);
+        if (fields.comment) rows.push(["Note", fields.comment]);
+        var lines = [
+          "Bonjour,",
+          "",
+          "Je séjourne actuellement à la " + guest.villa + " et souhaiterais réserver " + chosen.getAttribute("data-sentence") + ".",
+          "",
+          "Nom : " + staffName(guest),
+          "Activité : " + fields.activity_label
+        ];
+        if (fields.duration) lines.push("Durée : " + fields.duration);
+        lines.push(
+          "Personnes : " + people,
+          "Date : " + formatDateFr(fields.date),
+          "Heure : " + fields.time,
+          "Départ : " + guest.villa
+        );
+        if (fields.comment) lines.push("Note : " + fields.comment);
+        if (total != null) lines.push("Total : " + moneyFr(total));
+        if (total == null) lines.push("", "Pourriez-vous m’indiquer le tarif ?");
+        lines.push("", "Merci d’avance.");
+        fields.message = lines.join("\n");
+        var price = total == null ? null : { price_base: total, supplements: [], total: total, blocked: false };
+        dispatchService(root, baseRecord("activites", guest, fields, price), rows, chosen.value, "Activités", RECIPIENTS.activites);
+      });
+    }
+
+    var massage = root.querySelector("[data-massage-form]");
+    if (massage) {
+      var massageError = massage.querySelector("[data-errors]");
+      bindComment(massage);
+      var syncMassagePeople = bindPeople(massage, 8);
+      function selectedSoin() {
+        var select = massage.querySelector("[name='treatment']");
+        return select.options[select.selectedIndex];
+      }
+      function paintMassage() {
+        var opt = selectedSoin();
+        var detail = massage.querySelector("[data-soin-detail]");
+        var box = massage.querySelector("[data-price-box]");
+        var people = syncMassagePeople();
+        var priced = opt && opt.value && opt.getAttribute("data-price");
+        var minutes = opt ? (opt.getAttribute("data-minutes") || "") : "";
+        var complement = opt && opt.getAttribute("data-complement") === "1";
+        if (detail) {
+          var bit = complement ? "En complément d’un autre soin" : minutes;
+          detail.hidden = !bit;
+          detail.textContent = bit;
+        }
+        if (!priced) {
+          if (box) box.hidden = true;
+          return null;
+        }
+        var unit = Number(opt.getAttribute("data-price"));
+        var total = unit * people;
+        box.hidden = false;
+        box.querySelector("[data-price-total]").textContent = "Total " + moneyFr(total);
+        var line = box.querySelector("[data-price-break]");
+        if (people > 1) {
+          line.hidden = false;
+          line.textContent = people + " × " + moneyFr(unit);
+        } else {
+          line.hidden = true;
+        }
+        return total;
+      }
+      massage.addEventListener("change", paintMassage);
+      massage.addEventListener("click", function (event) {
+        if (event.target.closest("[data-people-step]")) paintMassage();
+      });
+      massage.addEventListener("submit", function (event) {
+        event.preventDefault();
+        clearInvalid(massage);
+        var opt = selectedSoin();
+        if (!opt || !opt.value) {
+          showError(massageError, "Veuillez choisir un soin.");
+          return;
+        }
+        var when = requireWhen(massage);
+        showError(massageError, when);
+        if (when) return;
+        var guest = getGuestFromStay();
+        var people = syncMassagePeople();
+        var total = paintMassage();
+        var label = opt.getAttribute("data-label");
+        var minutes = opt.getAttribute("data-minutes") || "";
+        var fields = {
+          treatment: opt.value,
+          treatment_label: label,
+          duration: minutes,
+          people: people,
+          date: massage.querySelector("[name='date']").value,
+          time: clock(massage.querySelector("[name='time']").value),
+          comment: noteValue(massage)
+        };
+        var rows = [
+          ["Soin", label],
+          ["Personnes", String(people)],
+          ["Date", formatDate(fields.date)],
+          ["Heure", fields.time]
+        ];
+        if (minutes) rows.splice(1, 0, ["Durée", minutes]);
+        if (total != null) rows.push(["Total", moneyFr(total)]);
+        if (fields.comment) rows.push(["Note", fields.comment]);
+        var wish = label.indexOf("Massage") === 0 ? "un massage" : (label === "Brushing" ? "un brushing" : "un soin");
+        var lines = [
+          "Bonjour,",
+          "",
+          "Je séjourne actuellement à la " + guest.villa + " et souhaiterais réserver " + wish + ".",
+          "",
+          "Nom : " + staffName(guest),
+          "Soin : " + label
+        ];
+        if (minutes) lines.push("Durée : " + minutes);
+        lines.push(
+          "Personnes : " + people,
+          "Date : " + formatDateFr(fields.date),
+          "Heure : " + fields.time
+        );
+        if (fields.comment) lines.push("Note : " + fields.comment);
+        if (total != null) lines.push("Total : " + moneyFr(total));
+        if (total == null) lines.push("", "Pourriez-vous m’indiquer le tarif ?");
+        lines.push("", "Merci d’avance.");
+        fields.message = lines.join("\n");
+        var price = total == null ? null : { price_base: total, supplements: [], total: total, blocked: false };
+        dispatchService(root, baseRecord("massage", guest, fields, price), rows, opt.value, "Massage", RECIPIENTS.massage);
+      });
+    }
+  }
+
   function init() {
     var root = document.querySelector("[data-request-page]");
     if (!root) return;
@@ -749,7 +1154,7 @@
         showSegment(root, button.getAttribute("data-show"));
       });
     });
-    showSegment(root, "airport");
+    if (root.querySelector("[data-show]")) showSegment(root, "airport");
 
     if (transfer) {
       var errorNode = transfer.querySelector("[data-errors]");
@@ -889,6 +1294,7 @@
         showReceived(root, rentalRows);
       });
     }
+    initServices(root);
   }
 
   window.GuestRequests = {

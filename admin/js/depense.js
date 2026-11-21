@@ -56,8 +56,8 @@
         return '<button type="button" data-cat="' + cat[0] + '" aria-pressed="' + (on ? "true" : "false") + '">' + esc(cat[1]) + "</button>";
       }).join("") + "</div>"
       + detail
-      + '<label class="field">Date<span class="date-fr"><input type="date" lang="fr" name="date" value="' + esc(model.date) + '"><span class="date-face">' + esc(face(model.date)) + "</span></span></label>"
-      + '<label class="field">Fournisseur<input name="fournisseur" value="' + esc(model.fournisseur) + '" placeholder="Facultatif"></label>'
+      + '<div class="field-pair"><label class="field">Date<span class="date-fr"><input type="date" lang="fr" name="date" value="' + esc(model.date) + '"><span class="date-face">' + esc(face(model.date)) + "</span></span></label>"
+      + '<label class="field">Fournisseur<input name="fournisseur" value="' + esc(model.fournisseur) + '" placeholder="Facultatif"></label></div>'
       + '<p class="kicker">Photo de la facture</p><label class="photo-card">' + photo + '<input type="file" accept="image/*" capture="environment" data-file></label>'
       + '<p class="form-error" data-error></p>'
       + '<button type="submit" class="primary">Enregistrer la dépense</button>'

@@ -161,7 +161,7 @@
     return { total: 0, delayHours: null, types: [["Restauration", 0], ["Ménage", 0], ["Transfert", 0], ["Activités", 0], ["Massages", 0], ["Piscine", 0]] };
   }
   function sampleExpenses() {
-    var photo = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="150"><rect width="120" height="150" fill="#fffaf3" stroke="#8E3B2E"/><text x="12" y="40" font-size="12" fill="#1c1916">Facture</text><text x="12" y="62" font-size="11" fill="#5e554c">Villa Zen’O</text></svg>');
+    var photo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEgAAABgCAYAAAC+EjQcAAAAwElEQVR42u3dsQnAIBQEUCfKAtnIYTJFRslGdjba2gghiMXPK26Bhweejek6jybzJAgvgVotMgQQIECAAAH6GdCKewUgQIAAAQIEyD0IUCCg585hA2gHkIoBAgQIECBAgAABEkCAAAHyHuS5Q8UAAQIECBAgQIAAAQIECJA1b82rGCBAgAAJIECAAAECBAiQNe8EqRggQIAAAQIECBAgQIAAWfPWvIoBEkCAAAECBAgQIECAAAECBAhQHCDxO9SndJhydoh0h0qcAAAAAElFTkSuQmCC";
     function row(id, date, cat, detail, who, eur, facture, name) {
       return {
         id: id, date: date, categorie: cat, detail: detail || "", fournisseur: who || "",

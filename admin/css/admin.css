@@ -505,19 +505,30 @@ body.page-stats h1, body.page-depense h1 { font-size: 1.35rem; }
 .stat-tile em { color: var(--muted); font-size: 9px; font-style: normal; letter-spacing: -0.03em; white-space: nowrap; }
 .stat-source { display: grid; gap: 6px; }
 .src { display: grid; gap: 2px; min-width: 0; }
-.src-top, .src-nums { display: flex; justify-content: space-between; gap: 6px; margin: 0; min-width: 0; }
+.src-top { display: flex; justify-content: space-between; gap: 6px; margin: 0; min-width: 0; }
 .src-top span { font-weight: 600; font-size: 13px; }
 .src-top em { color: var(--muted); font-size: 11px; font-style: normal; white-space: nowrap; }
 .src-bar { display: block; height: 6px; border-radius: 99px; background: var(--gold); overflow: hidden; }
 .src-bar i { display: block; height: 100%; background: var(--terracotta); }
+.src-nums { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin: 0; min-width: 0; }
 .src-nums span { display: grid; min-width: 0; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.src-nums span:nth-child(1) { justify-items: start; text-align: left; }
+.src-nums span:nth-child(2) { justify-items: center; text-align: center; }
+.src-nums span:nth-child(3) { justify-items: end; text-align: right; }
 .src-nums small { color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
-.stat-note { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.3; }
+.stats-panel { display: grid; gap: 6px; }
+.stat-note { margin: 6px 0 0; color: var(--muted); font-size: 10px; line-height: 1.3; }
 .stat-chart { display: grid; gap: 4px; }
 .chart-legend { display: flex; gap: 12px; margin: 0; font-size: 11px; }
 .chart-legend i { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 2px; background: var(--terracotta); vertical-align: baseline; }
 .chart-legend i.is-gold, .chart b.is-gold { background: var(--gold); }
-.chart { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; height: 64px; align-items: end; }
+.chart {
+  position: relative; display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; height: 64px; align-items: end;
+}
+.chart::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 11px; height: 1px;
+  background: rgba(28, 25, 22, 0.35); z-index: 1;
+}
 .chart-col { display: grid; grid-template-rows: 1fr auto; height: 100%; min-width: 0; }
 .chart-col i { display: flex; align-items: flex-end; justify-content: center; gap: 1px; min-height: 0; }
 .chart-col b { display: block; width: 4px; border-radius: 2px 2px 0 0; background: var(--terracotta); }
@@ -533,8 +544,9 @@ body.page-stats h1, body.page-depense h1 { font-size: 1.35rem; }
 .stat-ico svg { width: 13px; height: 13px; }
 .exp-title { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .exp-sub { grid-column: 2; color: var(--muted); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.exp b { grid-column: 3; grid-row: 1; font-size: 12.5px; white-space: nowrap; }
-.bill-link { grid-column: 3; grid-row: 2; justify-self: end; border: 0; background: transparent; padding: 0; color: #8a8178; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.exp b, .bill-link { width: 100%; text-align: right; }
+.exp b { grid-column: 3; grid-row: 1; justify-self: stretch; font-size: 12.5px; white-space: nowrap; }
+.bill-link { grid-column: 3; grid-row: 2; justify-self: stretch; border: 0; background: transparent; padding: 0; color: #8a8178; font-size: 10px; font-weight: 600; white-space: nowrap; }
 .bill-link.is-on { color: #1d6b3a; }
 .photo-view[hidden] { display: none; }
 .photo-view { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; gap: 8px; background: rgba(28, 25, 22, 0.72); padding: 16px; }
@@ -542,8 +554,19 @@ body.page-stats h1, body.page-depense h1 { font-size: 1.35rem; }
 .photo-view button { color: #fff; background: transparent; border: 0; font-weight: 600; }
 .expense-form { display: grid; gap: 8px; }
 .expense-form .segment { grid-template-columns: 1fr 1fr; }
-.expense-form .field { display: grid; gap: 2px; font-size: 12px; font-weight: 600; color: var(--muted); }
-.expense-form input { border: 0; border-bottom: 1px solid rgba(28, 25, 22, 0.16); background: transparent; padding: 6px 0; font-size: 16px; font-weight: 500; color: var(--ink); }
+.expense-form .field { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-width: 0; }
+.expense-form input,
+.expense-form .date-fr {
+  box-sizing: border-box; width: 100%; height: 48px; margin: 0; padding: 0 16px;
+  border: 1px solid rgba(28, 25, 22, 0.12); border-radius: 12px; background: #fff;
+  font-size: 16px; font-weight: 500; color: var(--ink);
+}
+.expense-form .date-fr { position: relative; display: flex; align-items: center; }
+.expense-form .date-fr input {
+  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; padding: 0; border: 0; border-radius: 12px;
+}
+.expense-form .date-face { border: 0; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.2; background: transparent; }
 .cat-picks { display: flex; flex-wrap: wrap; gap: 4px; }
 .cat-picks button {
   height: 28px; padding: 0 8px; border-radius: 999px; border: 1px solid rgba(28, 25, 22, 0.14); background: #fff; font-size: 12px; white-space: nowrap;
@@ -555,7 +578,7 @@ body.page-stats h1, body.page-depense h1 { font-size: 1.35rem; }
   min-height: 72px; padding: 8px; border: 1px dashed rgba(28, 25, 22, 0.28); border-radius: 12px; background: #fff;
 }
 .shot.is-empty { grid-template-columns: 1fr; text-align: center; }
-.shot img { width: 54px; height: 68px; object-fit: cover; border-radius: 6px; }
+.shot img { display: block; width: 54px; height: 68px; object-fit: cover; border-radius: 8px; background: #fff; }
 .shot em { font-style: normal; font-weight: 600; color: var(--ink); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .shot small { display: block; color: var(--muted); font-size: 11px; }
 .photo-card input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

@@ -4,9 +4,14 @@
 
   var shell = window.AdminShell || { TEST_MODE: true, SCRIPT_URL: "", session: function () { return ""; } };
   var STORE = "vz.admin.demandes";
-  /* Hicham’s number is the one already published for the driver.
-     Fouzia, Nadera and Khalid are named here; their WhatsApp numbers are not in the project yet. */
-  var STAFF_WA = { Hicham: "212661775422", Fouzia: "", Nadera: "", Khalid: "" };
+  /* Relancer opens WhatsApp. It does not send the message. */
+  var STAFF_WA = {
+    Hicham: "212661775422",
+    Fouzia: "212767202011",
+    Nadera: "212639474843",
+    Khalid: "212630415956",
+    "Massages & soins": "212661614469"
+  };
   var ICONS = {
     breakfast: '<path d="M10.2 18H4.774a1.5 1.5 0 0 1-1.352-.97 11 11 0 0 1 .132-6.487"/><path d="M18 10.2V4.774a1.5 1.5 0 0 0-.97-1.352 11 11 0 0 0-6.486.132"/><path d="M18 5a4 3 0 0 1 4 3 2 2 0 0 1-2 2 10 10 0 0 0-5.139 1.42"/><path d="M5 18a3 4 0 0 0 3 4 2 2 0 0 0 2-2 10 10 0 0 1 1.42-5.14"/><path d="M8.709 2.554a10 10 0 0 0-6.155 6.155 1.5 1.5 0 0 0 .676 1.626l9.807 5.42a2 2 0 0 0 2.718-2.718l-5.42-9.807a1.5 1.5 0 0 0-1.626-.676"/>',
     dinner: '<path d="M16.5 4.8A7.2 7.2 0 1 0 16.5 19 5.4 5.4 0 0 1 16.5 4.8z"/>',

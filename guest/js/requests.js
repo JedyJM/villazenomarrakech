@@ -14,16 +14,17 @@
      An empty value skips the sheet and keeps the request in localStorage only. */
   var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrmyFtKdhIovJAh2A-DjYfIYNwGWz7s-r_yKz8TDj29J1OcbnBPA7tIBV1qRJbtFcwlw/exec";
 
-  /* Test routing for transfer and car-rental WhatsApp buttons only.
-     Flip TEST_MODE to false to open Hicham and Massillya again.
-     Meals, housekeeping, the pool and a quad always use VILLA_WHATSAPP. */
+  /* While TEST_MODE is true, every staff WhatsApp opens the villa test number.
+     Flip TEST_MODE to false to open the real recipients. Nothing is sent from this file. */
   var TEST_MODE = true;
   var TEST_WHATSAPP = VILLA_WHATSAPP;
   var RECIPIENTS = {
     hicham: "212661775422",
     massillya: "212616172974",
-    activites: VILLA_WHATSAPP,
-    massage: VILLA_WHATSAPP
+    fouzia: "212767202011",
+    nadera: "212639474843",
+    khalid: "212630415956",
+    massages: "212661614469"
   };
 
   function requestWhatsApp(realNumber, message) {
@@ -1126,7 +1127,7 @@
       if (allergies) lines.push("Allergies ou demandes : " + allergies);
       lines.push("", "Merci d’avance.");
       fields.message = lines.join("\n");
-      dispatchService(root, baseRecord("restauration", guest, fields, { price_base: quote.total, supplements: [], total: quote.total, blocked: false }), rows, kind, "Cuisine", "", true);
+      dispatchService(root, baseRecord("restauration", guest, fields, { price_base: quote.total, supplements: [], total: quote.total, blocked: false }), rows, kind, "Fouzia", RECIPIENTS.fouzia, false);
     });
     showMeal("lunch");
   }
@@ -1177,7 +1178,7 @@
         if (fields.comment) lines.push("Note : " + fields.comment);
         lines.push("", "Merci d’avance.");
         fields.message = lines.join("\n");
-        dispatchService(root, baseRecord("menage", guest, fields, null), rows, scope.value === "chambres" ? "chambres" : "maison", "Ménage", "", true);
+        dispatchService(root, baseRecord("menage", guest, fields, null), rows, scope.value === "chambres" ? "chambres" : "maison", "Nadera", RECIPIENTS.nadera, false);
       });
     }
 
@@ -1231,7 +1232,7 @@
         if (fields.comment) lines.push("Note : " + fields.comment);
         lines.push("", "Merci d’avance.");
         fields.message = lines.join("\n");
-        dispatchService(root, baseRecord("piscine", guest, fields, null), rows, "nettoyage", "Piscine", "", true);
+        dispatchService(root, baseRecord("piscine", guest, fields, null), rows, "nettoyage", "Khalid", RECIPIENTS.khalid, false);
       });
     }
 
@@ -1389,8 +1390,7 @@
         lines.push("", "Merci d’avance.");
         fields.message = lines.join("\n");
         var price = !priced || !quote.vehicles ? null : { price_base: quote.total, supplements: [], total: quote.total, blocked: false };
-        var quad = chosen.value === "quad";
-        dispatchService(root, baseRecord("activites", guest, fields, price), rows, chosen.value, "Activités", quad ? "" : RECIPIENTS.activites, quad);
+        dispatchService(root, baseRecord("activites", guest, fields, price), rows, chosen.value, "Khalid", RECIPIENTS.khalid, false);
       });
     }
 
@@ -1532,7 +1532,7 @@
         if (fields.comment) lines.push("Note : " + fields.comment);
         lines.push("Total : " + moneyFr(total), "", "Merci d’avance.");
         fields.message = lines.join("\n");
-        dispatchService(root, baseRecord("massage", guest, fields, { price_base: total, supplements: [], total: total, blocked: false }), rows, details.map(function (item) { return item.id; }).join("+"), "Massages & soins", RECIPIENTS.massage);
+        dispatchService(root, baseRecord("massage", guest, fields, { price_base: total, supplements: [], total: total, blocked: false }), rows, details.map(function (item) { return item.id; }).join("+"), "Massages & soins", RECIPIENTS.massages, false);
       });
     }
   }

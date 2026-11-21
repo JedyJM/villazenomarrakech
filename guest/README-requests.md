@@ -4,7 +4,7 @@ The guest portal does not send these requests anywhere yet. Each one is stored i
 
 WhatsApp buttons only open the guest’s own WhatsApp. The page does not send those messages.
 
-Request buttons (city ride and car rental) are in test mode. `TEST_MODE` and `TEST_WHATSAPP` live at the top of `guest/js/requests.js`. While `TEST_MODE` is true, those buttons open Mehdi on `212661147610` (the owner number in Contacts utiles). The real numbers stay in `RECIPIENTS`: Hicham `212661775422`, Massillya `212616172974`. Set `TEST_MODE` to false to use them again. Button labels do not change. The saved row still names the real recipient.
+Request buttons are in test mode. `TEST_MODE` and `TEST_WHATSAPP` live at the top of `guest/js/requests.js`. While `TEST_MODE` is true, those buttons open Mehdi on `212661147610`. The real numbers stay in `RECIPIENTS`: Hicham `212661775422`, Massillya `212616172974`, Fouzia `212767202011` (restauration), Nadera `212639474843` (ménage), Khalid `212630415956` (piscine, jardin, jacuzzi, activités), Massages & soins `212661614469`. Set `TEST_MODE` to false to use them again. Button labels do not change. The saved row still names the real recipient.
 
 `APPS_SCRIPT_URL` is also at the top of `guest/js/requests.js`. While it is empty, nothing is sent to Google. After the web app is deployed, paste its `/exec` URL there. Each send then adds a row on the tab Demandes, and the WhatsApp message ends with a one-tap confirmation link. Setup steps are in `guest/apps-script/DEPLOY.md`.
 

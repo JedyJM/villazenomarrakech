@@ -33,7 +33,7 @@
   }
 
   function villaWhatsApp(message) {
-    var number = TEST_MODE ? TEST_WHATSAPP : String(VILLA_WHATSAPP).replace(/\D/g, "");
+    var number = TEST_MODE ? TEST_WHATSAPP : String(MEHDI_WHATSAPP).replace(/\D/g, "");
     return "https://wa.me/" + number + "?text=" + encodeURIComponent(message);
   }
 

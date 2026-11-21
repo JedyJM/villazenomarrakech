@@ -1,8 +1,9 @@
 /* Guest portal behaviour.
    Wi-Fi values come from wifi-config.js. The prefilled text is the guest message.
-   VILLA_WHATSAPP is the villa WhatsApp Business number. PAYPAL_EMAIL is the PayPal account.
-   While TEST_MODE is true in guest/js/requests.js, villa buttons open TEST_VILLA_WHATSAPP
-   and the recap does not open a real PayPal payment. */
+   Guests write to Mehdi. PAYPAL_EMAIL is the PayPal account.
+   While TEST_MODE is true in guest/js/requests.js, the recap does not open a real PayPal payment. */
+var MEHDI_WHATSAPP = "212661147610";
+/* Reserved for future automated staff messages (WhatsApp Cloud API, not built yet). No guest button opens this number. */
 var VILLA_WHATSAPP = "212661552597";
 var PAYPAL_EMAIL = "Mr.moums@gmail.com";
 var TEST_VILLA_WHATSAPP = "212661147610";
@@ -22,7 +23,7 @@ function paypalPayUrl(amount, bookingId) {
 window.paypalPayUrl = paypalPayUrl;
 
 function paintVillaWhatsApp(testMode) {
-  var real = String(VILLA_WHATSAPP || "").replace(/\D/g, "");
+  var real = String(MEHDI_WHATSAPP || "").replace(/\D/g, "");
   var number = testMode !== false ? String(TEST_VILLA_WHATSAPP || "").replace(/\D/g, "") : real;
   var isEn = (document.documentElement.lang || "fr").slice(0, 2) === "en";
   var message = isEn

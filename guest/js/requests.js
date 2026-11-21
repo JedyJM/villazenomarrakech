@@ -69,6 +69,7 @@
     if (rows && rows.length) {
       details.resume = rows.map(function (row) { return row[0] + " : " + row[1]; }).join("\n");
     }
+    if (record.guest && record.guest.bookingId) details.booking_id = record.guest.bookingId;
     return {
       id: record.id,
       token: token,
@@ -94,6 +95,18 @@
     } catch (e) {}
   }
 
+  function stayId() {
+    var fromQuery = "";
+    try {
+      fromQuery = new URLSearchParams(window.location.search).get("stay") || "";
+    } catch (e) {}
+    if (fromQuery) {
+      try { localStorage.setItem("villazeno.stay", fromQuery); } catch (e2) {}
+      return fromQuery;
+    }
+    try { return localStorage.getItem("villazeno.stay") || ""; } catch (e3) { return ""; }
+  }
+
   function getGuestFromStay() {
     // Placeholder. Name and phone will be looked up from the Google Sheet
     // "Villa Zen'O – Bookings", tab Réservations, using the stay booking id.
@@ -102,6 +115,7 @@
       name: isEn() ? "Guest" : "Invité",
       phone: "+212 600 000 000",
       villa: "Villa Zen’O",
+      bookingId: stayId(),
       example: true,
       // Read only. Tab Réservations, never written by the portal.
       // chauffage_piscine_jours, chauffage_piscine_tarif_eur
@@ -852,7 +866,7 @@
     var recap = document.querySelector("[data-meal-recap]");
     var names = { breakfast: "Petit-déjeuner", lunch: "Déjeuner", dinner: "Dîner" };
     var spoken = { breakfast: "le petit-déjeuner", lunch: "le déjeuner", dinner: "le dîner" };
-    var windows = { breakfast: [9 * 60, 12 * 60], lunch: [12 * 60, 16 * 60], dinner: [19 * 60, 21 * 60] };
+    var windows = { breakfast: [7 * 60, 11 * 60 + 30], lunch: [12 * 60, 15 * 60 + 30], dinner: [19 * 60, 21 * 60] };
     var maxCount = 16;
 
     function euro(amount) {
@@ -870,19 +884,38 @@
       if (parts[1] === "00") return hour + "\u00A0h";
       return hour + "\u00A0h\u00A0" + parts[1];
     }
+    function earlyRule() {
+      return prices.earlyBreakfast || { supplementDh: 100, before: "09:00" };
+    }
+    function supplementDh() {
+      if (mealKind() !== "breakfast") return 0;
+      var time = form.querySelector("[name='time']").value;
+      var rule = earlyRule();
+      if (!time || time >= rule.before) return 0;
+      return Number(rule.supplementDh) || 0;
+    }
     function fillTimes(kind) {
       var select = form.querySelector("[name='time']");
       var previous = select.value;
       var range = windows[kind];
+      var rule = earlyRule();
       var html = "<option value=\"\">Choisir</option>";
       for (var t = range[0]; t <= range[1]; t += 30) {
         var h = Math.floor(t / 60);
         var m = t % 60;
         var value = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
-        html += "<option value=\"" + value + "\">" + clockLabel(value) + "</option>";
+        var label = clockLabel(value);
+        if (kind === "breakfast" && value < rule.before) label += " · + " + rule.supplementDh + "\u00A0DH";
+        html += "<option value=\"" + value + "\">" + label + "</option>";
       }
       select.innerHTML = html;
       if (select.querySelector("option[value='" + previous + "']")) select.value = previous;
+    }
+    function paintHours() {
+      var el = form.querySelector("[data-meal-hours]");
+      if (!el) return;
+      var rule = earlyRule();
+      el.textContent = "Petit-déjeuner servi de 9\u00A0h à 12\u00A0h, déjeuner de 12\u00A0h à 16\u00A0h, dîner de 19\u00A0h à 21\u00A0h. Pour un petit-déjeuner avant " + clockLabel(rule.before) + ", un supplément de " + rule.supplementDh + "\u00A0DH vous sera demandé.";
     }
     function readDish(dish) {
       var input = dish.querySelector("input[type='hidden']");
@@ -919,6 +952,8 @@
       });
       form.querySelector("[data-meal-panel='breakfast']").hidden = kind !== "breakfast";
       form.querySelector("[data-meal-panel='menu']").hidden = kind === "breakfast";
+      var fouzia = form.querySelector("[data-meal-fouzia]");
+      if (fouzia) fouzia.hidden = kind !== "breakfast";
       fillTimes(kind);
       paintPrices();
       paintMeal();
@@ -948,12 +983,13 @@
           total += item.sum;
         });
       }
+      var extra = supplementDh();
       if (recap) {
         recap.hidden = people < 1;
-        recap.textContent = people < 1 ? "" : personWord(people) + " · Total " + euro(total);
+        recap.textContent = people < 1 ? "" : personWord(people) + " · Total " + euro(total) + (extra ? " + " + extra + "\u00A0DH" : "");
       }
       document.body.classList.toggle("has-meal-recap", people > 0);
-      return { people: people, total: total };
+      return { people: people, total: total, supplement: extra };
     }
     function tomorrowISO() {
       var d = new Date();
@@ -988,6 +1024,7 @@
       }
       if (tab || salad || step) paintMeal();
     });
+    form.querySelector("[name='time']").addEventListener("change", function () { paintMeal(); });
     var typingTimer = 0;
     function typingField(el) {
       if (!el || !el.tagName) return false;
@@ -1047,7 +1084,8 @@
         salads: salads,
         dishes: dishes,
         people: quote.people,
-        allergies: allergies
+        allergies: allergies,
+        supplement_dh: quote.supplement || 0
       };
       var rows = [
         ["Repas", names[kind]],
@@ -1059,7 +1097,8 @@
         rows.push([item.label, item.count + " · " + euro(item.sum)]);
       });
       if (kind === "breakfast") rows.push(["Personnes", String(quote.people)]);
-      rows.push(["Total", personWord(quote.people) + " · " + euro(quote.total)]);
+      if (quote.supplement) rows.push(["Supplément", "Petit-déjeuner avant " + clockLabel(earlyRule().before) + " : " + quote.supplement + "\u00A0DH"]);
+      rows.push(["Total", personWord(quote.people) + " · " + euro(quote.total) + (quote.supplement ? " + " + quote.supplement + "\u00A0DH" : "")]);
       if (allergies) rows.push(["Allergies ou demandes", allergies]);
       var lines = [
         "Bonjour,",
@@ -1076,12 +1115,14 @@
         lines.push(item.label + " : " + item.count + " · " + euro(item.sum));
       });
       if (kind === "breakfast") lines.push("Personnes : " + quote.people);
-      lines.push("Total : " + personWord(quote.people) + " · " + euro(quote.total));
+      if (quote.supplement) lines.push("Supplément petit-déjeuner avant " + clockLabel(earlyRule().before) + " : " + quote.supplement + "\u00A0DH");
+      lines.push("Total : " + personWord(quote.people) + " · " + euro(quote.total) + (quote.supplement ? " + " + quote.supplement + "\u00A0DH" : ""));
       if (allergies) lines.push("Allergies ou demandes : " + allergies);
       lines.push("", "Merci d’avance.");
       fields.message = lines.join("\n");
       dispatchService(root, baseRecord("restauration", guest, fields, { price_base: quote.total, supplements: [], total: quote.total, blocked: false }), rows, kind, "Cuisine", RECIPIENTS.cuisine);
     });
+    paintHours();
     showMeal("lunch");
   }
 
@@ -1661,8 +1702,20 @@
     TEST_WHATSAPP: TEST_WHATSAPP,
     RECIPIENTS: RECIPIENTS,
     cityUrl: cityUrl,
-    rentalUrl: rentalUrl
+    rentalUrl: rentalUrl,
+    stayId: stayId,
+    listDemandes: listDemandes
   };
+
+  function listDemandes(stay) {
+    if (!APPS_SCRIPT_URL || !stay || !window.fetch) return Promise.resolve([]);
+    var url = APPS_SCRIPT_URL + "?action=list&stay=" + encodeURIComponent(stay);
+    return window.fetch(url).then(function (response) {
+      return response.json();
+    }).then(function (data) {
+      return data && data.items ? data.items : [];
+    });
+  }
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

@@ -10,3 +10,5 @@ Compte : villazeno.marrakech@gmail.com. Projet autonome sur script.google.com (i
 6. Sur le déploiement Application Web, cliquez le crayon Modifier.
 7. Version : Nouvelle version. Laissez « Exécuter en tant que : Moi » et « Qui a accès : Tout le monde ».
 8. Cliquez sur Déployer. L’adresse /exec ne change pas. Elle est déjà dans guest/js/requests.js (APPS_SCRIPT_URL).
+
+La page Mes demandes lit `?action=list&stay=…`. Il faut republier le script pour que cette lecture fonctionne. Sans identifiant de séjour, la page reste vide.

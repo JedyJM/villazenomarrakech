@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mes demandes | Villa Zen’O</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f6f1ea">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/portal.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+</head>
+<body class="page-request">
+<a class="skip-link" href="#contenu">Aller au contenu</a>
+<header class="site-header">
+<div class="wrap header-inner">
+<a class="logo" href="./">Villa Zen’O<small>Marrakech Palmeraie</small></a>
+<div class="lang-switch" aria-label="Langue"><a href="demandes.html" hreflang="fr" lang="fr" aria-current="page">FR</a><a href="en/" hreflang="en" lang="en">EN</a></div>
+</div>
+</header>
+<main id="contenu" class="request">
+<div class="wrap route-stack">
+<a class="request-back" href="./">Accueil</a>
+<h1>Mes demandes</h1>
+<p class="demand-empty" data-demand-empty hidden>Vous n’avez encore envoyé aucune demande.</p>
+<ul class="demand-list" data-demand-list hidden></ul>
+</div>
+</main>
+<script src="js/side-menu.js"></script>
+<script src="js/guest-shell.js" data-home="./"></script>
+<script src="../js/config.js"></script>
+<script src="js/portal.js"></script>
+<script src="js/requests.js"></script>
+<script>
+(function () {
+  var names = {
+    transfert: "Transfert",
+    menage: "Ménage",
+    piscine: "Piscine",
+    activites: "Activités",
+    massage: "Massages & soins",
+    restauration: "Restauration"
+  };
+  var icons = {
+    transfert: '<path d="M4 15h16M6 15l1.2-4h9.6L18 15"/><circle cx="7.5" cy="16.5" r="1.3"/><circle cx="16.5" cy="16.5" r="1.3"/>',
+    restauration: '<path d="M8 4v7a3 3 0 0 0 3 3V4M8 4H6M14 4c2 2 2 5 0 7v7"/>',
+    massage: '<circle cx="12" cy="8" r="2.2"/><path d="M12 10.5v8"/>',
+    activites: '<circle cx="12" cy="12" r="7"/><path d="m14.5 9.5-2 6"/>',
+    piscine: '<path d="M4 15c1.2.8 2.2 1 3.5 1 2 0 2-1.6 4-1.6s2 1.6 4 1.6 2-1.6 4-1.6"/>',
+    menage: '<path d="M12 4l1.2 3.6L17 9l-3.8 1.2L12 14l-1.2-3.8L7 9l3.8-1.4z"/>'
+  };
+  var months = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+  var list = document.querySelector("[data-demand-list]");
+  var empty = document.querySelector("[data-demand-empty]");
+  function showEmpty() {
+    empty.hidden = false;
+    list.hidden = true;
+  }
+  function whenText(item) {
+    var date = item.when_date || "";
+    if (/^\d{4}-\d{2}-\d{2}/.test(date)) {
+      var parts = date.slice(0, 10).split("-");
+      date = Number(parts[2]) + " " + months[Number(parts[1]) - 1];
+    }
+    return [date, item.when_time].filter(Boolean).join(" · ");
+  }
+  function money(item) {
+    if (item.total == null || item.total === "") return "";
+    var unit = item.service === "restauration" ? "\u00A0€" : "\u00A0DH";
+    var text = item.total + unit;
+    if (item.supplement_dh) text += " + " + item.supplement_dh + "\u00A0DH";
+    return text;
+  }
+  function paint(items) {
+    if (!items.length) return showEmpty();
+    empty.hidden = true;
+    list.hidden = false;
+    list.innerHTML = items.map(function (item) {
+      var name = names[item.service] || item.service || "Demande";
+      var icon = icons[item.service] || icons.menage;
+      return '<li class="demand-card"><svg viewBox="0 0 24 24" aria-hidden="true">' + icon + '</svg><strong>' + name + '</strong><b>' + money(item) + '</b><p>' + whenText(item) + '</p><p>' + (item.detail || "") + '</p></li>';
+    }).join("");
+  }
+  var api = window.GuestRequests;
+  var stay = api && api.stayId ? api.stayId() : "";
+  if (!api || !stay) return showEmpty();
+  api.listDemandes(stay).then(paint).catch(showEmpty);
+})();
+</script>
+</body>
+</html>

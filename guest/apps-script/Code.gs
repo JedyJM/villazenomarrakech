@@ -51,6 +51,7 @@ function doPost(e) {
 
 function doGet(e) {
   var params = (e && e.parameter) || {};
+  if (params.action === "list") return listDemandes_(params.stay || "");
   if (params.action !== "confirm" || !params.id || !params.t) {
     return htmlPage_("Ce lien n\u2019est pas valable.");
   }
@@ -95,6 +96,51 @@ function getDemandesSheet_() {
     sheet.setFrozenRows(1);
   }
   return sheet;
+}
+
+function listDemandes_(stay) {
+  if (!stay) return jsonOut({ ok: true, items: [] });
+  var sheet = getDemandesSheet_();
+  var last = sheet.getLastRow();
+  if (last < 2) return jsonOut({ ok: true, items: [] });
+  var values = sheet.getRange(2, 1, last - 1, 7).getValues();
+  var items = [];
+  for (var i = 0; i < values.length; i++) {
+    var details = {};
+    try {
+      details = JSON.parse(String(values[i][5] || "{}"));
+    } catch (err) {
+      details = {};
+    }
+    if (String(details.booking_id || "") !== String(stay)) continue;
+    items.push({
+      id: String(values[i][0] || ""),
+      date_creation: String(values[i][1] || ""),
+      service: String(values[i][2] || ""),
+      sous_type: String(values[i][3] || ""),
+      total: values[i][6] === "" ? null : values[i][6],
+      when_date: details.date || "",
+      when_time: details.time_label || details.time || "",
+      detail: shortDetail_(details, String(values[i][3] || "")),
+      supplement_dh: details.supplement_dh || 0
+    });
+  }
+  items.sort(function (a, b) {
+    return String(b.date_creation).localeCompare(String(a.date_creation));
+  });
+  return jsonOut({ ok: true, items: items });
+}
+
+function shortDetail_(details, sousType) {
+  var resume = String(details.resume || "");
+  var lines = resume.split("\n");
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    if (!line || line.indexOf("Repas :") === 0 || line.indexOf("Date :") === 0 || line.indexOf("Heure :") === 0) continue;
+    var parts = line.split(" : ");
+    if (parts.length > 1 && parts[0] !== "Total" && parts[0] !== "Nom") return parts[0] + " · " + parts.slice(1).join(" : ");
+  }
+  return sousType || "";
 }
 
 function findRow_(sheet, id) {

@@ -13,7 +13,7 @@
     car: '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/>',
     flower: '<path d="M12 5a3 3 0 1 1 3 3m-3-3a3 3 0 1 0-3 3m3-3v1M9 8a3 3 0 1 0 3 3M9 8h1m5 0a3 3 0 1 1-3 3m3-3h-1m-2 3v-1"/><circle cx="12" cy="8" r="2"/><path d="M12 10v12"/><path d="M12 22c4.2 0 7-1.667 7-5-4.2 0-7 1.667-7 5Z"/><path d="M12 22c-4.2 0-7-1.667-7-5 4.2 0 7 1.667 7 5Z"/>',
     pool: '<path d="M19 5a2 2 0 0 0-2 2v11"/><path d="M9 5a2 2 0 0 0-2 2v11"/><path d="M7 9h10"/><path d="M7 13h10"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>',
-    tub: '<path d="M4.2 14.2c.5 3.5 3.7 5.8 7.8 5.8s7.3-2.3 7.8-5.8"/><path d="M3.2 14.2h17.6"/><path d="M6.6 14.2c.35 1.8 2.2 3.1 5.4 3.1s5.05-1.3 5.4-3.1"/><path d="M7.2 10.6c1.15-1.15 1.15-2.15 0-3.2"/><path d="M12 9.6c1.25-1.25 1.25-2.35 0-3.5"/><path d="M16.8 10.6c1.15-1.15 1.15-2.15 0-3.2"/>'
+    flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'
   };
 
   function queryFlag(name) {
@@ -251,7 +251,7 @@
     var poolHeat = data.stay && data.stay.pool;
     var jacuzziHeat = data.stay && data.stay.jacuzzi;
     if (poolHeat) poolHeat.kind = "pool";
-    if (jacuzziHeat) jacuzziHeat.kind = "tub";
+    if (jacuzziHeat) jacuzziHeat.kind = "flame";
     var pool = heatingRow("Chauffage piscine", poolHeat);
     var jacuzzi = heatingRow("Chauffage jacuzzi", jacuzziHeat);
     if (pool) rows.push(pool);

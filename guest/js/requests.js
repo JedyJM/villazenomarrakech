@@ -17,7 +17,7 @@
   /* While TEST_MODE is true, every staff WhatsApp opens the villa test number.
      Flip TEST_MODE to false to open the real recipients. Nothing is sent from this file. */
   var TEST_MODE = true;
-  var TEST_WHATSAPP = VILLA_WHATSAPP;
+  var TEST_WHATSAPP = "212661147610";
   var RECIPIENTS = {
     hicham: "212661775422",
     massillya: "212616172974",
@@ -33,7 +33,8 @@
   }
 
   function villaWhatsApp(message) {
-    return "https://wa.me/" + String(VILLA_WHATSAPP).replace(/\D/g, "") + "?text=" + encodeURIComponent(message);
+    var number = TEST_MODE ? TEST_WHATSAPP : String(VILLA_WHATSAPP).replace(/\D/g, "");
+    return "https://wa.me/" + number + "?text=" + encodeURIComponent(message);
   }
 
   function randomBase36(length) {
@@ -1696,6 +1697,8 @@
     }
     initServices(root);
   }
+
+  if (window.paintVillaWhatsApp) window.paintVillaWhatsApp(TEST_MODE);
 
   window.GuestRequests = {
     config: config,

@@ -435,8 +435,17 @@
         + '<li class="recap-sum"><span>' + esc(text("Total à régler", "Total due")) + "</span><b><strong>" + esc(euros(grand)) + "</strong><small>" + esc(text("soit ", "or ") + dirhams(grand)) + "</small></b></li>";
       if (feeNode) feeNode.hidden = true;
       if (payBtn) {
-        var handle = String(window.PAYPAL_ME || "").replace(/[^A-Za-z0-9]/g, "");
-        payBtn.href = handle ? ("https://paypal.me/" + handle + "/" + grand.toFixed(2) + "EUR") : "#";
+        var testPay = window.GuestRequests && window.GuestRequests.TEST_MODE;
+        if (testPay || typeof window.paypalPayUrl !== "function") {
+          payBtn.href = "#";
+          payBtn.removeAttribute("target");
+          payBtn.removeAttribute("rel");
+        } else {
+          var stayId = data.stay && data.stay.id ? data.stay.id : "";
+          payBtn.href = window.paypalPayUrl(grand, stayId);
+          payBtn.target = "_blank";
+          payBtn.rel = "noopener";
+        }
       }
       if (cashBtn) cashBtn.setAttribute("aria-pressed", paypal ? "false" : "true");
       if (payBtn) payBtn.setAttribute("aria-pressed", paypal ? "true" : "false");
@@ -444,10 +453,13 @@
     if (!showSettled(root, data.stay, linesHtml, due)) paintTotal("cash");
     root.querySelectorAll("[data-pay]").forEach(function (button) {
       button.addEventListener("click", function (event) {
-        if (button.getAttribute("data-pay") === "paypal" && button.getAttribute("aria-pressed") !== "true") {
-          event.preventDefault();
-          paintTotal("paypal");
-          return;
+        if (button.getAttribute("data-pay") === "paypal") {
+          if (button.getAttribute("aria-pressed") !== "true") {
+            event.preventDefault();
+            paintTotal("paypal");
+            return;
+          }
+          if (window.GuestRequests && window.GuestRequests.TEST_MODE) event.preventDefault();
         }
         if (button.getAttribute("data-pay") === "cash") {
           event.preventDefault();

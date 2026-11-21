@@ -1,36 +1,57 @@
 /* Guest portal behaviour.
-   Wi-Fi values come from wifi-config.js. The WhatsApp number is read from
-   /js/config.js. The prefilled text is the guest message, not the booking message.
-   VILLA_WHATSAPP is the only villa number. Change it here. */
-var VILLA_WHATSAPP = "212661147610";
-/* Placeholder PayPal.me name. Change it here. TEST_MODE does not send a real payment. */
-var PAYPAL_ME = "VillaZenO";
-(function () {
-  "use strict";
+   Wi-Fi values come from wifi-config.js. The prefilled text is the guest message.
+   VILLA_WHATSAPP is the villa WhatsApp Business number. PAYPAL_EMAIL is the PayPal account.
+   While TEST_MODE is true in guest/js/requests.js, villa buttons open TEST_VILLA_WHATSAPP
+   and the recap does not open a real PayPal payment. */
+var VILLA_WHATSAPP = "212661552597";
+var PAYPAL_EMAIL = "Mr.moums@gmail.com";
+var TEST_VILLA_WHATSAPP = "212661147610";
 
-  var portal = window.GUEST_PORTAL || { wifi: {}, wifiPayload: function () { return ""; } };
-  var lang = (document.documentElement.lang || "fr").slice(0, 2);
-  var isEn = lang === "en";
-  var cfg = window.VILLA_ZENO || {};
-  var number = String(window.VILLA_WHATSAPP || cfg.whatsappNumber || "").replace(/\D/g, "");
+function paypalPayUrl(amount, bookingId) {
+  var email = String(PAYPAL_EMAIL || "");
+  var total = Number(amount);
+  if (!email || !isFinite(total)) return "";
+  var item = "Villa Zen\u2019O \u2013 S\u00e9jour " + String(bookingId || "");
+  return "https://www.paypal.com/cgi-bin/webscr?cmd=_xclick"
+    + "&business=" + encodeURIComponent(email)
+    + "&currency_code=EUR"
+    + "&amount=" + total.toFixed(2)
+    + "&item_name=" + encodeURIComponent(item)
+    + "&no_shipping=1";
+}
+window.paypalPayUrl = paypalPayUrl;
+
+function paintVillaWhatsApp(testMode) {
+  var real = String(VILLA_WHATSAPP || "").replace(/\D/g, "");
+  var number = testMode !== false ? String(TEST_VILLA_WHATSAPP || "").replace(/\D/g, "") : real;
+  var isEn = (document.documentElement.lang || "fr").slice(0, 2) === "en";
   var message = isEn
     ? "Hello, I am a guest at Villa Zen'O and I would like to get in touch."
     : "Bonjour, je suis un invité de la Villa Zen'O et j'aimerais vous contacter.";
   var href = number && message ? "https://wa.me/" + number + "?text=" + encodeURIComponent(message) : "";
-
   document.querySelectorAll("[data-villa-whatsapp]").forEach(function (el) {
     if (!number) return;
     el.href = "https://wa.me/" + number;
   });
-
   document.querySelectorAll("[data-guest-whatsapp]").forEach(function (el) {
     if (!href) {
       el.setAttribute("aria-disabled", "true");
       if (el.hasAttribute("href")) el.removeAttribute("href");
       return;
     }
+    el.removeAttribute("aria-disabled");
     el.href = href;
   });
+}
+window.paintVillaWhatsApp = paintVillaWhatsApp;
+
+(function () {
+  "use strict";
+
+  var portal = window.GUEST_PORTAL || { wifi: {}, wifiPayload: function () { return ""; } };
+  var lang = (document.documentElement.lang || "fr").slice(0, 2);
+  var isEn = lang === "en";
+  paintVillaWhatsApp(true);
 
   document.querySelectorAll("[data-wifi-network]").forEach(function (node) {
     node.textContent = portal.wifi.network || "";

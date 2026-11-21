@@ -29,7 +29,7 @@
     reparations: '<path d="M14.7 6.3a4 4 0 0 0-5.6 5.6L4 17l3 3 5.1-5.1a4 4 0 0 0 5.6-5.6l-2.2 2.2-2.2-2.2 2.4-2.4z"/>'
   };
   var VIEWS = [["sejours", "Séjours"], ["services", "Services"], ["depenses", "Dépenses"]];
-  var state = { view: "sejours", year: 2026, month: "2026-12" };
+  var state = { view: "sejours", year: 2026, month: "2026-12", remoteStays: [], remoteDemandes: [] };
 
   function esc(value) {
     return String(value == null ? "" : value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -134,22 +134,85 @@
     }
     return [];
   }
+  function zeros() {
+    return { repas: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], chauffage: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], massages: 0, transferts: 0, quad: 0, dromadaire: 0 };
+  }
   function serviceYear(year) {
+    if (shell.TEST_MODE) return sampleServices(year);
+    return servicesFromSheet(year);
+  }
+  function sampleServices(year) {
     if (year === 2026) {
       return {
         repas: [180, 100, 140, 160, 200, 220, 240, 260, 220, 200, 240, 240],
         chauffage: [200, 180, 120, 40, 0, 0, 0, 0, 0, 60, 280, 320],
-        surplace: 360
+        massages: 960,
+        transferts: 1400,
+        quad: 240,
+        dromadaire: 120
       };
     }
     if (year === 2025) {
       return {
         repas: [80, 60, 70, 80, 90, 100, 110, 120, 90, 80, 70, 80],
         chauffage: [120, 100, 60, 20, 0, 0, 0, 0, 0, 30, 140, 160],
-        surplace: 180
+        massages: 480,
+        transferts: 700,
+        quad: 160,
+        dromadaire: 80
       };
     }
-    return { repas: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], chauffage: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], surplace: 0 };
+    return zeros();
+  }
+  function euroCents(item) {
+    var dh = Number(item.total);
+    if (!isFinite(dh) || !dh) return 0;
+    return Math.round(dh * 10);
+  }
+  function serviceBucket(item) {
+    if (item.offert || item.status === "Annulée") return "";
+    var service = String(item.service || "").toLowerCase();
+    var sub = String(item.sous_type || item.extra || item.meal || item.label || "").toLowerCase();
+    if (service.indexOf("massage") >= 0 || service.indexOf("soin") >= 0) return "massages";
+    if (service.indexOf("transfert") >= 0 || service.indexOf("transfer") >= 0) {
+      if (sub.indexOf("ville") >= 0 || sub.indexOf("city") >= 0) return "";
+      return "transferts";
+    }
+    if (service.indexOf("activ") >= 0 || service.indexOf("quad") >= 0 || service.indexOf("dromad") >= 0) {
+      if (sub.indexOf("dromad") >= 0 || sub.indexOf("camel") >= 0 || service.indexOf("dromad") >= 0) return "dromadaire";
+      if (sub.indexOf("quad") >= 0 || service.indexOf("quad") >= 0) return "quad";
+      return "";
+    }
+    if (service.indexOf("restaur") >= 0 || service.indexOf("petit") >= 0 || service.indexOf("ner") >= 0 || service.indexOf("jeuner") >= 0) return "repas";
+    return "";
+  }
+  function servicesFromSheet(year) {
+    var book = zeros();
+    (state.remoteDemandes || []).forEach(function (item) {
+      var when = String(item.date || "").slice(0, 7);
+      if (when.slice(0, 4) !== String(year)) return;
+      var bucket = serviceBucket(item);
+      if (!bucket) return;
+      var cents = euroCents(item);
+      var month = Number(when.slice(5, 7)) - 1;
+      if (bucket === "repas" && month >= 0 && month < 12) book.repas[month] += cents / 100;
+      else if (bucket === "massages") book.massages += cents / 100;
+      else if (bucket === "transferts") book.transferts += cents / 100;
+      else if (bucket === "quad") book.quad += cents / 100;
+      else if (bucket === "dromadaire") book.dromadaire += cents / 100;
+    });
+    (state.remoteStays || []).forEach(function (stay) {
+      var paid = String(stay.encaisse_le || "");
+      if (paid.slice(0, 4) !== String(year)) return;
+      var off = {};
+      var raw = stay.offerts;
+      (Array.isArray(raw) ? raw : String(raw || "").split(",")).forEach(function (id) { if (id) off[String(id).trim()] = true; });
+      var month = Number(paid.slice(5, 7)) - 1;
+      if (month < 0 || month > 11) return;
+      if (!off.chauffage_piscine) book.chauffage[month] += ((stay.poolDays || 0) * (stay.poolRate || 0)) / 100;
+      if (!off.chauffage_jacuzzi) book.chauffage[month] += ((stay.jacuzziDays || 0) * (stay.jacuzziRate || 0)) / 100;
+    });
+    return book;
   }
   function demandStats(year) {
     if (year === 2026) {
@@ -236,8 +299,8 @@
   }
   function emptySource() { return { count: 0, nights: 0, brut: 0, frais: 0, net: 0 }; }
 
-  function tile(kicker, value, sub) {
-    return '<article class="stat-tile"><p class="kicker">' + esc(kicker) + '</p><strong>' + value + "</strong>" + (sub ? "<em>" + sub + "</em>" : "") + "</article>";
+  function tile(kicker, value, sub, subClass) {
+    return '<article class="stat-tile"><p class="kicker">' + esc(kicker) + '</p><strong>' + value + "</strong>" + (sub ? '<em class="' + (subClass || "") + '">' + sub + "</em>" : "") + "</article>";
   }
   function sourceCard(roll) {
     return '<section class="block stat-source"><p class="kicker">Par source</p>' + ["Airbnb", "Booking", "Direct"].map(function (name) {
@@ -255,11 +318,19 @@
       + sourceCard(roll)
       + '<p class="stat-note">Frais plateformes = frais de service hôte (Airbnb) et commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net.</p>';
   }
-  function servicesHtml() {
-    var book = serviceYear(state.year);
+  function serviceSums(book) {
     var repas = book.repas.reduce(function (s, n) { return s + n; }, 0);
     var heat = book.chauffage.reduce(function (s, n) { return s + n; }, 0);
-    var total = repas + heat + book.surplace;
+    var activites = (book.quad || 0) + (book.dromadaire || 0);
+    var total = repas + heat + (book.massages || 0) + (book.transferts || 0) + activites;
+    return { repas: repas, heat: heat, massages: book.massages || 0, transferts: book.transferts || 0, quad: book.quad || 0, dromadaire: book.dromadaire || 0, activites: activites, total: total };
+  }
+  function servicesHtml() {
+    var book = serviceYear(state.year);
+    var sums = serviceSums(book);
+    var repas = sums.repas;
+    var heat = sums.heat;
+    var total = sums.total;
     var roll = stayRollup(stays());
     var demands = demandStats(state.year);
     var basket = roll.count ? Math.round(total / roll.count) : 0;
@@ -279,7 +350,9 @@
     var types = demands.types.map(function (row) {
       return '<p class="type-row"><span>' + esc(row[0]) + '</span><i><b style="width:' + Math.round(row[1] / maxType * 100) + '%"></b></i><em>' + row[1] + "</em></p>";
     }).join("");
-    return '<div class="stat-3">' + tile("Repas", esc(money(repas * 100))) + tile("Chauffage", esc(money(heat * 100))) + tile("Sur place", esc(money(book.surplace * 100))) + "</div>"
+    var actSub = "Quad " + money(sums.quad * 100) + " · Dromad. " + money(sums.dromadaire * 100);
+    return '<div class="stat-3">' + tile("Repas", esc(money(repas * 100))) + tile("Chauffage", esc(money(heat * 100))) + tile("Massages & soins", esc(money(sums.massages * 100))) + "</div>"
+      + '<div class="stat-3">' + tile("Transferts aéroport", esc(money(sums.transferts * 100))) + tile("Activités", esc(money(sums.activites * 100)), esc(actSub), "is-detail") + tile("Total services", esc(money(total * 100))) + "</div>"
       + '<section class="block stat-chart"><p class="chart-legend"><span><i></i>Repas</span><span><i class="is-gold"></i>Chauffage</span></p><div class="chart">' + bars + "</div></section>"
       + '<div class="stat-3">' + tile("Panier moyen", esc(money(basket * 100)), "par séjour") + tile("Demandes / séjour", esc(perText), esc(demands.total + " au total")) + tile("Délai confirmation", demands.delayHours == null ? "—" : esc(demands.delayHours + "\u00A0h"), "moyenne") + "</div>"
       + '<section class="block"><p class="kicker">Demandes par type</p>' + types + "</section>"
@@ -295,8 +368,7 @@
     monthItems.sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
     var monthEur = monthItems.reduce(function (sum, item) { return sum + Math.round(item.montant_eur * 100); }, 0);
     var roll = stayRollup(stays());
-    var book = serviceYear(state.year);
-    var services = (book.repas.reduce(function (s, n) { return s + n; }, 0) + book.chauffage.reduce(function (s, n) { return s + n; }, 0) + book.surplace) * 100;
+    var services = serviceSums(serviceYear(state.year)).total * 100;
     var spent = all.reduce(function (sum, item) { return sum + Math.round(item.montant_eur * 100); }, 0);
     var marge = roll.net + services - spent;
     var rows = monthItems.map(function (item) {
@@ -387,6 +459,43 @@
       if (event.target.closest("[data-photo-close]") || event.target.hasAttribute("data-photo")) document.querySelector("[data-photo]").hidden = true;
     });
     paint();
+    if (!shell.TEST_MODE && shell.SCRIPT_URL && window.fetch) {
+      var token = encodeURIComponent(shell.session());
+      var base = shell.SCRIPT_URL + "?token=" + token;
+      Promise.all([
+        window.fetch(base + "&action=stays&year=" + state.year).then(function (res) { return res.json(); }),
+        window.fetch(base + "&action=demandes").then(function (res) { return res.json(); }),
+        window.fetch(base + "&action=depenses&year=" + state.year).then(function (res) { return res.json(); })
+      ]).then(function (pair) {
+        state.remoteStays = (pair[0].stays || []).map(apiStay);
+        state.remoteDemandes = (pair[1] && pair[1].items) || [];
+        state.remoteExpenses = (pair[2] && pair[2].depenses) || [];
+        paint();
+      }).catch(function () {});
+    }
+  }
+  function apiStay(stay) {
+    var source = stay.source === "Booking" ? "Booking" : stay.source === "Direct" ? "Direct" : "Airbnb";
+    var brut = 0;
+    var frais = 0;
+    var net = 0;
+    if (source === "Airbnb") {
+      brut = (stay.room || 0) - (stay.reduction || 0);
+      frais = stay.hostFee || 0;
+      net = brut - frais;
+    } else if (source === "Booking") {
+      brut = stay.total || 0;
+      frais = (stay.commission || 0) + (stay.bank || 0);
+      net = brut - frais;
+    } else {
+      brut = stay.tarif || 0;
+      net = brut;
+    }
+    return {
+      source: source, arrival: stay.arrival, departure: stay.departure, brut: brut, frais: frais, net: net, confirmed: true,
+      poolDays: stay.poolDays || 0, poolRate: stay.poolRate || 0, jacuzziDays: stay.jacuzziDays || 0, jacuzziRate: stay.jacuzziRate || 0,
+      encaisse_le: stay.encaisse_le || "", offerts: stay.offerts || ""
+    };
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

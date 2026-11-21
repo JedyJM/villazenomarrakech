@@ -503,6 +503,7 @@ body.page-stats h1, body.page-depense h1 { font-size: 1.35rem; }
 .stat-tile .kicker { font-size: 0.48rem; letter-spacing: 0.01em; white-space: nowrap; }
 .stat-tile strong { font-family: var(--serif); font-size: 1.05rem; font-weight: 500; line-height: 1.05; white-space: nowrap; }
 .stat-tile em { color: var(--muted); font-size: 9px; font-style: normal; letter-spacing: -0.03em; white-space: nowrap; }
+.stat-tile em.is-detail { display: block; max-width: 100%; overflow: hidden; font-size: 7.5px; letter-spacing: -0.06em; }
 .stat-source { display: grid; gap: 6px; }
 .src { display: grid; gap: 2px; min-width: 0; }
 .src-top { display: flex; justify-content: space-between; gap: 6px; margin: 0; min-width: 0; }
@@ -523,7 +524,7 @@ body.page-stats h1, body.page-depense h1 { font-size: 1.35rem; }
 .chart-legend i { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 2px; background: var(--terracotta); vertical-align: baseline; }
 .chart-legend i.is-gold, .chart b.is-gold { background: var(--gold); }
 .chart {
-  position: relative; display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; height: 64px; align-items: end;
+  position: relative; display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; height: 46px; align-items: end;
 }
 .chart::before {
   content: ""; position: absolute; left: 0; right: 0; bottom: 11px; height: 1px;

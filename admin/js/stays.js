@@ -371,10 +371,9 @@
 
     function amountInput(name, label, value, negative) {
       var shown = amountText(value);
-      var width = Math.max(shown.length, 4);
       return '<label class="money-row"><span class="lbl">' + label + '</span><span class="amount">'
         + (negative ? '<i>−</i>' : '')
-        + '<input class="amt" name="' + name + '" inputmode="decimal" autocomplete="off" value="' + esc(shown) + '" style="width:' + width + 'ch">'
+        + '<input class="amt" name="' + name + '" inputmode="decimal" autocomplete="off" value="' + esc(shown) + '">'
         + '<span class="euro">€</span></span></label>';
     }
 
@@ -480,8 +479,12 @@
       field("jacuzziDays").value = String(model.jacuzziDays);
       var poolFlag = form.querySelector("[data-pool-flag]");
       var jacuzziFlag = form.querySelector("[data-jacuzzi-flag]");
+      var poolTarif = form.querySelector("[data-pool-tarif]");
+      var jacuzziTarif = form.querySelector("[data-jacuzzi-tarif]");
       if (poolFlag) poolFlag.hidden = !model.poolOffert;
       if (jacuzziFlag) jacuzziFlag.hidden = !model.jacuzziOffert;
+      if (poolTarif) poolTarif.hidden = !!model.poolOffert;
+      if (jacuzziTarif) jacuzziTarif.hidden = !!model.jacuzziOffert;
     }
 
     function fill() {
@@ -573,9 +576,7 @@
     });
     form.addEventListener("focusout", function (event) {
       if (!event.target.classList || !event.target.classList.contains("amt")) return;
-      var shown = amountText(calc.cents(event.target.value));
-      event.target.value = shown;
-      event.target.style.width = Math.max(shown.length, 4) + "ch";
+      event.target.value = amountText(calc.cents(event.target.value));
     });
     form.addEventListener("submit", function (event) {
       event.preventDefault();

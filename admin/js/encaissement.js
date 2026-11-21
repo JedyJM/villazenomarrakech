@@ -123,7 +123,7 @@
         + '<span class="bill-amt">' + esc(euros(line.cents)) + "</span></div>";
     }).join("");
     var provider = providerText(stay);
-    var figs = '<span class="cash-figs"><strong>' + esc(euros(due)) + '</strong><em>' + esc(calc.dirhams(due)) + "</em></span>";
+    var figs = '<div class="cash-line"><span class="cash-word">Total</span><strong class="cash-euro">' + esc(euros(due)) + '</strong></div><em class="cash-dh">' + esc(calc.dirhams(due)) + "</em>";
     var paypal = "";
     if (!paid && state.mode === "paypal") {
       paypal = '<p class="cash-fee"><span>PayPal, frais inclus</span><strong>' + esc(euros(paypalCents(due))) + '</strong></p>'
@@ -142,9 +142,24 @@
       + '<section class="block"><p class="kicker">À régler à la villa</p>' + lines
       + (provider ? '<p class="cash-done">' + esc(provider) + "</p>" : "")
       + "</section>"
-      + '<section class="block cash-sum"><p class="cash-total"><span class="cash-word">Total</span>' + figs + "</p>"
+      + '<section class="block cash-sum"><div class="cash-total">' + figs + "</div>"
       + '<p class="cash-rate">Taux appliqué\u00A0: 1\u00A0€ = 10\u00A0DH</p>'
       + action + "</section>";
+    fitFigs();
+  }
+  function fitLine(el, start, min) {
+    if (!el || !el.clientWidth) return;
+    var size = start;
+    el.style.fontSize = size + "px";
+    while (size > min && el.scrollWidth > el.clientWidth + 0.5) {
+      size -= 0.5;
+      el.style.fontSize = size + "px";
+    }
+  }
+  function fitFigs() {
+    fitLine(document.querySelector(".cash-euro"), 22, 13);
+    fitLine(document.querySelector(".cash-dh"), 12, 9);
+    fitLine(document.querySelector(".cash-fee strong"), 18, 12);
   }
   function openSheet() {
     var due = dueOf(state.lines);

@@ -418,43 +418,66 @@ body.page-cash h1 { font-size: 1.35rem; }
 .chip.is-attente { background: #efe6d8; color: var(--terracotta-dark); }
 .chip.is-paye { background: #e3f2e6; color: #1d6b3a; }
 body.page-cash .block { padding: 8px 12px; gap: 4px; }
-.bill-row, .cash-total {
-  display: grid; grid-template-columns: 22px minmax(0, 1fr) 3.35rem auto;
-  gap: 6px; align-items: center; min-width: 0;
+body.page-cash { --amt: 4.35rem; --sw: 4.15rem; }
+.bill-row {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) var(--sw) var(--amt);
+  column-gap: 4px; align-items: center; min-height: 32px; min-width: 0;
 }
-.bill-row { min-height: 28px; }
+.bill-row.is-tax { grid-template-columns: 20px minmax(0, 1fr) var(--amt); align-items: start; }
 .bill-ico {
-  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px;
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px;
   background: #efe6d8; color: #6b3022;
 }
+.bill-row.is-tax .bill-ico { margin-top: 1px; }
 .bill-ico svg { width: 14px; height: 14px; }
-.bill-label { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bill-row.is-tax .bill-label { grid-column: 2 / 4; font-size: 11px; letter-spacing: -0.045em; overflow: visible; text-overflow: clip; }
-.bill-row.is-tax .bill-amt { grid-column: 4; }
-.bill-amt, .cash-figs { justify-self: end; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bill-amt { font-size: 13px; font-weight: 600; }
-.bill-row.is-offert .bill-amt { color: var(--muted); font-weight: 500; text-decoration: line-through; }
-.bill-off {
-  height: 22px; padding: 0 6px; border-radius: 999px; border: 1px solid rgba(28, 25, 22, 0.14);
-  background: #fff; font-size: 10px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
+.bill-text { display: grid; min-width: 0; }
+.bill-label { font-size: 12.5px; font-weight: 600; line-height: 1.2; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bill-sub { color: var(--muted); font-size: 11px; font-weight: 500; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bill-amt, .cash-figs, .cash-fee strong {
+  width: var(--amt); justify-self: end; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-.bill-off.is-on { background: #efe6d8; color: var(--terracotta); border-color: transparent; }
-.bill-off:disabled { opacity: 0.7; }
+.bill-amt { font-size: 13px; font-weight: 600; line-height: 1.2; }
+.bill-row.is-tax .bill-amt { margin-top: 1px; }
+.bill-row.is-offert .bill-amt { color: var(--muted); font-weight: 500; text-decoration: line-through; }
+.bill-switch { display: flex; align-items: center; justify-content: flex-end; gap: 4px; width: var(--sw); }
+.bill-switch.is-empty { visibility: hidden; }
+.bill-switch-name { color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 0.01em; line-height: 1; text-transform: uppercase; }
+.bill-switch.is-on .bill-switch-name { color: var(--terracotta); }
+.bill-ios {
+  position: relative; flex: none; width: 30px; height: 18px; padding: 0; border: 0; border-radius: 99px;
+  background: #e4ddd4;
+}
+button.bill-ios { cursor: pointer; }
+.bill-knob {
+  position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 2px rgba(28, 25, 22, 0.25);
+}
+.bill-switch.is-on .bill-ios { background: var(--terracotta); }
+.bill-switch.is-on .bill-knob { left: 14px; }
+.bill-switch.is-locked { pointer-events: none; }
 .cash-done { margin: 2px 0 0; color: var(--muted); font-size: 10.5px; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cash-total { min-height: 0; }
-.cash-total > span { grid-column: 2; font-size: 14px; font-weight: 600; }
-.cash-figs { grid-column: 4; display: grid; justify-items: end; }
-.cash-figs strong { font-family: var(--serif); font-size: 1.45rem; font-weight: 500; line-height: 1; }
-.cash-figs em { font-style: normal; color: var(--muted); font-size: 12px; }
-.cash-rate, .cash-note, .cash-paid { margin: 0; color: var(--muted); font-size: 12px; white-space: nowrap; }
-.cash-paid { color: var(--ink); font-weight: 600; text-align: center; }
+.cash-total, .cash-fee {
+  display: grid; grid-template-columns: minmax(0, 1fr) var(--amt); column-gap: 4px;
+  align-items: start; min-width: 0; margin: 0;
+}
+.cash-word { font-size: 14px; font-weight: 600; line-height: 1.15; padding-top: 1px; }
+.cash-figs { display: grid; justify-items: end; }
+.cash-figs strong { font-family: var(--serif); font-size: 1.45rem; font-weight: 500; line-height: 0.95; }
+.cash-figs em { font-style: normal; color: var(--muted); font-size: 12px; line-height: 1.25; }
+.cash-rate, .cash-note { margin: 0; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.cash-paid {
+  display: flex; align-items: center; justify-content: flex-start; gap: 6px;
+  margin: 0; color: var(--ink); font-size: 13px; font-weight: 600; text-align: left; white-space: nowrap;
+}
+.cash-paid svg { flex: none; width: 16px; height: 16px; }
+.cash-paid circle { fill: #1d6b3a; }
+.cash-paid path { fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .segment { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
 .segment button {
   height: 32px; padding: 0 4px; border-radius: 999px; border: 1px solid rgba(28, 25, 22, 0.14);
   background: #fff; font-size: 12px; white-space: nowrap;
 }
 .segment button[aria-pressed="true"] { background: var(--terracotta); border-color: var(--terracotta); color: #fffaf3; font-weight: 600; }
-.cash-fee { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0; }
-.cash-fee span { font-size: 12.5px; font-weight: 600; white-space: nowrap; }
-.cash-fee strong { font-family: var(--serif); font-size: 1.15rem; font-weight: 500; white-space: nowrap; }
+.cash-fee span { font-size: 12.5px; font-weight: 600; line-height: 1.3; white-space: nowrap; padding-top: 1px; }
+.cash-fee strong { font-family: var(--serif); font-size: 1.15rem; font-weight: 500; line-height: 1.15; }
 body.page-cash .primary { height: 42px; }

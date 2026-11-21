@@ -99,12 +99,26 @@
     var paid = state.paid;
     var due = dueOf(state.lines);
     var lines = state.lines.map(function (line) {
-      var text = line.label + (line.detail ? " · " + line.detail : "");
-      var toggle = line.toggle
-        ? '<button type="button" class="bill-off' + (line.offert ? " is-on" : "") + '" data-off="' + esc(line.id) + '" aria-pressed="' + (line.offert ? "true" : "false") + '"' + (paid ? " disabled" : "") + ">Offert</button>"
-        : "<span></span>";
+      var title = line.label;
+      var sub = "";
+      if (line.detail) {
+        if (line.toggle) title += " · " + line.detail;
+        else sub = line.detail;
+      }
+      var toggle = "";
+      if (line.toggle && !(paid && !line.offert)) {
+        var on = line.offert ? " is-on" : "";
+        var knob = '<span class="bill-knob" aria-hidden="true"></span>';
+        toggle = paid
+          ? '<span class="bill-switch is-locked' + on + '"><span class="bill-switch-name">Offert</span><span class="bill-ios">' + knob + "</span></span>"
+          : '<span class="bill-switch' + on + '"><span class="bill-switch-name">Offert</span><button type="button" class="bill-ios" data-off="' + esc(line.id) + '" role="switch" aria-pressed="' + (line.offert ? "true" : "false") + '" aria-label="Offert">' + knob + "</button></span>";
+      } else if (line.toggle) {
+        toggle = '<span class="bill-switch is-empty"></span>';
+      }
       return '<div class="bill-row' + (line.offert ? " is-offert" : "") + (line.toggle ? "" : " is-tax") + '">' + icon(line.kind)
-        + '<span class="bill-label">' + esc(text) + "</span>"
+        + '<span class="bill-text"><span class="bill-label">' + esc(title) + "</span>"
+        + (sub ? '<span class="bill-sub">' + esc(sub) + "</span>" : "")
+        + "</span>"
         + toggle
         + '<span class="bill-amt">' + esc(euros(line.cents)) + "</span></div>";
     }).join("");
@@ -120,7 +134,7 @@
       return '<button type="button" data-mode="' + mode[0] + '" aria-pressed="' + (on ? "true" : "false") + '">' + esc(mode[1]) + "</button>";
     }).join("") + "</div>";
     var action = paid
-      ? '<p class="cash-paid">Payé le ' + esc(calc.dayText(paid.encaisse_le, false)) + " · " + esc(paid.encaisse_mode) + "</p>"
+      ? '<p class="cash-paid"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.8 12.4 10.6 15.2 16.4 9"/></svg><span>Payé le ' + esc(calc.dayText(paid.encaisse_le, false)) + " · " + esc(paid.encaisse_mode) + "</span></p>"
       : segment + paypal + '<button type="button" class="primary" data-pay>Marquer comme payé</button>';
     root.innerHTML = '<a class="back" href="sejour.html?id=' + encodeURIComponent(stay.id) + '">‹ Fiche séjour</a>'
       + "<h1>Encaissement</h1>"
@@ -128,7 +142,7 @@
       + '<section class="block"><p class="kicker">À régler à la villa</p>' + lines
       + (provider ? '<p class="cash-done">' + esc(provider) + "</p>" : "")
       + "</section>"
-      + '<section class="block cash-sum"><p class="cash-total"><span>Total</span>' + figs + "</p>"
+      + '<section class="block cash-sum"><p class="cash-total"><span class="cash-word">Total</span>' + figs + "</p>"
       + '<p class="cash-rate">Taux appliqué\u00A0: 1\u00A0€ = 10\u00A0DH</p>'
       + action + "</section>";
   }

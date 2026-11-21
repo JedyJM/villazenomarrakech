@@ -44,7 +44,7 @@
         source: "Booking",
         adults: 3,
         children: 2,
-        ages: [],
+        ages: [10, 3],
         notes: "",
         total: 672770,
         commission: 166005,
@@ -69,7 +69,7 @@
         depositDate: "2026-12-10",
         depositMode: "Virement",
         breakfast: true,
-        poolDays: 0, poolRate: 0, poolOffert: true,
+        poolDays: 7, poolRate: 0, poolOffert: true,
         jacuzziDays: 0, jacuzziRate: 0, jacuzziOffert: false,
         lien_actif: true
       }
@@ -105,6 +105,8 @@
   function withDerived(stay) {
     var copy = Object.assign({}, stay);
     copy.nights = calc.nights(copy.arrival, copy.departure);
+    if (copy.poolOffert && copy.nights > 0) copy.poolDays = copy.nights;
+    if (copy.jacuzziOffert && copy.nights > 0) copy.jacuzziDays = copy.nights;
     if (!copy.lien_expire_le) copy.lien_expire_le = calc.addDays(copy.departure, 3);
     if (copy.source === "Airbnb") copy.gain = calc.airbnbGain(copy.room, copy.reduction, copy.hostFee);
     if (copy.source === "Booking") {
@@ -222,7 +224,7 @@
   }
 
   function portalUrl(id) {
-    return window.location.origin + "/guest/?stay=" + encodeURIComponent(id);
+    return "https://villazenomarrakech.com/guest/?stay=" + encodeURIComponent(id);
   }
 
   function firstName(nom) {
@@ -358,11 +360,22 @@
       }
     }
 
+    function amountText(centsValue) {
+      var n = Math.abs(Math.round(Number(centsValue) || 0));
+      if (!n) return "";
+      var whole = String(Math.floor(n / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");
+      var frac = String(n % 100);
+      if (frac.length < 2) frac = "0" + frac;
+      return whole + "," + frac;
+    }
+
     function amountInput(name, label, value, negative) {
-      var shown = value ? (value / 100).toFixed(2).replace(".", ",") : "";
-      var fieldHtml = '<input name="' + name + '" inputmode="decimal" autocomplete="off" value="' + esc(shown) + '">';
-      if (negative) fieldHtml = '<span class="signed"><i>−</i>' + fieldHtml + '</span>';
-      return '<label class="money-row' + (negative ? ' is-neg' : '') + '"><span class="lbl">' + label + '</span>' + fieldHtml + '</label>';
+      var shown = amountText(value);
+      var width = Math.max(shown.length, 4);
+      return '<label class="money-row"><span class="lbl">' + label + '</span><span class="amount">'
+        + (negative ? '<i>−</i>' : '')
+        + '<input class="amt" name="' + name + '" inputmode="decimal" autocomplete="off" value="' + esc(shown) + '" style="width:' + width + 'ch">'
+        + '<span class="euro">€</span></span></label>';
     }
 
     function paintAges() {
@@ -403,7 +416,7 @@
         html = '<p class="kicker">Tarif direct</p>'
           + amountInput("tarif", "Tarif total", model.tarif)
           + amountInput("deposit", "Acompte reçu", model.deposit)
-          + '<label class="money-row"><span class="lbl">Date de l’acompte</span><input type="date" name="depositDate" value="' + esc(model.depositDate) + '"></label>'
+          + '<label class="money-row"><span class="lbl">Date de l’acompte</span><span class="date-fr"><input type="date" lang="fr" name="depositDate" value="' + esc(model.depositDate) + '"><span class="date-face" data-date-face></span></span></label>'
           + '<div class="modes" role="group" aria-label="Mode de l’acompte">'
           + ["Virement", "Espèces", "PayPal"].map(function (mode) {
             var on = model.depositMode === mode;
@@ -419,7 +432,29 @@
           + '</div>';
       }
       price.innerHTML = html;
+      paintDateFace();
       save.textContent = model.source === "Direct" ? "Préparer l’e-mail de confirmation" : "Enregistrer le séjour";
+    }
+
+    function paintDateFace(root) {
+      (root || form).querySelectorAll(".date-fr").forEach(function (box) {
+        var input = box.querySelector("input");
+        var face = box.querySelector("[data-date-face]");
+        if (!input || !face) return;
+        if (input.value) {
+          face.textContent = calc.dayText(input.value, true);
+          face.classList.remove("is-empty");
+        } else {
+          face.textContent = "Choisir";
+          face.classList.add("is-empty");
+        }
+      });
+    }
+
+    function syncOffers() {
+      var nights = calc.nights(model.arrival, model.departure);
+      if (model.poolOffert && nights > 0) model.poolDays = nights;
+      if (model.jacuzziOffert && nights > 0) model.jacuzziDays = nights;
     }
 
     function offerBox(name, label, on) {
@@ -443,6 +478,10 @@
       form.querySelector("[data-jacuzzi-days]").textContent = String(model.jacuzziDays);
       field("poolDays").value = String(model.poolDays);
       field("jacuzziDays").value = String(model.jacuzziDays);
+      var poolFlag = form.querySelector("[data-pool-flag]");
+      var jacuzziFlag = form.querySelector("[data-jacuzzi-flag]");
+      if (poolFlag) poolFlag.hidden = !model.poolOffert;
+      if (jacuzziFlag) jacuzziFlag.hidden = !model.jacuzziOffert;
     }
 
     function fill() {
@@ -453,10 +492,12 @@
       field("notes").value = model.notes || "";
       field("poolRate").value = model.poolRate ? String(model.poolRate / 100).replace(".", ",") : "";
       field("jacuzziRate").value = model.jacuzziRate ? String(model.jacuzziRate / 100).replace(".", ",") : "";
+      syncOffers();
       paintSource();
       paintSteps();
       paintAges();
       paintPrice();
+      paintDateFace();
     }
 
     form.addEventListener("click", function (event) {
@@ -466,6 +507,7 @@
         readPriceSafe();
         model.source = source.getAttribute("data-source");
         paintSource();
+        paintAges();
         paintPrice();
         return;
       }
@@ -479,8 +521,14 @@
           model.children = Math.max(0, Math.min(8, model.children + dir));
           paintAges();
         }
-        if (key === "poolDays") model.poolDays = Math.max(0, Math.min(30, model.poolDays + dir));
-        if (key === "jacuzziDays") model.jacuzziDays = Math.max(0, Math.min(30, model.jacuzziDays + dir));
+        if (key === "poolDays") {
+          var poolNights = calc.nights(model.arrival, model.departure);
+          model.poolDays = model.poolOffert && poolNights > 0 ? poolNights : Math.max(0, Math.min(30, model.poolDays + dir));
+        }
+        if (key === "jacuzziDays") {
+          var jacuzziNights = calc.nights(model.arrival, model.departure);
+          model.jacuzziDays = model.jacuzziOffert && jacuzziNights > 0 ? jacuzziNights : Math.max(0, Math.min(30, model.jacuzziDays + dir));
+        }
         paintSteps();
         if (model.source === "Airbnb" || model.source === "Booking") paintPrice();
         return;
@@ -496,9 +544,13 @@
       if (event.target.name === "arrival" || event.target.name === "departure") {
         readCommon();
         readPriceSafe();
+        syncOffers();
+        paintSteps();
         paintPrice();
+        paintDateFace();
         return;
       }
+      if (event.target.type === "date") paintDateFace();
       if (!price.contains(event.target)) return;
       readPriceSafe();
       var out = price.querySelector("[data-out]");
@@ -508,7 +560,22 @@
         if (out) out.textContent = calc.money(calc.bookingNet(model.total, model.commission, model.bank));
         var taxNode = price.querySelector("[data-tax]");
         if (taxNode) taxNode.textContent = calc.money(calc.bookingTax((model.adults || 0) + (model.children || 0), nights));
-      } else if (out) out.textContent = calc.money(calc.directDue(model.tarif, model.deposit));
+      }       else if (out) out.textContent = calc.money(calc.directDue(model.tarif, model.deposit));
+    });
+    form.addEventListener("change", function (event) {
+      var name = event.target.name;
+      if (name !== "poolOffert" && name !== "jacuzziOffert") return;
+      readPriceSafe();
+      var nights = calc.nights(model.arrival, model.departure);
+      if (name === "poolOffert") model.poolDays = model.poolOffert && nights > 0 ? nights : (model.poolOffert ? model.poolDays : 0);
+      if (name === "jacuzziOffert") model.jacuzziDays = model.jacuzziOffert && nights > 0 ? nights : (model.jacuzziOffert ? model.jacuzziDays : 0);
+      paintSteps();
+    });
+    form.addEventListener("focusout", function (event) {
+      if (!event.target.classList || !event.target.classList.contains("amt")) return;
+      var shown = amountText(calc.cents(event.target.value));
+      event.target.value = shown;
+      event.target.style.width = Math.max(shown.length, 4) + "ch";
     });
     form.addEventListener("submit", function (event) {
       event.preventDefault();
@@ -522,6 +589,8 @@
       else if (model.source === "Airbnb" && !model.room) message = "Indiquez les frais de chambre.";
       else if (model.source === "Booking" && !model.total) message = "Indiquez le montant total.";
       else if (model.source === "Direct" && !model.tarif) message = "Indiquez le tarif total.";
+      else if ((model.poolOffert || model.jacuzziOffert) && nights < 1) message = "Indiquez les dates pour le chauffage offert.";
+      if (!message && model.source === "Direct") syncOffers();
       error.textContent = message;
       if (message) return;
       var stay = withDerived(Object.assign({}, model, {
@@ -570,11 +639,10 @@
   }
 
   function heatBlock(stay) {
-    if (!stay.poolDays && !stay.jacuzziDays && !stay.poolOffert && !stay.jacuzziOffert) return "";
+    if (!(stay.poolDays > 0) && !(stay.jacuzziDays > 0)) return "";
     function line(label, days, rate, offert) {
-      if (!days && !offert) return "";
-      var text = days ? (days + " j × " + calc.money(rate)) : "offert";
-      if (offert && days) text += " · offert";
+      if (!(days > 0)) return "";
+      var text = offert ? (days + " nuit" + (days > 1 ? "s" : "") + " · offert") : (days + " j × " + calc.money(rate));
       return '<p class="money-row"><span class="lbl">' + label + '</span><strong>' + esc(text) + '</strong></p>';
     }
     return '<section class="block"><p class="kicker">Chauffage réservé</p>'
@@ -618,15 +686,14 @@
     var status = calc.statusOf(stay.arrival, stay.departure, calc.todayIso());
     var active = stay.lien_actif !== false;
     root.innerHTML = '<a class="back" href="sejours.html">‹ Séjours</a>'
-      + '<div class="who"><h1>' + esc(stay.nom) + '</h1><span class="chip ' + chipClass(status) + '">' + chipLabel(status) + '</span></div>'
+      + '<div class="who"><h1>' + esc(stay.nom) + '</h1><span class="chips"><span class="chip ' + chipClass(status) + '">' + chipLabel(status) + '</span><span class="chip is-source">' + esc(stay.source) + '</span></span></div>'
       + '<p class="meta-line">' + esc(calc.dayText(stay.arrival, true) + " → " + calc.dayText(stay.departure, true)) + '</p>'
       + '<p class="meta-line">' + esc(composition(stay) + " · " + stay.nights + " nuits") + '</p>'
-      + '<div class="chips"><span class="chip is-source">' + esc(stay.source) + '</span></div>'
       + priceBlock(stay)
       + heatBlock(stay)
       + (stay.notes ? '<section class="block"><p class="kicker">Notes</p><p>' + esc(stay.notes) + '</p></section>' : '')
       + '<section class="block" data-link-card><p class="kicker">Lien du portail invité</p>'
-      + '<p class="link-url">' + esc(portalUrl(stay.id)) + '</p>'
+      + '<p class="link-url">' + esc(portalUrl(stay.id)).replace("?stay=", "<wbr>?stay=") + '</p>'
       + '<p class="link-until">' + (active ? ("Lien actif jusqu’au " + esc(calc.dayText(stay.lien_expire_le, true))) : "Lien désactivé") + '</p>'
       + '<div class="link-actions"><button type="button" data-prolong>Prolonger</button><button type="button" class="is-quiet" data-stop>Désactiver</button></div>'
       + '<button type="button" class="ghost" data-copy>Copier le lien</button>'

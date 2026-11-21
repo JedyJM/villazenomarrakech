@@ -27,8 +27,8 @@
 </section>
 <section class="block">
 <div class="dates">
-<label class="field"><span>Arrivée</span><input name="arrival" type="date" required></label>
-<label class="field"><span>Départ</span><input name="departure" type="date" required></label>
+<label class="field"><span>Arrivée</span><span class="date-fr"><input name="arrival" type="date" lang="fr" required><span class="date-face" data-date-face></span></span></label>
+<label class="field"><span>Départ</span><span class="date-fr"><input name="departure" type="date" lang="fr" required><span class="date-face" data-date-face></span></span></label>
 </div>
 <div class="seg" role="group" aria-label="Source">
 <button type="button" data-source="Airbnb" aria-pressed="true">Airbnb</button>
@@ -45,8 +45,8 @@
 <section class="block" data-price></section>
 <section class="block">
 <p class="kicker">Chauffage réservé</p>
-<div class="heat-row"><span class="lbl">Piscine</span><span class="heat-controls"><span class="stepper"><button type="button" data-step="poolDays" data-dir="-1" aria-label="Moins de jours de piscine">−</button><output data-pool-days>0</output><button type="button" data-step="poolDays" data-dir="1" aria-label="Plus de jours de piscine">+</button></span><input name="poolDays" type="hidden" value="0"><input name="poolRate" inputmode="decimal" aria-label="Tarif piscine en euros par jour"><span class="unit">€ / j</span></span></div>
-<div class="heat-row"><span class="lbl">Jacuzzi</span><span class="heat-controls"><span class="stepper"><button type="button" data-step="jacuzziDays" data-dir="-1" aria-label="Moins de jours de jacuzzi">−</button><output data-jacuzzi-days>0</output><button type="button" data-step="jacuzziDays" data-dir="1" aria-label="Plus de jours de jacuzzi">+</button></span><input name="jacuzziDays" type="hidden" value="0"><input name="jacuzziRate" inputmode="decimal" aria-label="Tarif jacuzzi en euros par jour"><span class="unit">€ / j</span></span></div>
+<div class="heat-row"><span class="lbl">Piscine</span><span class="heat-controls"><span class="stepper"><button type="button" data-step="poolDays" data-dir="-1" aria-label="Moins de jours de piscine">−</button><output data-pool-days>0</output><button type="button" data-step="poolDays" data-dir="1" aria-label="Plus de jours de piscine">+</button></span><input name="poolDays" type="hidden" value="0"><em class="offert-tag" data-pool-flag hidden>offert</em><input name="poolRate" inputmode="decimal" aria-label="Tarif piscine en euros par jour"><span class="unit">€ / j</span></span></div>
+<div class="heat-row"><span class="lbl">Jacuzzi</span><span class="heat-controls"><span class="stepper"><button type="button" data-step="jacuzziDays" data-dir="-1" aria-label="Moins de jours de jacuzzi">−</button><output data-jacuzzi-days>0</output><button type="button" data-step="jacuzziDays" data-dir="1" aria-label="Plus de jours de jacuzzi">+</button></span><input name="jacuzziDays" type="hidden" value="0"><em class="offert-tag" data-jacuzzi-flag hidden>offert</em><input name="jacuzziRate" inputmode="decimal" aria-label="Tarif jacuzzi en euros par jour"><span class="unit">€ / j</span></span></div>
 </section>
 <section class="block">
 <label class="field"><span>Notes</span><textarea name="notes"></textarea></label>

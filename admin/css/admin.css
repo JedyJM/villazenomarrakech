@@ -25,7 +25,7 @@ body {
   line-height: 1.35;
   color: var(--ink);
   background: var(--bg);
-  padding-bottom: var(--nav);
+  padding-bottom: calc(var(--nav) + 28px);
   -webkit-font-smoothing: antialiased;
 }
 body[data-page="gate"],
@@ -122,7 +122,10 @@ a { color: inherit; }
 .chip.is-cours { background: #f6e4dc; color: var(--terracotta); }
 .chip.is-venir { background: #efe6d8; color: var(--terracotta-dark); }
 .chip.is-fini { background: #ece7e1; color: #6d655c; }
-.chip.is-source { background: #f6f1ea; color: var(--ink); letter-spacing: 0; font-weight: 600; font-size: 11px; }
+.chip.is-source {
+  background: #fff; border: 1px solid rgba(28, 25, 22, 0.14); color: var(--ink);
+  letter-spacing: 0; font-weight: 600; font-size: 11px; text-transform: none;
+}
 .empty { padding: 18px 4px; color: var(--muted); font-size: 14px; }
 
 .stack { display: grid; gap: 8px; }
@@ -131,8 +134,8 @@ a { color: inherit; }
   border-radius: 14px; padding: 12px 12px 10px; display: grid; gap: 8px;
 }
 .kicker {
-  margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
-  color: var(--muted); line-height: 1.2;
+  margin: 0; font-family: var(--sans); font-size: 0.62rem; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--terracotta); line-height: 1.2;
 }
 .field { display: grid; gap: 3px; }
 .field label, .step-row > span, .money-row .lbl, .age-row label {
@@ -163,10 +166,22 @@ a { color: inherit; }
 .stepper output { min-width: 1.6rem; text-align: center; font-weight: 600; font-size: 16px; line-height: 1; }
 .note { color: var(--muted); font-size: 12px; line-height: 1.3; white-space: nowrap; }
 .money-row .lbl { flex: 1; min-width: 0; letter-spacing: -0.02em; font-size: 13px; }
-.money-row .signed { display: inline-flex; align-items: baseline; gap: 1px; flex: none; }
-.money-row .signed i { font-style: normal; color: var(--ink); }
-.money-row input { width: 6.1rem; flex: none; text-align: right; }
-.money-row input[type="date"] { width: 11rem; text-align: left; }
+.amount { display: inline-flex; align-items: baseline; gap: 3px; flex: none; }
+.amount i { font-style: normal; line-height: 1; }
+.money-row .amount input {
+  width: 4ch; flex: none; text-align: right; font-variant-numeric: tabular-nums; padding-right: 0;
+}
+.amount .euro { font-size: 15px; line-height: 1; }
+.date-fr { position: relative; display: inline-flex; justify-content: flex-end; flex: none; min-width: 7.2rem; }
+.field .date-fr { width: 100%; justify-content: flex-start; }
+.date-fr input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; border: 0; cursor: pointer;
+}
+.date-face {
+  border-bottom: 1px solid rgba(28, 25, 22, 0.16); font-size: 16px; line-height: 1.2;
+  padding: 4px 0 5px; white-space: nowrap; pointer-events: none;
+}
+.date-face.is-empty { color: var(--muted); }
 .age-row input { width: 4.2rem; flex: none; text-align: right; border: 0; border-bottom: 1px solid rgba(28, 25, 22, 0.16); background: transparent; padding: 4px 0; }
 .money-row strong { font-size: 15px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .money-row.is-neg .lbl { color: var(--ink); }
@@ -199,10 +214,13 @@ a { color: inherit; }
 .form-error:empty { display: none; }
 
 .who { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.who h1 { font-size: 1.45rem; }
+.who h1 { font-size: 1.35rem; min-width: 0; }
+.who .chips { flex: none; }
+.offert-tag { color: var(--terracotta); font-style: normal; font-size: 12px; font-weight: 600; white-space: nowrap; }
+form .primary { margin-top: 4px; }
 .meta-line { color: var(--muted); font-size: 13.5px; white-space: nowrap; }
 .chips { display: flex; gap: 6px; align-items: center; }
-.link-url { font-size: 13px; line-height: 1.35; word-break: break-all; }
+.link-url { font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
 .link-until { font-size: 14px; white-space: nowrap; }
 .link-actions { display: flex; justify-content: flex-end; gap: 14px; }
 .link-actions button {

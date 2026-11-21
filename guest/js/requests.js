@@ -1724,9 +1724,65 @@
     });
   }
 
+  function gateDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}/.test(String(value || ""))) return null;
+    var parts = String(value).slice(0, 10).split("-");
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  }
+  function stayAccess(stay) {
+    var demo = "";
+    try { demo = new URLSearchParams(window.location.search).get("demo") || ""; } catch (e) {}
+    if (demo === "expire") return "expired";
+    if (demo === "depart") return "closed";
+    if (demo === "1") return "open";
+    if (!stay || stay.lien_actif === false) return stay && stay.lien_actif === false ? "expired" : "open";
+    var depart = gateDate(stay.departure);
+    if (!depart) return "open";
+    var expire = gateDate(stay.lien_expire_le);
+    if (!expire) {
+      expire = new Date(depart.getTime());
+      expire.setDate(expire.getDate() + 3);
+    }
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (today.getTime() > expire.getTime()) return "expired";
+    if (today.getTime() >= depart.getTime()) return "closed";
+    return "open";
+  }
+  function applyStayGate() {
+    var file = (location.pathname.split("/").pop() || "").toLowerCase();
+    function run(state) {
+      if (file.indexOf("expire") === 0 || file.indexOf("confirmation") === 0) return;
+      if (state === "expired") {
+        var prefix = location.pathname.indexOf("/en/") >= 0 ? "../" : "";
+        location.replace(prefix + "expire.html");
+        return;
+      }
+      if (state !== "closed") return;
+      document.body.classList.add("is-stay-closed");
+      var note = document.createElement("p");
+      note.className = "stay-closed-note";
+      note.textContent = "Votre séjour se termine, merci pour votre visite";
+      var services = document.querySelector(".services");
+      if (services && !services.querySelector(".stay-closed-note")) services.appendChild(note);
+      var blocked = ["transfert", "restauration", "menage", "piscine", "activites", "massage", "transfer"];
+      var main = document.querySelector("[data-request-page]");
+      if (main && blocked.some(function (name) { return file.indexOf(name) === 0; }) && !main.querySelector(".stay-closed-note")) {
+        main.insertBefore(note, main.firstChild);
+      }
+    }
+    var demo = "";
+    try { demo = new URLSearchParams(window.location.search).get("demo") || ""; } catch (e2) {}
+    if (demo) { run(stayAccess(null)); return; }
+    var id = stayId();
+    if (!id) return;
+    listDemandes(id).then(function (data) { run(stayAccess(data && data.stay)); }).catch(function () {});
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", function () { init(); applyStayGate(); });
   } else {
     init();
+    applyStayGate();
   }
 })();

@@ -12,7 +12,8 @@
     quad: '<path d="M2.75 17a3.25 3.25 0 1 0 6.5 0a3.25 3.25 0 1 0-6.5 0m12 0a3.25 3.25 0 1 0 6.5 0a3.25 3.25 0 1 0-6.5 0M2.5 12.5c1-1.25 2.25-2 4-2h2l1 2h5l1-2h2c1.75 0 3 .75 4 2m-13-4h4m3 2l1-4H19"/>',
     car: '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/>',
     flower: '<path d="M12 5a3 3 0 1 1 3 3m-3-3a3 3 0 1 0-3 3m3-3v1M9 8a3 3 0 1 0 3 3M9 8h1m5 0a3 3 0 1 1-3 3m3-3h-1m-2 3v-1"/><circle cx="12" cy="8" r="2"/><path d="M12 10v12"/><path d="M12 22c4.2 0 7-1.667 7-5-4.2 0-7 1.667-7 5Z"/><path d="M12 22c-4.2 0-7-1.667-7-5 4.2 0 7 1.667 7 5Z"/>',
-    pool: '<path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 14c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>'
+    pool: '<path d="M19 5a2 2 0 0 0-2 2v11"/><path d="M9 5a2 2 0 0 0-2 2v11"/><path d="M7 9h10"/><path d="M7 13h10"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>',
+    tub: '<path d="M5 12h14"/><path d="M7 12v2.5a5 5 0 0 0 5 5 5 5 0 0 0 5-5V12"/><path d="M8 12V8.5"/><path d="M16 12V8.5"/><circle cx="8" cy="6.2" r=".7"/><circle cx="12" cy="5" r=".7"/><circle cx="16" cy="6.2" r=".7"/>'
   };
 
   function queryFlag(name) {
@@ -30,10 +31,16 @@
     var text = (n % 1) ? n.toFixed(2).replace(".", ",") : String(n);
     return text + "\u00A0€";
   }
-  function dirhams(amount) {
-    var n = Math.round(Number(amount));
-    var text = String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");
-    return text + "\u00A0DH";
+  function dirhams(eurosAmount) {
+    var cents = Math.round(Number(eurosAmount) * 100);
+    var dhCents = cents * EURO_DH;
+    var neg = dhCents < 0;
+    dhCents = Math.abs(dhCents);
+    var whole = Math.floor(dhCents / 100);
+    var frac = dhCents % 100;
+    var text = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");
+    if (frac) text += "," + (frac < 10 ? "0" : "") + frac;
+    return (neg ? "−" : "") + text + "\u00A0DH";
   }
   function pad(n) { return (n < 10 ? "0" : "") + n; }
   function parseWhen(date, time) {
@@ -228,7 +235,7 @@
   function heatingRow(label, heat) {
     if (!heat || !heat.days || !heat.rate) return null;
     var amount = Number(heat.days) * Number(heat.rate);
-    return { label: label, detail: heat.days + " × " + heat.rate + "\u00A0€", amount: amount, offert: !!heat.offert };
+    return { label: label, detail: heat.days + " × " + heat.rate + "\u00A0€", amount: amount, offert: !!heat.offert, kind: heat.kind };
   }
 
   function paintRecap(root, pack) {
@@ -241,28 +248,33 @@
     var cashBtn = root.querySelector("[data-pay='cash']");
     var payBtn = root.querySelector("[data-pay='paypal']");
     var rows = [];
-    var pool = heatingRow("Chauffage piscine", data.stay && data.stay.pool);
-    var jacuzzi = heatingRow("Chauffage jacuzzi", data.stay && data.stay.jacuzzi);
+    var poolHeat = data.stay && data.stay.pool;
+    var jacuzziHeat = data.stay && data.stay.jacuzzi;
+    if (poolHeat) poolHeat.kind = "pool";
+    if (jacuzziHeat) jacuzziHeat.kind = "tub";
+    var pool = heatingRow("Chauffage piscine", poolHeat);
+    var jacuzzi = heatingRow("Chauffage jacuzzi", jacuzziHeat);
     if (pool) rows.push(pool);
     if (jacuzzi) rows.push(jacuzzi);
     data.items.forEach(function (item) {
       if (item.service !== "restauration" || item.status !== "Terminée" || item.service === "menage") return;
-      rows.push({ label: guestName(item), detail: billLabel(item), amount: eurosOf(item) || 0, offert: !!item.offert });
+      rows.push({ label: guestName(item), detail: billLabel(item), amount: eurosOf(item) || 0, offert: !!item.offert, kind: kindOf(item) });
     });
     var due = 0;
-    bill.innerHTML = rows.map(function (row) {
+    function moneyLine(row) {
       if (!row.offert) due += row.amount;
       var price = '<span class="' + (row.offert ? "is-offert" : "") + '">' + esc(euros(row.amount)) + "</span>";
-      var tag = row.offert ? '<small>Offert</small>' : "";
-      return "<li><span><strong>" + esc(row.label) + "</strong><em>" + esc(row.detail) + "</em></span><b>" + price + tag + "</b></li>";
-    }).join("");
+      var tag = row.offert ? "<small>Offert</small>" : "";
+      return "<li>" + iconSvg(row.kind || "menage") + "<span><strong>" + esc(row.label) + "</strong><em>" + esc(row.detail) + "</em></span><b>" + price + tag + "</b></li>";
+    }
+    var linesHtml = rows.map(moneyLine).join("");
     var settled = data.items.filter(function (item) {
       return providerService(item) && item.status === "Terminée" && eurosOf(item) != null;
     });
     if (paidCard) paidCard.hidden = !settled.length;
     if (paid) {
       paid.innerHTML = settled.map(function (item) {
-        return "<li><span><strong>" + esc(guestName(item)) + "</strong><em>" + esc(detailLine(item)) + "</em></span><b>" + esc(euros(eurosOf(item))) + "<small>RÉGLÉ</small></b></li>";
+        return "<li>" + iconSvg(kindOf(item)) + "<span><strong>" + esc(guestName(item)) + "</strong><em>" + esc(detailLine(item)) + "</em></span><b>" + esc(euros(eurosOf(item))) + "<small>RÉGLÉ</small></b></li>";
       }).join("");
     }
     function paintTotal(mode) {
@@ -273,11 +285,12 @@
         grand = Math.round((due * 1.044 + 0.35) * 100) / 100;
         fee = Math.round((grand - due) * 100) / 100;
       }
-      totalNode.innerHTML = "<span>" + esc(euros(grand)) + "</span><small>" + esc(dirhams(grand * EURO_DH)) + "</small>";
-      if (feeNode) {
-        feeNode.hidden = !paypal;
-        feeNode.textContent = "Frais PayPal (4,4\u00A0% + 0,35\u00A0€)";
-      }
+      var feeHtml = paypal
+        ? '<li class="recap-fee-line"><span>Frais PayPal (4,4\u00A0% + 0,35\u00A0€)</span><b>' + esc(euros(fee)) + "</b></li>"
+        : "";
+      bill.innerHTML = linesHtml + feeHtml
+        + '<li class="recap-sum"><span>Total à régler</span><b><strong>' + esc(euros(grand)) + "</strong><small>soit " + esc(dirhams(grand)) + "</small></b></li>";
+      if (feeNode) feeNode.hidden = true;
       if (payBtn) {
         var handle = String(window.PAYPAL_ME || "").replace(/[^A-Za-z0-9]/g, "");
         payBtn.href = handle ? ("https://paypal.me/" + handle + "/" + grand.toFixed(2) + "EUR") : "#";

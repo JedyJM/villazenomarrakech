@@ -76,10 +76,10 @@ function doGet(e) {
     }
     var status = String(sheet.getRange(row, 9).getValue() || "");
     var summary = details.resume || "";
-    if (status === "Confirm\u00e9e" || status === "Termin\u00e9e") return htmlPage_("Cette demande est d\u00e9j\u00e0 confirm\u00e9e.");
+    if (status === "Confirm\u00e9e" || status === "Termin\u00e9e") return htmlPage_("Demande confirm\u00e9e", confirmLine_(details), true);
     sheet.getRange(row, 9).setValue("Confirm\u00e9e");
     sheet.getRange(row, 10).setValue(Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd HH:mm"));
-    return htmlPage_("Merci, demande confirm\u00e9e");
+    return htmlPage_("Demande confirm\u00e9e", confirmLine_(details), true);
   } finally {
     lock.releaseLock();
   }
@@ -177,7 +177,7 @@ function ensureDemandes_(sheet) {
 }
 
 function stayRecord_(stay) {
-  var empty = { arrival: "", departure: "", pool: null, jacuzzi: null };
+  var empty = { arrival: "", departure: "", lien_actif: true, lien_expire_le: "", pool: null, jacuzzi: null };
   if (!stay) return empty;
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName("R\u00e9servations");
@@ -192,9 +192,12 @@ function stayRecord_(stay) {
   var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
   for (var r = 0; r < values.length; r++) {
     if (String(values[r][idCol]) !== String(stay)) continue;
+    var actifCol = firstCol_(map, ["lien_actif"]);
     return {
       arrival: cellDate_(values[r], map, ["date_arrivee", "arrivee", "check_in", "arrival"]),
       departure: cellDate_(values[r], map, ["date_depart", "depart", "check_out", "departure"]),
+      lien_actif: actifCol == null ? true : offertValue_(values[r][actifCol]),
+      lien_expire_le: cellDate_(values[r], map, ["lien_expire_le"]),
       pool: heat_(values[r], map, "chauffage_piscine"),
       jacuzzi: heat_(values[r], map, "chauffage_jacuzzi")
     };
@@ -309,18 +312,48 @@ function jsonOut(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-function htmlPage_(message, summary) {
+function confirmLine_(details) {
+  var name = "Demande";
+  if (details.meal === "breakfast") name = "Petit-d\u00e9jeuner";
+  else if (details.meal === "dinner") name = "D\u00eener";
+  else if (details.meal === "lunch") name = "D\u00e9jeuner";
+  else if (details.activity === "quad") name = "Quad";
+  else if (details.activity_label) name = String(details.activity_label);
+  else if (details.meal_label) name = String(details.meal_label);
+  var bits = [name];
+  if (details.date) bits.push(String(details.date).slice(0, 10));
+  if (details.time_label || details.time) bits.push(String(details.time_label || details.time));
+  if (details.people) bits.push(String(details.people) + " pers.");
+  return bits.join(" \u00b7 ");
+}
+
+function htmlPage_(message, summary, branded) {
   var summaryHtml = summary
-    ? "<p style=\"margin:1.4rem 0 0;color:#5e554c;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:0.78rem;line-height:1.55;white-space:pre-line;text-align:left;\">" + escapeHtml_(summary) + "</p>"
+    ? "<p style=\"margin:0.7rem 0 0;color:#5e554c;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:0.9rem;line-height:1.4;\">" + escapeHtml_(summary) + "</p>"
     : "";
-  var html = "<!DOCTYPE html><html lang=\"fr\"><head><meta charset=\"utf-8\">"
-    + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
-    + "<title>Villa Zen\u2019O</title></head>"
-    + "<body style=\"margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f1ea;color:#1c1916;font-family:Georgia,'Times New Roman',serif;\">"
-    + "<main style=\"width:min(22rem,calc(100% - 2.5rem));text-align:center;padding:2.5rem 0;\">"
-    + "<h1 style=\"margin:0;font-weight:500;font-size:1.85rem;line-height:1.3;\">" + escapeHtml_(message) + "</h1>"
-    + summaryHtml
-    + "</main></body></html>";
+  var html;
+  if (branded) {
+    html = "<!DOCTYPE html><html lang=\"fr\"><head><meta charset=\"utf-8\">"
+      + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+      + "<title>Villa Zen\u2019O</title></head>"
+      + "<body style=\"margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f1ea;color:#1c1916;font-family:Georgia,'Times New Roman',serif;\">"
+      + "<main style=\"width:min(22rem,calc(100% - 2.5rem));text-align:center;\">"
+      + "<p style=\"margin:0;font-size:1.35rem;\">Villa Zen\u2019O</p>"
+      + "<div style=\"width:52px;height:52px;margin:1.1rem auto 0.8rem;border-radius:50%;background:#e3f2e6;color:#1d6b3a;display:flex;align-items:center;justify-content:center;font-size:1.5rem;line-height:1;\">\u2713</div>"
+      + "<h1 style=\"margin:0;font-weight:500;font-size:1.7rem;line-height:1.25;\">" + escapeHtml_(message) + "</h1>"
+      + summaryHtml
+      + "<p style=\"margin:1.1rem 0 0;font-style:italic;font-size:1.15rem;\">Merci</p>"
+      + "</main></body></html>";
+  } else {
+    html = "<!DOCTYPE html><html lang=\"fr\"><head><meta charset=\"utf-8\">"
+      + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+      + "<title>Villa Zen\u2019O</title></head>"
+      + "<body style=\"margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f1ea;color:#1c1916;font-family:Georgia,'Times New Roman',serif;\">"
+      + "<main style=\"width:min(22rem,calc(100% - 2.5rem));text-align:center;\">"
+      + "<h1 style=\"margin:0;font-weight:500;font-size:1.7rem;line-height:1.3;\">" + escapeHtml_(message) + "</h1>"
+      + summaryHtml
+      + "</main></body></html>";
+  }
   return HtmlService.createHtmlOutput(html).setTitle("Villa Zen\u2019O").setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 

@@ -846,12 +846,12 @@ body.is-typing .meal-dock { display: none; }
   align-items: center;
   justify-content: center;
   gap: 3px;
-  height: 58px;
-  padding: 6px 2px;
+  height: 66px;
+  padding: 7px 2px 6px;
   font-size: 11px;
   line-height: 1;
 }
-.meal-tabs.segments svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.meal-tabs.segments svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .meal-tabs.segments span { white-space: nowrap; }
 .meal-when { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .when-card {

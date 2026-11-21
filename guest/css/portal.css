@@ -878,8 +878,9 @@ body.is-typing .meal-dock { display: none; }
   width: max-content;
 }
 .meal-includes svg {
-  width: 28px;
-  height: 28px;
+  display: block;
+  width: auto;
+  height: 22px;
   fill: none;
   stroke: #6b3022;
   stroke-width: 1.45;
@@ -908,7 +909,6 @@ body.is-typing .meal-dock { display: none; }
   letter-spacing: 0;
   white-space: nowrap;
 }
-.meal-includes li b:only-child { margin-top: 0.58em; }
 .meal-breakfast .people-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;

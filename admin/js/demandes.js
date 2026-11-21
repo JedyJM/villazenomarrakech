@@ -20,6 +20,8 @@
   var STATUSES = ["Envoyée", "Confirmée", "Terminée", "Annulée"];
   var openId = "";
   var filter = "confirmer";
+  var remoteItems = null;
+  var remoteCurrentIds = null;
   try {
     var asked = new URLSearchParams(window.location.search).get("open");
     if (asked) openId = asked;
@@ -43,9 +45,59 @@
   }
   function allItems() {
     var patches = readPatches();
-    return (shell.TEST_MODE ? examples() : []).map(function (item) {
+    var source = shell.TEST_MODE ? examples() : (remoteItems || []);
+    return source.map(function (item) {
       return Object.assign({}, item, patches[item.id] || {});
     });
+  }
+  function activeStayIds() {
+    if (!shell.TEST_MODE) return remoteCurrentIds || [];
+    var book = window.AdminSample && window.AdminSample.stays && window.AdminSample.stays();
+    return book && book.current ? [book.current.id] : [];
+  }
+  function euroText(dh) {
+    var eur = Math.round(Number(dh)) / 10;
+    if (!isFinite(eur) || !eur) return "";
+    var neg = eur < 0;
+    eur = Math.abs(eur);
+    var whole = String(Math.floor(eur));
+    var frac = Math.round((eur - Math.floor(eur)) * 100);
+    return (neg ? "−" : "") + whole + (frac ? "," + (frac < 10 ? "0" : "") + frac : "") + "\u00A0€";
+  }
+  function fromApi(raw) {
+    var date = String(raw.date || "1970-01-01").split("-");
+    var time = String(raw.time || "0:0").split(":");
+    var when = new Date(Number(date[0]), (Number(date[1]) || 1) - 1, Number(date[2]) || 1, Number(time[0]) || 0, Number(time[1]) || 0);
+    var service = String(raw.service || "Demande");
+    var key = service.toLowerCase();
+    var kind = "menage";
+    if (key.indexOf("petit") >= 0) kind = "breakfast";
+    else if (key.indexOf("ner") >= 0 || key.indexOf("dinner") >= 0) kind = "dinner";
+    else if (key.indexOf("nage") >= 0) kind = "menage";
+    else if (key.indexOf("quad") >= 0) kind = "quad";
+    else if (key.indexOf("transfert") >= 0 || key.indexOf("voiture") >= 0) kind = "car";
+    else if (key.indexOf("massage") >= 0) kind = "flower";
+    var created = Date.parse(raw.created);
+    var price = raw.total === "" || raw.total == null ? "" : euroText(raw.total);
+    return {
+      id: String(raw.id || ""),
+      kind: kind,
+      label: service,
+      adults: Number(raw.adults) || 0,
+      children: Number(raw.children) || 0,
+      extra: raw.trip || raw.sous_type || "",
+      guest: raw.guest || "",
+      stay: raw.guest || "",
+      stay_id: String(raw.stay || ""),
+      staff: raw.staff || "",
+      status: raw.status || "Envoyée",
+      when: when,
+      created: isFinite(created) ? created : Date.now(),
+      price: price,
+      dh: price && raw.total ? (Math.round(Number(raw.total)) + "\u00A0DH") : "",
+      token: raw.token || "",
+      offert: !!raw.offert
+    };
   }
   function dayKey(item) { return isoDay(item.when); }
   function isFutureDay(item) { return dayKey(item) >= isoDay(today()); }
@@ -152,7 +204,10 @@
       html = waiting.length ? '<div class="card">' + waiting.map(rowHtml).join("") + '</div>' : '<p class="empty">Aucune demande à confirmer.</p>';
     } else if (filter === "aujourd") {
       var todayItems = items.filter(isToday).sort(function (a, b) { return b.when - a.when; });
-      var earlier = items.filter(function (item) { return dayKey(item) < isoDay(today()); });
+      var currentIds = activeStayIds();
+      var earlier = items.filter(function (item) {
+        return dayKey(item) < isoDay(today()) && currentIds.indexOf(item.stay_id) >= 0;
+      });
       if (todayItems.length) html += '<div class="card">' + todayItems.map(rowHtml).join("") + '</div>';
       if (earlier.length) {
         var byStay = {};
@@ -240,7 +295,23 @@
       }
       if (event.target.closest("[data-sheet-close]") || event.target.hasAttribute("data-sheet-back")) closeSheet(root);
     });
-    paint(root);
+    if (shell.TEST_MODE || !shell.SCRIPT_URL || !window.fetch) {
+      paint(root);
+      return;
+    }
+    var token = encodeURIComponent(shell.session());
+    var base = shell.SCRIPT_URL + "?token=" + token;
+    Promise.all([
+      window.fetch(base + "&action=demandes").then(function (res) { return res.json(); }),
+      window.fetch(base + "&action=stays").then(function (res) { return res.json(); })
+    ]).then(function (pair) {
+      remoteItems = ((pair[0] && pair[0].items) || []).map(fromApi);
+      var todayIso = isoDay(today());
+      remoteCurrentIds = ((pair[1] && pair[1].stays) || []).filter(function (stay) {
+        return stay.arrival && stay.departure && stay.arrival <= todayIso && todayIso < stay.departure;
+      }).map(function (stay) { return stay.id; });
+      paint(root);
+    }).catch(function () { paint(root); });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

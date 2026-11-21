@@ -10,7 +10,8 @@ var STAY_HEADERS = [
   "airbnb_frais_chambre", "airbnb_reduction", "airbnb_frais_service", "airbnb_gain",
   "booking_montant", "booking_commission", "booking_frais_bancaires", "booking_net",
   "direct_tarif", "acompte_montant", "acompte_date", "acompte_mode", "reste_a_payer",
-  "offert_petit_dejeuner"
+  "offert_petit_dejeuner",
+  "encaisse_total_eur", "encaisse_mode", "encaisse_le", "offerts"
 ];
 var DEMANDES_HEADERS = [
   "id",
@@ -583,6 +584,10 @@ function stayFromRow_(row, map) {
     jacuzziDays: num("chauffage_jacuzzi_jours"),
     jacuzziRate: Math.round(num("chauffage_jacuzzi_tarif_eur") * 100),
     jacuzziOffert: offertValue_(col("chauffage_jacuzzi_offert")),
+    encaisse_total_eur: num("encaisse_total_eur"),
+    encaisse_mode: String(col("encaisse_mode") || ""),
+    encaisse_le: cellDate_(row, map, ["encaisse_le"]),
+    offerts: String(col("offerts") || "").split(",").filter(function (part) { return part !== ""; }),
     lien_actif: map.lien_actif == null ? true : offertValue_(row[map.lien_actif]),
     lien_expire_le: cellDate_(row, map, ["lien_expire_le"])
   };
@@ -656,7 +661,11 @@ function stayValues_(stay, id) {
     chauffage_piscine_offert: !!stay.chauffage_piscine_offert,
     chauffage_jacuzzi_jours: stay.chauffage_jacuzzi_jours || 0,
     chauffage_jacuzzi_tarif_eur: stay.chauffage_jacuzzi_tarif_eur || 0,
-    chauffage_jacuzzi_offert: !!stay.chauffage_jacuzzi_offert
+    chauffage_jacuzzi_offert: !!stay.chauffage_jacuzzi_offert,
+    encaisse_total_eur: stay.encaisse_total_eur || "",
+    encaisse_mode: stay.encaisse_mode || "",
+    encaisse_le: stay.encaisse_le || "",
+    offerts: stay.offerts || ""
   };
 }
 

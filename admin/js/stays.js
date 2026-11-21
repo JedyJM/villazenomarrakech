@@ -31,8 +31,13 @@
         room: 220600,
         reduction: 33090,
         hostFee: 34877,
-        poolDays: 0, poolRate: 0, poolOffert: false,
-        jacuzziDays: 0, jacuzziRate: 0, jacuzziOffert: false,
+        poolDays: 7, poolRate: 6000, poolOffert: false,
+        jacuzziDays: 7, jacuzziRate: 3500, jacuzziOffert: false,
+        charges: [
+          { id: "petit_dejeuner", kind: "breakfast", label: "Petit-déjeuner", cents: 3000 },
+          { id: "diner", kind: "dinner", label: "Dîner", cents: 8000 }
+        ],
+        providers: { names: ["transfert", "quad", "massage"], cents: 11500 },
         lien_actif: true
       },
       {
@@ -51,6 +56,11 @@
         bank: 13280,
         poolDays: 0, poolRate: 0, poolOffert: false,
         jacuzziDays: 0, jacuzziRate: 0, jacuzziOffert: false,
+        charges: [
+          { id: "petit_dejeuner", kind: "breakfast", label: "Petit-déjeuner", cents: 4000 },
+          { id: "diner", kind: "dinner", label: "Dîner", cents: 6000 }
+        ],
+        providers: { names: ["transfert"], cents: 3500 },
         lien_actif: true
       },
       {
@@ -182,7 +192,11 @@
       chauffage_piscine_offert: !!stay.poolOffert,
       chauffage_jacuzzi_jours: stay.jacuzziDays || 0,
       chauffage_jacuzzi_tarif_eur: stay.jacuzziRate ? stay.jacuzziRate / 100 : 0,
-      chauffage_jacuzzi_offert: !!stay.jacuzziOffert
+      chauffage_jacuzzi_offert: !!stay.jacuzziOffert,
+      encaisse_total_eur: stay.encaisse_total_eur || "",
+      encaisse_mode: stay.encaisse_mode || "",
+      encaisse_le: stay.encaisse_le || "",
+      offerts: Array.isArray(stay.offerts) ? stay.offerts.join(",") : (stay.offerts || "")
     };
   }
 
@@ -692,6 +706,7 @@
       + '<p class="meta-line">' + esc(composition(stay) + " · " + stay.nights + " nuits") + '</p>'
       + priceBlock(stay)
       + heatBlock(stay)
+      + '<a class="primary" href="encaissement.html?sejour=' + encodeURIComponent(stay.id) + '">Encaisser</a>'
       + (stay.notes ? '<section class="block"><p class="kicker">Notes</p><p>' + esc(stay.notes) + '</p></section>' : '')
       + '<section class="block" data-link-card><p class="kicker">Lien du portail invité</p>'
       + '<p class="link-url">' + esc(portalUrl(stay.id)).replace("?stay=", "<wbr>?stay=") + '</p>'
@@ -786,6 +801,8 @@
     if (page === "fiche") bootFiche();
     if (page === "email") bootEmail();
   }
+
+  window.AdminStays = { find: findStay, sheet: sheetStay, post: postScript };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

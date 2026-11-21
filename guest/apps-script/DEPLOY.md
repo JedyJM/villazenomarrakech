@@ -30,7 +30,7 @@ Même déploiement : collez `Code.gs`, puis Déployer → Gérer les déploiemen
 
 Le script s’exécute avec le compte villazeno.marrakech@gmail.com. `ADMIN_ALLOWLIST` en tête de `Code.gs` limite la connexion Google. Ajoutez-y l’adresse Google de Mehdi et celle de Jedy. Tant que `ADMIN_TEST_MODE` est true, l’aperçu peut aussi passer par le bouton Mode test (`test=1`). Remettez `ADMIN_TEST_MODE` à false avant un usage réel.
 
-Nouvelles actions : `stays` et `stay` en lecture, `save-stay`, `stay-link` (prolonger ou désactiver le lien) et `admin-auth` en écriture.
+Nouvelles actions : `stays` et `stay` en lecture, `save-stay`, `stay-link` (prolonger ou désactiver le lien) et `admin-auth` en écriture. L’encaissement réutilise `save-stay` et ajoute les colonnes `encaisse_total_eur`, `encaisse_mode`, `encaisse_le` et `offerts` (liste des lignes offertes, séparées par des virgules). Rien n’est envoyé à l’invité.
 
 Nouvelles colonnes de l’onglet Réservations, ajoutées toutes seules au premier enregistrement si elles manquent :
 

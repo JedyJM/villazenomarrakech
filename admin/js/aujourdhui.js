@@ -92,6 +92,9 @@
     }).sort(function (a, b) { return a.when - b.when; });
     var alertBox = root.querySelector("[data-alerts]");
     root.querySelector("[data-alert-count]").textContent = String(alerts.length);
+    try { sessionStorage.setItem("vz.admin.confirmer", String(alerts.length)); } catch (e) {}
+    var nav = document.querySelector("[data-nav='demandes']");
+    if (nav) nav.classList.toggle("has-dot", alerts.length > 0);
     alertBox.innerHTML = alerts.length ? alerts.map(function (item) {
       var when = isoDay(item.when) === todayKey ? "aujourd’hui" : dayText(item.when);
       return '<a class="alert-row" href="demandes.html?open=' + encodeURIComponent(item.id) + '"><span class="alert-ico">' + BELL + '</span><span><strong>' + esc(item.label) + " · " + esc(when) + " · " + pad(item.when.getHours()) + ":" + pad(item.when.getMinutes()) + '</strong><em><b>Envoyée</b> ' + esc(since(item)) + " · " + esc(item.staff) + "</em></span></a>";

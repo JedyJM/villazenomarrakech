@@ -409,3 +409,52 @@ body.page-today h1 { font-size: 1.35rem; }
 .today-empty { margin: 0; color: var(--muted); font-size: 13px; }
 body.page-today .block { padding: 8px 12px; gap: 4px; }
 body.page-today .kicker { font-size: 0.58rem; }
+
+body.page-cash { padding-bottom: var(--nav); }
+body.page-cash .page { gap: 6px; padding: 4px 0 8px; }
+body.page-cash h1 { font-size: 1.35rem; }
+.cash-who { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; min-width: 0; }
+.cash-who span:first-child { min-width: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip.is-attente { background: #efe6d8; color: var(--terracotta-dark); }
+.chip.is-paye { background: #e3f2e6; color: #1d6b3a; }
+body.page-cash .block { padding: 8px 12px; gap: 4px; }
+.bill-row, .cash-total {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) 3.35rem auto;
+  gap: 6px; align-items: center; min-width: 0;
+}
+.bill-row { min-height: 28px; }
+.bill-ico {
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px;
+  background: #efe6d8; color: #6b3022;
+}
+.bill-ico svg { width: 14px; height: 14px; }
+.bill-label { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bill-row.is-tax .bill-label { grid-column: 2 / 4; font-size: 11px; letter-spacing: -0.045em; overflow: visible; text-overflow: clip; }
+.bill-row.is-tax .bill-amt { grid-column: 4; }
+.bill-amt, .cash-figs { justify-self: end; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bill-amt { font-size: 13px; font-weight: 600; }
+.bill-row.is-offert .bill-amt { color: var(--muted); font-weight: 500; text-decoration: line-through; }
+.bill-off {
+  height: 22px; padding: 0 6px; border-radius: 999px; border: 1px solid rgba(28, 25, 22, 0.14);
+  background: #fff; font-size: 10px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
+}
+.bill-off.is-on { background: #efe6d8; color: var(--terracotta); border-color: transparent; }
+.bill-off:disabled { opacity: 0.7; }
+.cash-done { margin: 2px 0 0; color: var(--muted); font-size: 10.5px; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cash-total { min-height: 0; }
+.cash-total > span { grid-column: 2; font-size: 14px; font-weight: 600; }
+.cash-figs { grid-column: 4; display: grid; justify-items: end; }
+.cash-figs strong { font-family: var(--serif); font-size: 1.45rem; font-weight: 500; line-height: 1; }
+.cash-figs em { font-style: normal; color: var(--muted); font-size: 12px; }
+.cash-rate, .cash-note, .cash-paid { margin: 0; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.cash-paid { color: var(--ink); font-weight: 600; text-align: center; }
+.segment { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+.segment button {
+  height: 32px; padding: 0 4px; border-radius: 999px; border: 1px solid rgba(28, 25, 22, 0.14);
+  background: #fff; font-size: 12px; white-space: nowrap;
+}
+.segment button[aria-pressed="true"] { background: var(--terracotta); border-color: var(--terracotta); color: #fffaf3; font-weight: 600; }
+.cash-fee { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0; }
+.cash-fee span { font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.cash-fee strong { font-family: var(--serif); font-size: 1.15rem; font-weight: 500; white-space: nowrap; }
+body.page-cash .primary { height: 42px; }

@@ -4,7 +4,7 @@
  */
 var SHEET_ID = "1bd3xmrdjz7_Ae8xiu__OuxKUliQUWCvYg8i7J1ugMj8";
 var ADMIN_TEST_MODE = true;
-var ADMIN_ALLOWLIST = ["villazeno.marrakech@gmail.com"];
+var ADMIN_ALLOWLIST = ["villazeno.marrakech@gmail.com", "jalil.moumni@gmail.com"];
 var STAY_HEADERS = [
   "nom", "telephone", "source", "adultes", "enfants", "ages_enfants", "notes",
   "airbnb_frais_chambre", "airbnb_reduction", "airbnb_frais_service", "airbnb_gain",

@@ -169,6 +169,15 @@
     });
   });
 
+  (function markPage() {
+    var file = (location.pathname.split("/").pop() || "").toLowerCase();
+    var key = "";
+    if (!file || file === "index.html") key = "accueil";
+    else if (file.indexOf("demandes") === 0) key = "demandes";
+    else if (file.indexOf("acces") === 0) key = "acces";
+    if (key) setCurrent(key);
+  })();
+
   var nav = document.querySelector(".bottom-nav");
   if (nav) {
     var keyboardTimer = 0;

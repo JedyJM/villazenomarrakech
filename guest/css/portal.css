@@ -796,28 +796,7 @@ a.tile { color: inherit; text-decoration: none; }
 }
 
 .page-request { padding-bottom: calc(var(--nav-space) + 16px); }
-.page-meal { padding-bottom: calc(var(--nav-space) + 66px); }
-body.has-meal-recap { padding-bottom: calc(var(--nav-space) + 112px); }
-body.is-breakfast.page-meal,
-body.is-breakfast.has-meal-recap { padding-bottom: calc(var(--nav-space) + 12px); }
-body.is-breakfast .meal-when,
-body.is-breakfast .meal-hours,
-body.is-breakfast .meal-pay,
-body.is-breakfast .meal-fouzia,
-body.is-breakfast .meal-recap { display: none !important; }
-body.is-breakfast .meal-dock {
-  position: static;
-  background: transparent;
-  padding: 0;
-}
-body.is-breakfast .meal-dock .meal-send {
-  width: 100%;
-  margin: 0;
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-body.is-breakfast .meal-send svg { display: none; }
-body.is-breakfast .request-form { gap: 6px; }
+.page-meal { padding-bottom: calc(var(--nav-space) + 92px); }
 .meal-dock {
   position: fixed;
   left: 0;
@@ -898,6 +877,109 @@ body.is-typing .meal-dock { display: none; }
   line-height: 1.35;
   text-align: center;
   text-wrap: balance;
+}
+.meal-hours-split {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.meal-hours-split span { white-space: nowrap; }
+.meal-breakfast[hidden] { display: none !important; }
+.bf-includes {
+  padding: 10px 10px 8px;
+  background: #efe6d8;
+  border-radius: 14px;
+}
+.bf-includes p {
+  margin: 0 0 8px;
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  font-weight: 500;
+}
+.bf-includes ul {
+  display: grid;
+  grid-template-columns: 1.22fr 0.78fr;
+  grid-template-rows: repeat(4, 24px);
+  grid-auto-flow: column;
+  gap: 6px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bf-includes li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.bf-includes svg {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  fill: none;
+  stroke: #6b3022;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.bf-includes svg path,
+.bf-includes svg circle,
+.bf-includes svg ellipse,
+.bf-includes svg rect { vector-effect: non-scaling-stroke; }
+.bf-includes .leaf { stroke: #3f5a32; fill: #c5d7b0; }
+.bf-includes span {
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.bf-people {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  min-height: 52px;
+  margin: 0;
+  padding: 2px 0;
+}
+.bf-people-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+.bf-people-copy > span:first-child {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.bf-people .meal-pill {
+  justify-self: start;
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.15;
+}
+.bf-people .stepper {
+  align-self: center;
+  gap: 8px;
+}
+.bf-people .stepper button {
+  width: 40px;
+  height: 40px;
+  font-size: 1.35rem;
+}
+.bf-people .stepper > span {
+  min-width: 1.2rem;
+  font-size: 18px;
+  font-weight: 500;
 }
 .meal-breakfast[hidden] { display: none !important; }
 .meal-breakfast:not([hidden]) { display: grid; gap: 6px; }
@@ -993,8 +1075,7 @@ body.is-typing .meal-dock { display: none; }
   min-height: 36px;
 }
 .bf-count strong { font-size: 1.05rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.bf-cash { display: none; margin: 6px 0 0; color: var(--muted); font-size: 0.72rem; text-align: center; }
-body.is-breakfast .bf-cash { display: block; }
+.bf-cash { display: block; margin: 6px 12px 0; color: var(--muted); font-size: 0.72rem; text-align: center; }
 .meal-breakfast, .meal-menu { display: grid; gap: 8px; }
 .meal-includes {
   padding: 12px 8px 10px;
@@ -1136,7 +1217,7 @@ body.is-breakfast .bf-cash { display: block; }
 .page-meal .meal-allergies textarea::placeholder { color: var(--muted); font-family: var(--sans); font-size: 13px; opacity: 1; }
 .meal-dock { padding: 0 0 8px; background: var(--bg); }
 .meal-dock .meal-send { width: calc(100% - 24px); margin: 8px 12px 0; }
-.page-meal .meal-send { height: 48px; margin-top: 0; border-radius: 16px; background: #6b3022; font-size: 0.95rem; }
+.page-meal .meal-send { height: 48px; margin-top: 0; border-radius: 16px; background: #6b3022; font-size: 0.86rem; white-space: nowrap; }
 .page-meal .meal-send .meal-arrow { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .meal-pay {
   display: flex;

@@ -894,24 +894,6 @@
       if (!time || time >= rule.before) return 0;
       return Number(rule.supplementDh) || 0;
     }
-    function slotButtons(kind) {
-      var box = form.querySelector("[data-bf-slots]");
-      if (!box || kind !== "breakfast") return;
-      var range = windows.breakfast;
-      var rule = earlyRule();
-      var current = form.querySelector("[name='time']").value;
-      var html = "";
-      for (var t = range[0]; t <= range[1]; t += 30) {
-        var h = Math.floor(t / 60);
-        var m = t % 60;
-        var value = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
-        var early = value < rule.before;
-        html += "<button type=\"button\" class=\"bf-slot\" data-bf-time=\"" + value + "\" aria-pressed=\"" + (value === current ? "true" : "false") + "\"><b>" + clockLabel(value) + "</b>";
-        if (early) html += "<small>+&nbsp;" + rule.supplementDh + "&nbsp;DH</small>";
-        html += "</button>";
-      }
-      box.innerHTML = html;
-    }
     function fillTimes(kind) {
       var select = form.querySelector("[name='time']");
       var previous = select.value;
@@ -928,19 +910,18 @@
       }
       select.innerHTML = html;
       if (select.querySelector("option[value='" + previous + "']")) select.value = previous;
-      slotButtons(kind);
     }
     function paintHours(kind) {
       var el = form.querySelector("[data-meal-hours]");
       if (!el) return;
       var rule = earlyRule();
-      var text = "Servi de 19\u00A0h à 21\u00A0h.";
       if (kind === "breakfast") {
-        text = "Servi de 9\u00A0h à 12\u00A0h. Avant " + clockLabel(rule.before) + ", un supplément de " + rule.supplementDh + "\u00A0DH vous sera demandé.";
-      } else if (kind === "lunch") {
-        text = "Servi de 12\u00A0h à 16\u00A0h.";
+        el.classList.add("meal-hours-split");
+        el.innerHTML = "<span>Servi de 9\u00A0h à 12\u00A0h.</span><span>Avant " + clockLabel(rule.before) + ", un supplément de " + rule.supplementDh + "\u00A0DH vous sera demandé.</span>";
+        return;
       }
-      el.textContent = text;
+      el.classList.remove("meal-hours-split");
+      el.textContent = kind === "lunch" ? "Servi de 12\u00A0h à 16\u00A0h." : "Servi de 19\u00A0h à 21\u00A0h.";
     }
     function readDish(dish) {
       var input = dish.querySelector("input[type='hidden']");
@@ -979,12 +960,6 @@
       form.querySelector("[data-meal-panel='menu']").hidden = kind === "breakfast";
       var fouzia = form.querySelector("[data-meal-fouzia]");
       if (fouzia) fouzia.hidden = true;
-      document.body.classList.toggle("is-breakfast", kind === "breakfast");
-      if (kind === "breakfast") {
-        var chosen = form.querySelector("[name='date']").value;
-        if (!chosen) chooseTomorrow();
-        else markDay(chosen === tomorrowISO() ? "tomorrow" : "other");
-      }
       fillTimes(kind);
       paintHours(kind);
       paintPrices();
@@ -1016,38 +991,12 @@
         });
       }
       var extra = supplementDh();
-      var breakfast = kind === "breakfast";
-      if (recap) {
-        recap.hidden = breakfast || people < 1;
-        recap.textContent = people < 1 ? "" : personWord(people) + " · Total " + euro(total) + (extra ? " + " + extra + "\u00A0DH" : "");
-      }
-      var totalEl = form.querySelector("[data-bf-total]");
-      if (totalEl) totalEl.textContent = euro(total) + (extra ? " + " + extra + "\u00A0DH" : "");
+      var verb = { breakfast: "petit-déjeuner", lunch: "déjeuner", dinner: "dîner" };
       var send = form.querySelector("[data-send-label]");
       if (send) {
-        send.textContent = breakfast
-          ? "Réserver mon petit-déjeuner · " + euro(total) + (extra ? " + " + extra + "\u00A0DH" : "")
-          : "Envoyer ma demande";
+        send.textContent = "Réserver mon " + verb[kind] + " · " + euro(total) + (extra ? " + " + extra + "\u00A0DH" : "");
       }
-      var time = form.querySelector("[name='time']").value;
-      form.querySelectorAll("[data-bf-time]").forEach(function (button) {
-        button.setAttribute("aria-pressed", button.getAttribute("data-bf-time") === time ? "true" : "false");
-      });
-      document.body.classList.toggle("has-meal-recap", !breakfast && people > 0);
       return { people: people, total: total, supplement: extra };
-    }
-    function chooseTomorrow() {
-      var date = form.querySelector("[name='date']");
-      date.value = tomorrowISO();
-      var other = form.querySelector("[data-bf-date]");
-      if (other) other.value = "";
-      markDay("tomorrow");
-    }
-    function markDay(mode) {
-      var tomorrow = form.querySelector("[data-bf-day='tomorrow']");
-      var other = form.querySelector(".bf-day");
-      if (tomorrow) tomorrow.setAttribute("aria-pressed", mode === "tomorrow" ? "true" : "false");
-      if (other) other.classList.toggle("is-on", mode === "other");
     }
     function tomorrowISO() {
       var d = new Date();
@@ -1057,16 +1006,6 @@
       return d.getFullYear() + "-" + m + "-" + day;
     }
     form.querySelector("[name='date']").min = tomorrowISO();
-    var otherDate = form.querySelector("[data-bf-date]");
-    if (otherDate) {
-      otherDate.min = tomorrowISO();
-      otherDate.addEventListener("change", function () {
-        if (!otherDate.value) return;
-        form.querySelector("[name='date']").value = otherDate.value;
-        markDay("other");
-        showError(error, "");
-      });
-    }
     form.querySelectorAll(".care-cat").forEach(function (item) {
       item.addEventListener("toggle", function () {
         if (!item.open) return;
@@ -1083,13 +1022,6 @@
         var on = salad.getAttribute("aria-pressed") === "true";
         salad.setAttribute("aria-pressed", on ? "false" : "true");
       }
-      var day = event.target.closest("[data-bf-day='tomorrow']");
-      if (day) chooseTomorrow();
-      var slot = event.target.closest("[data-bf-time]");
-      if (slot) {
-        form.querySelector("[name='time']").value = slot.getAttribute("data-bf-time");
-        showError(error, "");
-      }
       var step = event.target.closest("[data-meal-step], [data-dish-step]");
       if (step) {
         var dish = step.closest(".dish");
@@ -1097,7 +1029,7 @@
         input.value = String(Number(input.value) + Number(step.getAttribute("data-dir") || step.getAttribute("data-dish-step")));
         showError(error, "");
       }
-      if (tab || salad || step || day || slot) paintMeal();
+      if (tab || salad || step) paintMeal();
     });
     form.querySelector("[name='time']").addEventListener("change", function () { paintMeal(); });
     var typingTimer = 0;

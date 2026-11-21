@@ -1180,6 +1180,9 @@ body.is-typing .meal-dock { display: none; }
   gap: 0.3rem;
   min-height: 36px;
 }
+@media (max-width: 389px) {
+  .page-meal .dish { min-height: 30px; }
+}
 .dish-name,
 .dish-price,
 .dish .stepper > span {

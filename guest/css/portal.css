@@ -879,16 +879,19 @@ body.is-typing .meal-dock { display: none; }
 }
 .meal-includes svg {
   display: block;
-  width: auto;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   fill: none;
   stroke: #6b3022;
-  stroke-width: 1.45;
+  stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.meal-includes .olive .stem { stroke: #6b3022; stroke-width: 2.15; }
-.meal-includes .leaf { stroke: #3f5a32; stroke-width: 1.35; fill: #c5d7b0; }
+.meal-includes svg path,
+.meal-includes svg circle,
+.meal-includes svg ellipse,
+.meal-includes svg rect { vector-effect: non-scaling-stroke; }
+.meal-includes .leaf { stroke: #3f5a32; fill: #c5d7b0; }
 .meal-includes li span {
   display: flex;
   flex-direction: column;

@@ -23,3 +23,17 @@ Après avoir collé le nouveau Code.gs :
 4. Onglet Réservations : ajoutez, si elles n’y sont pas, les colonnes `chauffage_piscine_jours`, `chauffage_piscine_tarif_eur`, `chauffage_piscine_offert`, `chauffage_jacuzzi_jours`, `chauffage_jacuzzi_tarif_eur`, `chauffage_jacuzzi_offert`. Les dates de séjour sont lues dans `date_arrivee` et `date_depart` (ou `check_in` / `check_out`). L’identifiant de séjour est `booking_id`.
 5. Sur le même onglet, ajoutez `lien_actif` (case à cocher, cochée tant que le lien est valable) et `lien_expire_le` (date). Sans `lien_expire_le`, le lien expire 3 jours après `date_depart`. Décochez `lien_actif` pour couper le lien tout de suite. Une date dans `lien_expire_le` remplace cette échéance. Le jour du départ, les demandes de service se ferment ; Mes demandes, le récapitulatif, Accès, Contacts et le paiement restent ouverts jusqu’à l’expiration.
 6. Le lien Confirmer dans le message WhatsApp ouvre la page « Demande confirmée » et passe le statut à Confirmée.
+
+## Espace admin, onglet Séjours
+
+Même déploiement : collez `Code.gs`, puis Déployer → Gérer les déploiements → crayon → Nouvelle version → Déployer. L’adresse /exec ne change pas.
+
+Le script s’exécute avec le compte villazeno.marrakech@gmail.com. `ADMIN_ALLOWLIST` en tête de `Code.gs` limite la connexion Google. Ajoutez-y l’adresse Google de Mehdi et celle de Jedy. Tant que `ADMIN_TEST_MODE` est true, l’aperçu peut aussi passer par le bouton Mode test (`test=1`). Remettez `ADMIN_TEST_MODE` à false avant un usage réel.
+
+Nouvelles actions : `stays` et `stay` en lecture, `save-stay`, `stay-link` (prolonger ou désactiver le lien) et `admin-auth` en écriture.
+
+Nouvelles colonnes de l’onglet Réservations, ajoutées toutes seules au premier enregistrement si elles manquent :
+
+`nom`, `telephone`, `source`, `adultes`, `enfants`, `ages_enfants`, `notes`, `airbnb_frais_chambre`, `airbnb_reduction`, `airbnb_frais_service`, `airbnb_gain`, `booking_montant`, `booking_commission`, `booking_frais_bancaires`, `booking_net`, `direct_tarif`, `acompte_montant`, `acompte_date`, `acompte_mode`, `reste_a_payer`, `offert_petit_dejeuner`.
+
+Les colonnes déjà prévues restent utilisées : `booking_id`, `date_arrivee`, `date_depart`, `lien_actif`, `lien_expire_le`, `chauffage_piscine_jours`, `chauffage_piscine_tarif_eur`, `chauffage_piscine_offert`, `chauffage_jacuzzi_jours`, `chauffage_jacuzzi_tarif_eur`, `chauffage_jacuzzi_offert`. Pour un séjour Booking, le portail invité ajoute la taxe de séjour (2,50 € × personnes × nuits) au récapitulatif, sans la retrancher du net.

@@ -3,6 +3,15 @@
  * doPost logs a guest request. doGet confirms one request.
  */
 var SHEET_ID = "1bd3xmrdjz7_Ae8xiu__OuxKUliQUWCvYg8i7J1ugMj8";
+var ADMIN_TEST_MODE = true;
+var ADMIN_ALLOWLIST = ["villazeno.marrakech@gmail.com"];
+var STAY_HEADERS = [
+  "nom", "telephone", "source", "adultes", "enfants", "ages_enfants", "notes",
+  "airbnb_frais_chambre", "airbnb_reduction", "airbnb_frais_service", "airbnb_gain",
+  "booking_montant", "booking_commission", "booking_frais_bancaires", "booking_net",
+  "direct_tarif", "acompte_montant", "acompte_date", "acompte_mode", "reste_a_payer",
+  "offert_petit_dejeuner"
+];
 var DEMANDES_HEADERS = [
   "id",
   "date_creation",
@@ -26,6 +35,9 @@ function doPost(e) {
       data = JSON.parse((e && e.postData && e.postData.contents) || "{}");
     } catch (err) {
       return jsonOut({ ok: false });
+    }
+    if (data.action === "save-stay" || data.action === "stay-link" || data.action === "admin-auth") {
+      return adminPost_(data);
     }
     if (!data.id) return jsonOut({ ok: false });
     var sheet = getDemandesSheet_();
@@ -55,6 +67,7 @@ function doPost(e) {
 function doGet(e) {
   var params = (e && e.parameter) || {};
   if (params.action === "list") return listDemandes_(params.stay || "");
+  if (params.action === "stays" || params.action === "stay") return adminGet_(params);
   if (params.action !== "confirm" || !params.id || !params.t) {
     return htmlPage_("Ce lien n\u2019est pas valable.");
   }
@@ -177,7 +190,7 @@ function ensureDemandes_(sheet) {
 }
 
 function stayRecord_(stay) {
-  var empty = { arrival: "", departure: "", lien_actif: true, lien_expire_le: "", pool: null, jacuzzi: null };
+  var empty = { arrival: "", departure: "", lien_actif: true, lien_expire_le: "", pool: null, jacuzzi: null, source: "", adults: 0, children: 0 };
   if (!stay) return empty;
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName("R\u00e9servations");
@@ -199,7 +212,10 @@ function stayRecord_(stay) {
       lien_actif: actifCol == null ? true : offertValue_(values[r][actifCol]),
       lien_expire_le: cellDate_(values[r], map, ["lien_expire_le"]),
       pool: heat_(values[r], map, "chauffage_piscine"),
-      jacuzzi: heat_(values[r], map, "chauffage_jacuzzi")
+      jacuzzi: heat_(values[r], map, "chauffage_jacuzzi"),
+      source: cellText_(values[r], map, ["source"]),
+      adults: cellNumber_(values[r], map, ["adultes", "adults", "nb_adultes"]),
+      children: cellNumber_(values[r], map, ["enfants", "children", "nb_enfants"])
     };
   }
   return empty;
@@ -218,6 +234,18 @@ function cellDate_(row, map, names) {
     return Utilities.formatDate(value, "Africa/Casablanca", "yyyy-MM-dd");
   }
   return String(value).slice(0, 10);
+}
+
+function cellText_(row, map, names) {
+  var col = firstCol_(map, names);
+  if (col == null || row[col] === "") return "";
+  return String(row[col]);
+}
+
+function cellNumber_(row, map, names) {
+  var col = firstCol_(map, names);
+  if (col == null || row[col] === "") return 0;
+  return Number(row[col]) || 0;
 }
 
 function heat_(row, map, prefix) {
@@ -363,4 +391,251 @@ function escapeHtml_(value) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function adminAllowed_(params) {
+  if (ADMIN_TEST_MODE && String(params.test || "") === "1") return true;
+  return adminEmail_(params.token || params.id_token || "") !== "";
+}
+
+function adminEmail_(token) {
+  if (!token) return "";
+  try {
+    var res = UrlFetchApp.fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(token), { muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) return "";
+    var data = JSON.parse(res.getContentText());
+    var email = String(data.email || "").toLowerCase();
+    var verified = data.email_verified === true || String(data.email_verified) === "true";
+    if (!verified || !email) return "";
+    for (var i = 0; i < ADMIN_ALLOWLIST.length; i++) {
+      if (String(ADMIN_ALLOWLIST[i]).toLowerCase() === email) return email;
+    }
+  } catch (err) {}
+  return "";
+}
+
+function adminGet_(params) {
+  if (!adminAllowed_(params)) return jsonOut({ ok: false, error: "forbidden" });
+  if (params.action === "stay") return jsonOut({ ok: true, stay: adminStay_(params.id || "") });
+  return jsonOut({ ok: true, stays: adminStays_(params.year || "") });
+}
+
+function adminPost_(data) {
+  if (data.action === "admin-auth") {
+    var email = adminEmail_(data.token || data.id_token || "");
+    return jsonOut(email ? { ok: true, email: email } : { ok: false, error: "forbidden" });
+  }
+  if (!adminAllowed_(data)) return jsonOut({ ok: false, error: "forbidden" });
+  if (data.action === "save-stay") return saveStay_(data.stay || data);
+  if (data.action === "stay-link") return stayLink_(data);
+  return jsonOut({ ok: false });
+}
+
+function reservationsSheet_() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName("R\u00e9servations");
+  if (!sheet) return null;
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var map = {};
+  var i;
+  for (i = 0; i < headers.length; i++) {
+    if (headers[i]) map[String(headers[i]).toLowerCase().replace(/[^a-z0-9_]/g, "")] = i + 1;
+  }
+  var col = 0;
+  for (i = 0; i < headers.length; i++) if (headers[i]) col = i + 1;
+  for (i = 0; i < STAY_HEADERS.length; i++) {
+    if (map[STAY_HEADERS[i]]) continue;
+    col += 1;
+    sheet.getRange(1, col).setValue(STAY_HEADERS[i]).setFontWeight("bold");
+    map[STAY_HEADERS[i]] = col;
+  }
+  if (map.offert_petit_dejeuner) {
+    sheet.getRange(2, map.offert_petit_dejeuner, Math.max(sheet.getMaxRows() - 1, 20), 1).insertCheckboxes();
+  }
+  return { sheet: sheet, map: map };
+}
+
+function headerMap_(sheet) {
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var map = {};
+  for (var i = 0; i < headers.length; i++) {
+    if (headers[i]) map[String(headers[i]).toLowerCase().replace(/[^a-z0-9_]/g, "")] = i;
+  }
+  return map;
+}
+
+function adminStays_(year) {
+  var book = reservationsSheet_();
+  if (!book) return [];
+  var sheet = book.sheet;
+  if (sheet.getLastRow() < 2) return [];
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  var map = headerMap_(sheet);
+  var items = [];
+  for (var i = 0; i < values.length; i++) {
+    var stay = stayFromRow_(values[i], map);
+    if (!stay.id) continue;
+    if (year && String(stay.arrival).slice(0, 4) !== String(year)) continue;
+    items.push(stay);
+  }
+  return items;
+}
+
+function adminStay_(id) {
+  var items = adminStays_("");
+  for (var i = 0; i < items.length; i++) if (items[i].id === String(id)) return items[i];
+  return null;
+}
+
+function stayFromRow_(row, map) {
+  function col(name) { return map[name] == null ? "" : row[map[name]]; }
+  function num(name) { return col(name) === "" ? 0 : Number(col(name)) || 0; }
+  var idCol = firstCol_(map, ["booking_id", "id_reservation", "reservation_id", "id"]);
+  var ages = String(col("ages_enfants") || "").split(",").filter(function (part) { return part !== ""; }).map(function (part) { return Number(part); });
+  return {
+    id: idCol == null ? "" : String(row[idCol] || ""),
+    nom: String(col("nom") || ""),
+    telephone: String(col("telephone") || ""),
+    arrival: cellDate_(row, map, ["date_arrivee", "arrivee", "check_in", "arrival"]),
+    departure: cellDate_(row, map, ["date_depart", "depart", "check_out", "departure"]),
+    source: String(col("source") || ""),
+    adults: num("adultes"),
+    children: num("enfants"),
+    ages: ages,
+    notes: String(col("notes") || ""),
+    room: Math.round(num("airbnb_frais_chambre") * 100),
+    reduction: Math.round(num("airbnb_reduction") * 100),
+    hostFee: Math.round(num("airbnb_frais_service") * 100),
+    total: Math.round(num("booking_montant") * 100),
+    commission: Math.round(num("booking_commission") * 100),
+    bank: Math.round(num("booking_frais_bancaires") * 100),
+    tarif: Math.round(num("direct_tarif") * 100),
+    deposit: Math.round(num("acompte_montant") * 100),
+    depositDate: cellDate_(row, map, ["acompte_date"]),
+    depositMode: String(col("acompte_mode") || ""),
+    breakfast: offertValue_(col("offert_petit_dejeuner")),
+    poolDays: num("chauffage_piscine_jours"),
+    poolRate: Math.round(num("chauffage_piscine_tarif_eur") * 100),
+    poolOffert: offertValue_(col("chauffage_piscine_offert")),
+    jacuzziDays: num("chauffage_jacuzzi_jours"),
+    jacuzziRate: Math.round(num("chauffage_jacuzzi_tarif_eur") * 100),
+    jacuzziOffert: offertValue_(col("chauffage_jacuzzi_offert")),
+    lien_actif: map.lien_actif == null ? true : offertValue_(row[map.lien_actif]),
+    lien_expire_le: cellDate_(row, map, ["lien_expire_le"])
+  };
+}
+
+function saveStay_(stay) {
+  var book = reservationsSheet_();
+  if (!book) return jsonOut({ ok: false, error: "sheet" });
+  var sheet = book.sheet;
+  var map = book.map;
+  var idKey = map.booking_id ? "booking_id" : (map.id ? "id" : "booking_id");
+  if (!map[idKey]) {
+    var col = sheet.getLastColumn() + 1;
+    sheet.getRange(1, col).setValue("booking_id").setFontWeight("bold");
+    map.booking_id = col;
+    idKey = "booking_id";
+  }
+  var id = String(stay.booking_id || stay.id || newStayId_(sheet, map[idKey]));
+  var row = findRowInColumn_(sheet, map[idKey], id);
+  if (!row) {
+    sheet.appendRow([""]);
+    row = sheet.getLastRow();
+  }
+  var values = stayValues_(stay, id);
+  var aliases = {
+    booking_id: ["booking_id", "id_reservation", "reservation_id", "id"],
+    date_arrivee: ["date_arrivee", "arrivee", "check_in", "arrival"],
+    date_depart: ["date_depart", "depart", "check_out", "departure"]
+  };
+  var keys = Object.keys(values);
+  for (var i = 0; i < keys.length; i++) {
+    var names = aliases[keys[i]] || [keys[i]];
+    var column = 0;
+    for (var n = 0; n < names.length && !column; n++) if (map[names[n]]) column = map[names[n]];
+    if (!column) continue;
+    sheet.getRange(row, column).setValue(values[keys[i]]);
+  }
+  return jsonOut({ ok: true, id: id });
+}
+
+function stayValues_(stay, id) {
+  return {
+    booking_id: id,
+    nom: stay.nom || "",
+    telephone: stay.telephone || "",
+    date_arrivee: stay.date_arrivee || stay.arrival || "",
+    date_depart: stay.date_depart || stay.departure || "",
+    source: stay.source || "",
+    adultes: stay.adultes || stay.adults || 0,
+    enfants: stay.enfants || stay.children || 0,
+    ages_enfants: stay.ages_enfants || "",
+    notes: stay.notes || "",
+    lien_actif: stay.lien_actif !== false,
+    lien_expire_le: stay.lien_expire_le || "",
+    airbnb_frais_chambre: stay.airbnb_frais_chambre || "",
+    airbnb_reduction: stay.airbnb_reduction || "",
+    airbnb_frais_service: stay.airbnb_frais_service || "",
+    airbnb_gain: stay.airbnb_gain || "",
+    booking_montant: stay.booking_montant || "",
+    booking_commission: stay.booking_commission || "",
+    booking_frais_bancaires: stay.booking_frais_bancaires || "",
+    booking_net: stay.booking_net || "",
+    direct_tarif: stay.direct_tarif || "",
+    acompte_montant: stay.acompte_montant || "",
+    acompte_date: stay.acompte_date || "",
+    acompte_mode: stay.acompte_mode || "",
+    reste_a_payer: stay.reste_a_payer || "",
+    offert_petit_dejeuner: !!stay.offert_petit_dejeuner,
+    chauffage_piscine_jours: stay.chauffage_piscine_jours || 0,
+    chauffage_piscine_tarif_eur: stay.chauffage_piscine_tarif_eur || 0,
+    chauffage_piscine_offert: !!stay.chauffage_piscine_offert,
+    chauffage_jacuzzi_jours: stay.chauffage_jacuzzi_jours || 0,
+    chauffage_jacuzzi_tarif_eur: stay.chauffage_jacuzzi_tarif_eur || 0,
+    chauffage_jacuzzi_offert: !!stay.chauffage_jacuzzi_offert
+  };
+}
+
+function stayLink_(data) {
+  var book = reservationsSheet_();
+  if (!book) return jsonOut({ ok: false, error: "sheet" });
+  var map = book.map;
+  var idCol = map.booking_id || map.id;
+  if (!idCol) return jsonOut({ ok: false });
+  var row = findRowInColumn_(book.sheet, idCol, String(data.id || ""));
+  if (!row) return jsonOut({ ok: false });
+  if (data.op === "deactivate" && map.lien_actif) {
+    book.sheet.getRange(row, map.lien_actif).setValue(false);
+    return jsonOut({ ok: true });
+  }
+  if (data.op === "prolong" && map.lien_expire_le) {
+    var current = String(book.sheet.getRange(row, map.lien_expire_le).getValue() || "");
+    var base = current ? new Date(current) : new Date();
+    if (isNaN(base.getTime()) || base.getTime() < Date.now()) base = new Date();
+    base.setDate(base.getDate() + 7);
+    book.sheet.getRange(row, map.lien_expire_le).setValue(Utilities.formatDate(base, "Africa/Casablanca", "yyyy-MM-dd"));
+    if (map.lien_actif) book.sheet.getRange(row, map.lien_actif).setValue(true);
+    return jsonOut({ ok: true });
+  }
+  return jsonOut({ ok: false });
+}
+
+function findRowInColumn_(sheet, col, id) {
+  var last = sheet.getLastRow();
+  if (last < 2) return 0;
+  var values = sheet.getRange(2, col, last - 1, 1).getValues();
+  for (var i = 0; i < values.length; i++) if (String(values[i][0]) === id) return i + 2;
+  return 0;
+}
+
+function newStayId_(sheet, col) {
+  var alphabet = "abcdefghjkmnpqrstuvwxyz23456789";
+  for (var n = 0; n < 8; n++) {
+    var id = "";
+    for (var i = 0; i < 10; i++) id += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+    if (!findRowInColumn_(sheet, col, id)) return id;
+  }
+  return "stay" + String(Date.now()).slice(-6);
 }

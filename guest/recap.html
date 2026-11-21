@@ -17,14 +17,19 @@
 <header class="site-header">
 <div class="wrap header-inner">
 <a class="logo" href="./">Villa Zen’O<small>Marrakech Palmeraie</small></a>
-<div class="lang-switch" aria-label="Langue"><a href="recap.html" hreflang="fr" lang="fr" aria-current="page">FR</a><a href="en/" hreflang="en" lang="en">EN</a></div>
+<div class="lang-switch" aria-label="Langue"><a href="recap.html" hreflang="fr" lang="fr" aria-current="page">FR</a><a href="en/recap.html" hreflang="en" lang="en">EN</a></div>
 </div>
 </header>
 <main id="contenu" class="request" data-recap-page>
 <div class="wrap recap-stack">
 <a class="request-back" href="demandes.html" data-back>‹ Mes demandes</a>
 <h1>Récapitulatif de séjour</h1>
-<section class="recap-card">
+<section class="recap-card recap-settled" data-settled hidden>
+<p class="recap-settled-head"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.8 12.4 10.6 15.2 16.4 9"/></svg><span data-settled-title>Réglé à la villa</span></p>
+<p class="recap-settled-line" data-settled-line></p>
+<ul class="recap-lines" data-settled-lines></ul>
+</section>
+<section class="recap-card" data-bill-card>
 <p class="recap-kicker">À RÉGLER À LA VILLA</p>
 <ul class="recap-lines" data-bill></ul>
 </section>
@@ -32,7 +37,7 @@
 <p class="recap-kicker">DÉJÀ RÉGLÉ AUX PRESTATAIRES</p>
 <ul class="recap-lines" data-paid></ul>
 </section>
-<div class="pay-dock">
+<div class="pay-dock" data-pay-dock>
 <p class="recap-rate">Taux appliqué&nbsp;: 1&nbsp;€ = 10&nbsp;DH</p>
 <div class="pay-choice">
 <button type="button" class="pay-cash" data-pay="cash" aria-pressed="true">Espèces<small>euros ou dirhams</small></button>

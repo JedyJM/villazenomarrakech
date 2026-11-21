@@ -3,6 +3,7 @@
   "use strict";
 
   var MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+  var MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   var EURO_DH = 10;
   var ICONS = {
     breakfast: '<path d="M10.2 18H4.774a1.5 1.5 0 0 1-1.352-.97 11 11 0 0 1 .132-6.487"/><path d="M18 10.2V4.774a1.5 1.5 0 0 0-.97-1.352 11 11 0 0 0-6.486.132"/><path d="M18 5a4 3 0 0 1 4 3 2 2 0 0 1-2 2 10 10 0 0 0-5.139 1.42"/><path d="M5 18a3 4 0 0 0 3 4 2 2 0 0 0 2-2 10 10 0 0 1 1.42-5.14"/><path d="M8.709 2.554a10 10 0 0 0-6.155 6.155 1.5 1.5 0 0 0 .676 1.626l9.807 5.42a2 2 0 0 0 2.718-2.718l-5.42-9.807a1.5 1.5 0 0 0-1.626-.676"/>',
@@ -17,6 +18,12 @@
     tax: '<path d="M6 3.5h12v17l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2-2 1.2v-17z"/><path d="M9 8h6M9 12h6M9 16h4"/>'
   };
 
+  function isEn() {
+    return (document.documentElement.lang || "fr").slice(0, 2) === "en";
+  }
+  function text(fr, en) {
+    return isEn() ? en : fr;
+  }
   function queryFlag(name) {
     try { return new URLSearchParams(window.location.search).get(name) || ""; } catch (e) { return ""; }
   }
@@ -29,8 +36,9 @@
   }
   function euros(amount) {
     var n = Math.round(Number(amount) * 100) / 100;
-    var text = (n % 1) ? n.toFixed(2).replace(".", ",") : String(n);
-    return text + "\u00A0€";
+    var body = (n % 1) ? n.toFixed(2).replace(".", ",") : String(Math.round(n));
+    if (isEn()) return "€" + body.replace(",", ".");
+    return body + "\u00A0€";
   }
   function dirhams(eurosAmount) {
     var cents = Math.round(Number(eurosAmount) * 100);
@@ -108,9 +116,9 @@
   }
   function guestName(item) {
     if (item.service === "restauration") {
-      if (item.meal === "breakfast") return "Petit-déjeuner";
-      if (item.meal === "dinner") return "Dîner";
-      return "Déjeuner";
+      if (item.meal === "breakfast") return text("Petit-déjeuner", "Breakfast");
+      if (item.meal === "dinner") return text("Dîner", "Dinner");
+      return text("Déjeuner", "Lunch");
     }
     if (item.service === "activites") {
       if (item.activity === "quad" || item.sous_type === "quad") return "Quad";
@@ -205,16 +213,58 @@
     };
   }
 
+  function sampleStay(id) {
+    if (id !== "cmartin26a") return null;
+    return {
+      stay: {
+        id: "cmartin26a",
+        arrival: "2026-12-12",
+        departure: "2026-12-19",
+        source: "Airbnb",
+        adults: 2,
+        children: 2,
+        pool: { days: 7, rate: 60, offert: false },
+        jacuzzi: { days: 7, rate: 35, offert: false }
+      },
+      items: [
+        { service: "restauration", meal: "breakfast", people: 0, total: 30, unit: "eur", status: "Terminée", when_date: "2026-12-16", when_time: "09:00", date_creation: "2026-12-16T08:00:00" },
+        { service: "restauration", meal: "dinner", people: 0, total: 80, unit: "eur", status: "Terminée", when_date: "2026-12-16", when_time: "20:00", date_creation: "2026-12-16T12:00:00" }
+      ]
+    };
+  }
+  function storedPayment(id) {
+    var api = window.GuestRequests;
+    if (!api || !api.TEST_MODE || !id) return null;
+    try {
+      var bag = JSON.parse(localStorage.getItem("vz.admin.encaissement") || "{}");
+      return bag[id] || null;
+    } catch (e) { return null; }
+  }
+  function applyStoredPayment(pack, id) {
+    var stored = storedPayment(id || (pack.stay && pack.stay.id) || "");
+    if (!stored || !stored.encaisse_le) return pack;
+    var stay = Object.assign({}, pack.stay || {}, {
+      id: (pack.stay && pack.stay.id) || id,
+      encaisse_le: stored.encaisse_le,
+      encaisse_mode: stored.encaisse_mode,
+      encaisse_total_eur: stored.encaisse_total_eur,
+      offerts: stored.offerts
+    });
+    return { items: pack.items || [], stay: stay };
+  }
   function loadPack() {
     if (queryFlag("demo") === "1") return Promise.resolve(demoPack());
     if (queryFlag("demo") === "booking") return Promise.resolve(bookingPack());
     var api = window.GuestRequests;
     var stay = api && api.stayId ? api.stayId() : "";
+    var test = api && api.TEST_MODE;
+    function finish(pack) { return applyStoredPayment(pack, stay); }
+    if (test && sampleStay(stay)) return Promise.resolve(finish(sampleStay(stay)));
     if (!api || !api.listDemandes || !stay) return Promise.resolve({ items: [], stay: null });
     return api.listDemandes(stay).then(function (data) {
-      if (data && data.items) return data;
-      return { items: data || [], stay: null };
-    }).catch(function () { return { items: [], stay: null }; });
+      var pack = data && data.items ? data : { items: data || [], stay: null };
+      return finish(pack);
+    }).catch(function () { return finish({ items: [], stay: null }); });
   }
 
   function prepare(pack) {
@@ -266,6 +316,54 @@
     }).join("");
   }
 
+  function offertSet(stay) {
+    var raw = stay && stay.offerts;
+    var list = Array.isArray(raw) ? raw : String(raw || "").split(",");
+    var map = {};
+    list.forEach(function (id) {
+      var key = String(id || "").trim();
+      if (key) map[key] = true;
+    });
+    return map;
+  }
+  function paidWhen(iso) {
+    var parts = String(iso || "").slice(0, 10).split("-");
+    if (parts.length < 3) return "";
+    var month = (isEn() ? MONTHS_EN : MONTHS)[Number(parts[1]) - 1] || "";
+    return Number(parts[2]) + (isEn() ? " " : "\u00A0") + month;
+  }
+  function modeName(mode) {
+    var value = String(mode || "");
+    if (!isEn()) return value;
+    if (value === "Espèces €") return "Cash €";
+    if (value === "Espèces DH") return "Cash DH";
+    return value;
+  }
+  function showSettled(root, stay, linesHtml, due) {
+    var card = root.querySelector("[data-settled]");
+    var billCard = root.querySelector("[data-bill-card]");
+    var dock = root.querySelector("[data-pay-dock]");
+    if (!card) return false;
+    if (!stay || !stay.encaisse_le) {
+      card.hidden = true;
+      if (billCard) billCard.hidden = false;
+      if (dock) dock.hidden = false;
+      return false;
+    }
+    var title = card.querySelector("[data-settled-title]");
+    var line = card.querySelector("[data-settled-line]");
+    var list = card.querySelector("[data-settled-lines]");
+    if (title) title.textContent = text("Réglé à la villa", "Settled at the villa");
+    var amount = stay.encaisse_total_eur != null && stay.encaisse_total_eur !== "" ? Number(stay.encaisse_total_eur) : due;
+    if (line) {
+      line.textContent = text("Réglé le ", "Paid on ") + paidWhen(stay.encaisse_le) + " · " + modeName(stay.encaisse_mode) + " · " + euros(amount);
+    }
+    if (list) list.innerHTML = linesHtml;
+    card.hidden = false;
+    if (billCard) billCard.hidden = true;
+    if (dock) dock.hidden = true;
+    return true;
+  }
   function heatingRow(label, heat) {
     if (!heat || !heat.days || !heat.rate) return null;
     var amount = Number(heat.days) * Number(heat.rate);
@@ -286,21 +384,30 @@
     var jacuzziHeat = data.stay && data.stay.jacuzzi;
     if (poolHeat) poolHeat.kind = "pool";
     if (jacuzziHeat) jacuzziHeat.kind = "flame";
-    var pool = heatingRow("Chauffage piscine", poolHeat);
-    var jacuzzi = heatingRow("Chauffage jacuzzi", jacuzziHeat);
-    if (pool) rows.push(pool);
-    if (jacuzzi) rows.push(jacuzzi);
+    var pool = heatingRow(text("Chauffage piscine", "Pool heating"), poolHeat);
+    var jacuzzi = heatingRow(text("Chauffage jacuzzi", "Jacuzzi heating"), jacuzziHeat);
+    if (pool) { pool.id = "chauffage_piscine"; rows.push(pool); }
+    if (jacuzzi) { jacuzzi.id = "chauffage_jacuzzi"; rows.push(jacuzzi); }
     var tax = bookingTaxRow(data.stay);
-    if (tax) rows.push(tax);
+    if (tax) {
+      tax.label = text("Taxe de séjour", "Tourist tax");
+      tax.id = "taxe";
+      rows.push(tax);
+    }
     data.items.forEach(function (item) {
       if (item.service !== "restauration" || item.status !== "Terminée" || item.service === "menage") return;
-      rows.push({ label: guestName(item), detail: billLabel(item), amount: eurosOf(item) || 0, offert: !!item.offert, kind: kindOf(item) });
+      var mealId = item.meal === "breakfast" ? "petit_dejeuner" : item.meal === "dinner" ? "diner" : "dejeuner";
+      rows.push({ id: mealId, label: guestName(item), detail: billLabel(item), amount: eurosOf(item) || 0, offert: !!item.offert, kind: kindOf(item) });
+    });
+    var offered = offertSet(data.stay);
+    rows.forEach(function (row) {
+      if (row.id && offered[row.id]) row.offert = true;
     });
     var due = 0;
     function moneyLine(row) {
       if (!row.offert) due += row.amount;
       var price = '<span class="' + (row.offert ? "is-offert" : "") + '">' + esc(euros(row.amount)) + "</span>";
-      var tag = row.offert ? "<small>Offert</small>" : "";
+      var tag = row.offert ? "<small>" + esc(text("Offert", "Complimentary")) + "</small>" : "";
       return "<li>" + iconSvg(row.kind || "menage") + "<span><strong>" + esc(row.label) + "</strong><em>" + esc(row.detail) + "</em></span><b>" + price + tag + "</b></li>";
     }
     var linesHtml = rows.map(moneyLine).join("");
@@ -322,10 +429,10 @@
         fee = Math.round((grand - due) * 100) / 100;
       }
       var feeHtml = paypal
-        ? '<li class="recap-fee-line"><span>Frais PayPal (4,4\u00A0% + 0,35\u00A0€)</span><b>' + esc(euros(fee)) + "</b></li>"
+        ? '<li class="recap-fee-line"><span>' + esc(text("Frais PayPal (4,4\u00A0% + 0,35\u00A0€)", "PayPal fee (4.4% + €0.35)")) + "</span><b>" + esc(euros(fee)) + "</b></li>"
         : "";
       bill.innerHTML = linesHtml + feeHtml
-        + '<li class="recap-sum"><span>Total à régler</span><b><strong>' + esc(euros(grand)) + "</strong><small>soit " + esc(dirhams(grand)) + "</small></b></li>";
+        + '<li class="recap-sum"><span>' + esc(text("Total à régler", "Total due")) + "</span><b><strong>" + esc(euros(grand)) + "</strong><small>" + esc(text("soit ", "or ") + dirhams(grand)) + "</small></b></li>";
       if (feeNode) feeNode.hidden = true;
       if (payBtn) {
         var handle = String(window.PAYPAL_ME || "").replace(/[^A-Za-z0-9]/g, "");
@@ -334,7 +441,7 @@
       if (cashBtn) cashBtn.setAttribute("aria-pressed", paypal ? "false" : "true");
       if (payBtn) payBtn.setAttribute("aria-pressed", paypal ? "true" : "false");
     }
-    paintTotal("cash");
+    if (!showSettled(root, data.stay, linesHtml, due)) paintTotal("cash");
     root.querySelectorAll("[data-pay]").forEach(function (button) {
       button.addEventListener("click", function (event) {
         if (button.getAttribute("data-pay") === "paypal" && button.getAttribute("aria-pressed") !== "true") {

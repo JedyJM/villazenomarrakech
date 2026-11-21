@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stay summary | Villa Zen’O</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f6f1ea">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/portal.css">
+</head>
+<body class="page-request page-recap">
+<a class="skip-link" href="#contenu">Skip to content</a>
+<header class="site-header">
+<div class="wrap header-inner">
+<a class="logo" href="./">Villa Zen’O<small>Marrakech Palmeraie</small></a>
+<div class="lang-switch" aria-label="Language"><a href="../recap.html" hreflang="fr" lang="fr">FR</a><a href="recap.html" hreflang="en" lang="en" aria-current="page">EN</a></div>
+</div>
+</header>
+<main id="contenu" class="request" data-recap-page>
+<div class="wrap recap-stack">
+<a class="request-back" href="../demandes.html" data-back>‹ My requests</a>
+<h1>Stay summary</h1>
+<section class="recap-card recap-settled" data-settled hidden>
+<p class="recap-settled-head"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7.8 12.4 10.6 15.2 16.4 9"/></svg><span data-settled-title>Settled at the villa</span></p>
+<p class="recap-settled-line" data-settled-line></p>
+<ul class="recap-lines" data-settled-lines></ul>
+</section>
+<section class="recap-card" data-bill-card>
+<p class="recap-kicker">TO SETTLE AT THE VILLA</p>
+<ul class="recap-lines" data-bill></ul>
+</section>
+<section class="recap-card is-paid" data-paid-card>
+<p class="recap-kicker">ALREADY PAID TO PROVIDERS</p>
+<ul class="recap-lines" data-paid></ul>
+</section>
+<div class="pay-dock" data-pay-dock>
+<p class="recap-rate">Rate used: 1&nbsp;€ = 10&nbsp;DH</p>
+<div class="pay-choice">
+<button type="button" class="pay-cash" data-pay="cash" aria-pressed="true">Cash<small>euros or dirhams</small></button>
+<a class="pay-paypal" data-pay="paypal" aria-pressed="false" href="#">PayPal</a>
+</div>
+</div>
+</div>
+</main>
+<script src="../js/guest-shell.js" data-home="./"></script>
+<script src="../../js/config.js"></script>
+<script src="../js/portal.js"></script>
+<script src="../js/requests.js"></script>
+<script src="../js/stay-board.js"></script>
+<script>
+(function () {
+  var back = document.querySelector("[data-back]");
+  var query = window.location.search || "";
+  if (back && query) back.href = "../demandes.html" + query;
+})();
+</script>
+</body>
+</html>

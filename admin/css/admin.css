@@ -585,3 +585,42 @@ body.page-stats h1, body.page-depense h1 { font-size: 1.35rem; }
 .photo-card input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 body.page-stats .block { padding: 8px 10px; gap: 4px; }
 body.page-stats .segment button, body.page-depense .segment button { height: 30px; font-size: 12px; }
+
+body.page-reglages { padding-bottom: var(--nav); }
+body.page-reglages .page { gap: 6px; padding: 4px 0 8px; }
+body.page-reglages h1 { font-size: 1.35rem; }
+.reg-intro, .reg-text, .reg-foot { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.35; }
+.reg-card { gap: 0; padding: 4px 12px; }
+.reg-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 36px; gap: 8px; align-items: start;
+  padding: 7px 0; border-top: 1px solid rgba(28, 25, 22, 0.08);
+}
+.reg-row:first-child { border-top: 0; }
+.reg-title { margin: 0; font-size: 13.5px; font-weight: 600; line-height: 1.25; letter-spacing: -0.012em; white-space: nowrap; }
+.reg-switch {
+  position: relative; width: 32px; height: 18px; margin-top: 1px; padding: 0; border: 0; border-radius: 99px;
+  background: #e4ddd4; justify-self: end;
+}
+.reg-switch span {
+  position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 2px rgba(28, 25, 22, 0.25);
+}
+.reg-switch.is-on { background: var(--terracotta); }
+.reg-switch.is-on span { left: 16px; }
+.reg-switch:disabled { opacity: 0.55; }
+.mail-lead { white-space: nowrap; }
+.mail-slot { display: inline-block; max-width: 100%; vertical-align: baseline; }
+.mail-inline {
+  display: inline-block; width: 22ch; max-width: 100%; height: 1.15em; margin: 0; padding: 0 0 1px;
+  border: 0; border-bottom: 1px solid rgba(142, 59, 46, 0.45); border-radius: 0;
+  background: transparent; color: var(--ink); font-size: 16px; font-weight: 500; line-height: 1.15;
+  vertical-align: -0.08em;
+}
+.later {
+  display: inline-block; margin-left: 4px; padding: 1px 6px 2px; border-radius: 999px;
+  background: #efe6d8; color: var(--terracotta-dark); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.06em; line-height: 1.4; text-transform: uppercase; vertical-align: 1px;
+}
+body.page-reglages .reg-card .kicker { margin-bottom: 4px; }
+body.page-reglages .reg-card .reg-title { margin-top: 2px; }
+body.page-reglages .reg-foot { margin-top: 2px; }

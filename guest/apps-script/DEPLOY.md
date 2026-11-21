@@ -47,3 +47,15 @@ Même republication (Nouvelle version). Actions protégées par la liste Google 
 Même republication. Le script crée l’onglet `Dépenses` s’il manque, avec les colonnes `id`, `date`, `categorie`, `detail`, `fournisseur`, `montant_dh`, `montant_eur`, `devise_saisie`, `facture_url`, `cree_le`.
 
 Actions : `depenses` (liste d’une année), `save-depense` et `delete-depense`. La photo de facture est enregistrée dans le dossier Drive `Villa Zen’O – Factures` du compte de la villa. Le taux est 1 € = 10 DH. Rien n’est envoyé à l’invité.
+
+## Admin, onglet Réglages
+
+Même republication. Le script crée l’onglet `Réglages` s’il manque, avec les lignes `notif_email_on`, `notif_email_to` et `recap_8h_on`. L’adresse par défaut des notifications est `mehdimoumni@hotmail.com`. Le compte Google pour ouvrir l’admin reste `villazeno.marrakech@gmail.com`.
+
+Actions : `get-reglages` en lecture, `save-reglages` en écriture. Tant que `ADMIN_TEST_MODE` est true, aucun e-mail ne part : ni à l’enregistrement d’une demande, ni pour le récapitulatif. Ne lancez pas `installRecapTrigger` tant que le mode test est actif.
+
+Quand l’usage réel commencera (`ADMIN_TEST_MODE` remis à false, puis nouvelle version déployée) :
+
+1. Dans l’éditeur, choisissez `installRecapTrigger`, puis Exécuter, une seule fois. Cela crée le déclencheur quotidien à 8&nbsp;h, fuseau Africa/Casablanca. Il envoie le récapitulatif (alertes en cours, services du jour, arrivées et départs) seulement si l’interrupteur du récapitulatif est activé.
+2. L’e-mail « nouvelle demande » part à l’enregistrement, sans déclencheur, seulement si son interrupteur est activé. Les deux messages vont à l’adresse enregistrée dans `notif_email_to`.
+3. Rien n’est envoyé aux invités ni au personnel depuis cet écran.

@@ -37,7 +37,7 @@ function doPost(e) {
     } catch (err) {
       return jsonOut({ ok: false });
     }
-    if (data.action === "save-stay" || data.action === "stay-link" || data.action === "admin-auth") {
+    if (data.action === "save-stay" || data.action === "stay-link" || data.action === "admin-auth" || data.action === "set-demande" || data.action === "save-depense" || data.action === "delete-depense" || data.action === "save-reglages") {
       return adminPost_(data);
     }
     if (!data.id) return jsonOut({ ok: false });
@@ -59,6 +59,7 @@ function doPost(e) {
       "",
       false
     ]);
+    notifyNewDemande_(data);
     return jsonOut({ ok: true });
   } finally {
     lock.releaseLock();
@@ -68,7 +69,7 @@ function doPost(e) {
 function doGet(e) {
   var params = (e && e.parameter) || {};
   if (params.action === "list") return listDemandes_(params.stay || "");
-  if (params.action === "stays" || params.action === "stay" || params.action === "demandes" || params.action === "depenses") return adminGet_(params);
+  if (params.action === "stays" || params.action === "stay" || params.action === "demandes" || params.action === "depenses" || params.action === "get-reglages") return adminGet_(params);
   if (params.action !== "confirm" || !params.id || !params.t) {
     return htmlPage_("Ce lien n\u2019est pas valable.");
   }
@@ -420,6 +421,7 @@ function adminGet_(params) {
   if (params.action === "stay") return jsonOut({ ok: true, stay: adminStay_(params.id || "") });
   if (params.action === "demandes") return adminDemandes_(params);
   if (params.action === "depenses") return jsonOut({ ok: true, depenses: adminDepenses_(params.year || "") });
+  if (params.action === "get-reglages") return jsonOut({ ok: true, reglages: readReglages_() });
   return jsonOut({ ok: true, stays: adminStays_(params.year || "") });
 }
 
@@ -434,6 +436,7 @@ function adminPost_(data) {
   if (data.action === "set-demande") return setDemande_(data);
   if (data.action === "save-depense") return saveDepense_(data);
   if (data.action === "delete-depense") return deleteDepense_(data);
+  if (data.action === "save-reglages") return saveReglages_(data.reglages || data);
   return jsonOut({ ok: false });
 }
 
@@ -810,6 +813,159 @@ function deleteDepense_(data) {
   }
   sheet.deleteRow(row);
   return jsonOut({ ok: true });
+}
+
+var REGLAGES_HEADERS = ["cle", "valeur"];
+var DEFAULT_NOTIF_EMAIL = "mehdimoumni@hotmail.com";
+
+function reglagesSheet_() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName("R\u00e9glages");
+  if (!sheet) {
+    sheet = ss.insertSheet("R\u00e9glages");
+    sheet.getRange(1, 1, 1, 2).setValues([REGLAGES_HEADERS]).setFontWeight("bold");
+    sheet.setFrozenRows(1);
+    sheet.getRange(2, 1, 3, 2).setValues([
+      ["notif_email_on", true],
+      ["notif_email_to", DEFAULT_NOTIF_EMAIL],
+      ["recap_8h_on", true]
+    ]);
+  }
+  return sheet;
+}
+
+function readReglages_() {
+  var sheet = reglagesSheet_();
+  var res = { notif_email_on: true, notif_email_to: DEFAULT_NOTIF_EMAIL, recap_8h_on: true };
+  var last = sheet.getLastRow();
+  if (last < 2) return res;
+  var values = sheet.getRange(2, 1, last - 1, 2).getValues();
+  var i;
+  for (i = 0; i < values.length; i++) {
+    var key = String(values[i][0] || "");
+    if (key === "notif_email_on") res.notif_email_on = values[i][1] === true || String(values[i][1]) === "true";
+    if (key === "notif_email_to" && values[i][1]) res.notif_email_to = String(values[i][1]);
+    if (key === "recap_8h_on") res.recap_8h_on = values[i][1] === true || String(values[i][1]) === "true";
+  }
+  return res;
+}
+
+function saveReglages_(data) {
+  var sheet = reglagesSheet_();
+  var last = Math.max(sheet.getLastRow(), 1);
+  var values = sheet.getRange(1, 1, last, 2).getValues();
+  var rows = { notif_email_on: 0, notif_email_to: 0, recap_8h_on: 0 };
+  var i;
+  for (i = 1; i < values.length; i++) {
+    var key = String(values[i][0] || "");
+    if (rows[key] != null) rows[key] = i + 1;
+  }
+  function put(key, value) {
+    var row = rows[key];
+    if (!row) {
+      row = sheet.getLastRow() + 1;
+      sheet.getRange(row, 1).setValue(key);
+    }
+    sheet.getRange(row, 2).setValue(value);
+  }
+  if (data.notif_email_on != null) put("notif_email_on", data.notif_email_on === true || String(data.notif_email_on) === "true");
+  if (data.notif_email_to != null) {
+    var mail = String(data.notif_email_to || "").replace(/\s/g, "");
+    if (mail.indexOf("@") > 0) put("notif_email_to", mail);
+  }
+  if (data.recap_8h_on != null) put("recap_8h_on", data.recap_8h_on === true || String(data.recap_8h_on) === "true");
+  return jsonOut({ ok: true, reglages: readReglages_() });
+}
+
+function notifyNewDemande_(data) {
+  try {
+    if (ADMIN_TEST_MODE) return;
+    var reg = readReglages_();
+    if (!reg.notif_email_on) return;
+    var to = String(reg.notif_email_to || "");
+    if (to.indexOf("@") < 1) return;
+    var details = data.details || {};
+    var when = details.date ? String(details.date) : "";
+    var time = details.time_label || details.time || "";
+    var lines = [
+      "Nouvelle demande enregistr\u00e9e.",
+      "",
+      "Invit\u00e9\u00A0: " + (data.nom_client || "\u2014"),
+      "Service\u00A0: " + (data.service || "\u2014"),
+      "D\u00e9tail\u00A0: " + (data.sous_type || "\u2014")
+    ];
+    if (when) lines.push("Date\u00A0: " + when + (time ? " \u00b7 " + time : ""));
+    if (data.total_dh === 0 || data.total_dh) lines.push("Total\u00A0: " + data.total_dh + "\u00A0DH");
+    lines.push("", "Villa Zen\u2019O");
+    MailApp.sendEmail(to, "Nouvelle demande \u00b7 Villa Zen\u2019O", lines.join("\n"));
+  } catch (err) {}
+}
+
+function recapLines_(title, rows) {
+  var out = [title];
+  if (!rows.length) out.push("\u2014 aucun");
+  else {
+    var i;
+    for (i = 0; i < rows.length; i++) out.push("\u00b7 " + rows[i]);
+  }
+  out.push("");
+  return out;
+}
+
+function sendDailyRecap_() {
+  try {
+    if (ADMIN_TEST_MODE) return;
+    var reg = readReglages_();
+    if (!reg.recap_8h_on) return;
+    var to = String(reg.notif_email_to || "");
+    if (to.indexOf("@") < 1) return;
+    var today = Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd");
+    var alerts = [];
+    var services = [];
+    var sheet = getDemandesSheet_();
+    var map = ensureDemandes_(sheet);
+    var last = sheet.getLastRow();
+    if (last >= 2) {
+      var values = sheet.getRange(2, 1, last - 1, sheet.getLastColumn()).getValues();
+      var i;
+      for (i = 0; i < values.length; i++) {
+        var details = {};
+        try { details = JSON.parse(String(values[i][5] || "{}")); } catch (err) { details = {}; }
+        var when = String(details.date || "").slice(0, 10);
+        var status = canonStatus_(map.statut ? values[i][map.statut - 1] : values[i][8]);
+        var label = String(values[i][2] || "Demande") + (values[i][3] ? " \u00b7 " + values[i][3] : "");
+        var guest = String(values[i][4] || "");
+        var time = String(details.time_label || details.time || "");
+        var line = label + (guest ? " \u00b7 " + guest : "") + (time ? " \u00b7 " + time : "");
+        if (status === "Envoy\u00e9e" && when && when >= today) alerts.push(line + " \u00b7 " + when);
+        if (when === today && status !== "Annul\u00e9e") services.push((time ? time + " \u00b7 " : "") + line);
+      }
+    }
+    var arrivals = [];
+    var departures = [];
+    var stays = adminStays_("");
+    for (var s = 0; s < stays.length; s++) {
+      var stay = stays[s];
+      if (String(stay.arrival) === today) arrivals.push((stay.nom || "S\u00e9jour") + (stay.source ? " \u00b7 " + stay.source : ""));
+      if (String(stay.departure) === today) departures.push((stay.nom || "S\u00e9jour") + (stay.source ? " \u00b7 " + stay.source : ""));
+    }
+    var body = ["R\u00e9capitulatif du matin", today, ""];
+    body = body.concat(recapLines_("Alertes en cours", alerts));
+    body = body.concat(recapLines_("Services du jour", services));
+    body = body.concat(recapLines_("Arriv\u00e9es", arrivals));
+    body = body.concat(recapLines_("D\u00e9parts", departures));
+    body.push("Villa Zen\u2019O");
+    MailApp.sendEmail(to, "R\u00e9capitulatif \u00b7 Villa Zen\u2019O", body.join("\n"));
+  } catch (err) {}
+}
+
+function installRecapTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  var i;
+  for (i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === "sendDailyRecap_") return;
+  }
+  ScriptApp.newTrigger("sendDailyRecap_").timeBased().everyDays(1).atHour(8).inTimezone("Africa/Casablanca").create();
 }
 
 function newStayId_(sheet, col) {

@@ -27,6 +27,7 @@
   function pad(n) { return (n < 10 ? "0" : "") + n; }
   function isoDay(date) { return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()); }
   function today() {
+    if (shell.TEST_MODE) return new Date(2026, 11, 16);
     var now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
@@ -47,11 +48,11 @@
     return [
       { id: "din21fouz", kind: "dinner", label: "Dîner", adults: 2, children: 2, guest: "Camille Martin", stay: "Camille Martin", staff: "Fouzia", status: "Envoyée", when: at(0, 20, 0), created: now - 47 * 60000, price: "50\u00A0€", token: "din21token" },
       { id: "pdj18fouz", kind: "breakfast", label: "Petit-déjeuner", adults: 2, children: 2, guest: "Camille Martin", stay: "Camille Martin", staff: "Fouzia", status: "Envoyée", when: on(12, 18, 9, 0), created: now - 3 * 3600000, price: "25\u00A0€", token: "pdj18token" },
-      { id: "tr19hicha", kind: "car", label: "Transfert", extra: "départ", guest: "Camille Martin", stay: "Camille Martin", staff: "Hicham", status: "Envoyée", when: on(12, 19, 11, 0), created: now - 26 * 3600000, price: "350\u00A0DH", token: "tr19token" },
+      { id: "tr19hicha", kind: "car", label: "Transfert", extra: "départ", guest: "Camille Martin", stay: "Camille Martin", staff: "Hicham", status: "Envoyée", when: on(12, 19, 11, 0), created: now - 26 * 3600000, price: "35\u00A0€", dh: "350\u00A0DH", token: "tr19token" },
       { id: "men21nade", kind: "menage", label: "Ménage", guest: "Camille Martin", stay: "Camille Martin", staff: "Nadera", status: "Confirmée", when: at(0, 11, 0), created: now - 5 * 3600000, price: "", token: "men21token" },
       { id: "pdj21fouz", kind: "breakfast", label: "Petit-déjeuner", adults: 2, children: 2, guest: "Camille Martin", stay: "Camille Martin", staff: "Fouzia", status: "Terminée", when: at(0, 8, 30), created: now - 8 * 3600000, price: "25\u00A0€", token: "pdj21token" },
-      { id: "qu12khali", kind: "quad", label: "Quad", extra: "1 pers.", guest: "Camille Martin", stay: "Camille Martin", staff: "Khalid", status: "Confirmée", when: on(12, 12, 9, 0), created: now - 9 * 3600000, price: "300\u00A0DH", token: "qu12token" },
-      { id: "tr12hicha", kind: "car", label: "Transfert", extra: "arrivée", guest: "Camille Martin", stay: "Camille Martin", staff: "Hicham", status: "Terminée", when: on(12, 12, 14, 30), created: now - 10 * 3600000, price: "350\u00A0DH", token: "tr12token" }
+      { id: "qu12khali", kind: "quad", label: "Quad", extra: "1 pers.", guest: "Camille Martin", stay: "Camille Martin", staff: "Khalid", status: "Confirmée", when: on(12, 12, 9, 0), created: now - 9 * 3600000, price: "30\u00A0€", dh: "300\u00A0DH", token: "qu12token" },
+      { id: "tr12hicha", kind: "car", label: "Transfert", extra: "arrivée", guest: "Camille Martin", stay: "Camille Martin", staff: "Hicham", status: "Terminée", when: on(12, 12, 14, 30), created: now - 10 * 3600000, price: "35\u00A0€", dh: "350\u00A0DH", token: "tr12token" }
     ];
   }
   function allItems() {
@@ -63,7 +64,6 @@
   function dayKey(item) { return isoDay(item.when); }
   function isFutureDay(item) { return dayKey(item) >= isoDay(today()); }
   function isToday(item) { return dayKey(item) === isoDay(today()); }
-  function isPast(item) { return item.when.getTime() < Date.now(); }
   function toConfirm(items) {
     return items.filter(function (item) { return item.status === "Envoyée" && isFutureDay(item); });
   }
@@ -126,7 +126,9 @@
   }
   function rowHtml(item) {
     var open = openId === item.id;
-    var price = item.price ? '<span class="req-price">' + esc(item.price) + "</span>" : "<span></span>";
+    var price = item.price
+      ? '<span class="req-price">' + esc(item.price) + (item.dh ? '<span class="req-dh"> · ' + esc(item.dh) + '</span>' : '') + '</span>'
+      : "<span></span>";
     var href = relanceHref(item);
     var relance = href
       ? '<a href="' + esc(href) + '" target="_blank" rel="noopener">Relancer</a>'
@@ -163,13 +165,12 @@
     if (filter === "confirmer") {
       html = waiting.length ? '<div class="card">' + waiting.map(rowHtml).join("") + '</div>' : '<p class="empty">Aucune demande à confirmer.</p>';
     } else if (filter === "aujourd") {
-      var todayItems = items.filter(isToday);
-      var nowItems = todayItems.filter(function (item) { return !isPast(item); });
-      var past = todayItems.filter(isPast);
-      if (nowItems.length) html += '<div class="card">' + nowItems.map(rowHtml).join("") + '</div>';
-      if (past.length) {
+      var todayItems = items.filter(isToday).sort(function (a, b) { return b.when - a.when; });
+      var earlier = items.filter(function (item) { return dayKey(item) < isoDay(today()); });
+      if (todayItems.length) html += '<div class="card">' + todayItems.map(rowHtml).join("") + '</div>';
+      if (earlier.length) {
         var byStay = {};
-        past.forEach(function (item) {
+        earlier.sort(function (a, b) { return a.when - b.when; }).forEach(function (item) {
           if (!byStay[item.stay]) byStay[item.stay] = [];
           byStay[item.stay].push(item);
         });
@@ -187,7 +188,10 @@
       });
       html = Object.keys(groups).sort().reverse().map(function (key) {
         var date = groups[key][0].when;
-        return section(date.getDate() + " " + MONTHS[date.getMonth()], [{ name: "", items: groups[key] }]);
+        var label = isoDay(date) === isoDay(today())
+          ? "Aujourd’hui · " + date.getDate() + " " + MONTHS[date.getMonth()]
+          : date.getDate() + " " + MONTHS[date.getMonth()];
+        return section(label, [{ name: "", items: groups[key] }]);
       }).join("");
     }
     list.innerHTML = html;

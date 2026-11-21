@@ -16,7 +16,7 @@
 
   /* Test routing for transfer and car-rental WhatsApp buttons only.
      Flip TEST_MODE to false to open Hicham and Massillya again.
-     Meals, housekeeping and the pool always use VILLA_WHATSAPP. */
+     Meals, housekeeping, the pool and a quad always use VILLA_WHATSAPP. */
   var TEST_MODE = true;
   var TEST_WHATSAPP = VILLA_WHATSAPP;
   var RECIPIENTS = {
@@ -1389,7 +1389,8 @@
         lines.push("", "Merci d’avance.");
         fields.message = lines.join("\n");
         var price = !priced || !quote.vehicles ? null : { price_base: quote.total, supplements: [], total: quote.total, blocked: false };
-        dispatchService(root, baseRecord("activites", guest, fields, price), rows, chosen.value, "Activités", RECIPIENTS.activites);
+        var quad = chosen.value === "quad";
+        dispatchService(root, baseRecord("activites", guest, fields, price), rows, chosen.value, "Activités", quad ? "" : RECIPIENTS.activites, quad);
       });
     }
 

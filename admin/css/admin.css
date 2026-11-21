@@ -596,6 +596,8 @@ body.page-reglages h1 { font-size: 1.35rem; }
   padding: 7px 0; border-top: 1px solid rgba(28, 25, 22, 0.08);
 }
 .reg-row:first-child { border-top: 0; }
+.reg-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.reg-body { min-width: 0; }
 .reg-title { margin: 0; font-size: 13.5px; font-weight: 600; line-height: 1.25; letter-spacing: -0.012em; white-space: nowrap; }
 .reg-switch {
   position: relative; width: 32px; height: 18px; margin-top: 1px; padding: 0; border: 0; border-radius: 99px;
@@ -608,19 +610,43 @@ body.page-reglages h1 { font-size: 1.35rem; }
 .reg-switch.is-on { background: var(--terracotta); }
 .reg-switch.is-on span { left: 16px; }
 .reg-switch:disabled { opacity: 0.55; }
-.mail-lead { white-space: nowrap; }
-.mail-slot { display: inline-block; max-width: 100%; vertical-align: baseline; }
+.mail-line { display: flex; align-items: center; gap: 4px; min-width: 0; margin: 0; }
+.mail-box {
+  display: inline-flex; align-items: center; min-width: 0; max-width: calc(100% - 18px);
+  border-bottom: 1px dotted rgba(28, 25, 22, 0.38);
+}
 .mail-inline {
-  display: inline-block; width: 22ch; max-width: 100%; height: 1.15em; margin: 0; padding: 0 0 1px;
-  border: 0; border-bottom: 1px solid rgba(142, 59, 46, 0.45); border-radius: 0;
-  background: transparent; color: var(--ink); font-size: 16px; font-weight: 500; line-height: 1.15;
-  vertical-align: -0.08em;
+  display: block; width: 12ch; max-width: 100%; height: 1.35em; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: transparent; color: var(--ink);
+  font-size: 12px; font-weight: 500; line-height: 1.35;
+  outline: none; caret-color: var(--terracotta); appearance: none; -webkit-appearance: none;
 }
+.mail-inline:focus, .mail-inline:focus-visible { outline: none; }
+.mail-line.is-editing { width: calc(100% + 44px); }
+.mail-line.is-editing .mail-box {
+  box-sizing: border-box; display: flex; width: 100%; max-width: none; height: 40px; margin: 1px 0; padding: 0 12px;
+  border: 1px solid var(--terracotta); box-shadow: inset 0 0 0 0.5px var(--terracotta); border-radius: 10px; background: #fff;
+}
+.mail-line.is-editing .mail-inline {
+  width: 100%; max-width: none; height: 100%; padding: 0; border: 0; background: transparent;
+  font-size: 16px; line-height: 1.2;
+}
+.mail-line.is-editing .mail-pen { display: none; }
+.mail-pen {
+  display: grid; place-items: center; width: 14px; height: 14px; margin: 0; padding: 0;
+  border: 0; background: transparent; color: var(--ink); opacity: 0.55; flex: none;
+}
+.mail-pen svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .later {
-  display: inline-block; margin-left: 4px; padding: 1px 6px 2px; border-radius: 999px;
+  display: block; width: max-content; margin: 8px 0 0; padding: 1px 6px 2px; border-radius: 999px;
   background: #efe6d8; color: var(--terracotta-dark); font-size: 9px; font-weight: 700;
-  letter-spacing: 0.06em; line-height: 1.4; text-transform: uppercase; vertical-align: 1px;
+  letter-spacing: 0.06em; line-height: 1.4; text-transform: uppercase;
 }
-body.page-reglages .reg-card .kicker { margin-bottom: 4px; }
-body.page-reglages .reg-card .reg-title { margin-top: 2px; }
+body.page-reglages .reg-access {
+  padding: 11px 12px;
+  gap: 4px;
+}
+body.page-reglages .reg-access .kicker,
+body.page-reglages .reg-access .reg-title,
+body.page-reglages .reg-access .reg-text { margin: 0; }
 body.page-reglages .reg-foot { margin-top: 2px; }

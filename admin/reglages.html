@@ -23,7 +23,11 @@
 <div class="reg-row">
 <div class="reg-copy">
 <p class="reg-title">E-mail à chaque nouvelle demande</p>
-<p class="reg-text"><span class="mail-lead">Envoyé tout de suite à</span> <span class="mail-slot"><input class="mail-inline" type="email" inputmode="email" autocomplete="email" spellcheck="false" data-email value="mehdimoumni@hotmail.com" aria-label="Adresse e-mail"></span>, dès qu’une demande est enregistrée. Gratuit. Adresse modifiable.</p>
+<div class="reg-body">
+<p class="reg-text">Envoyé tout de suite à</p>
+<p class="mail-line"><span class="mail-box"><input class="mail-inline" type="email" inputmode="email" autocomplete="email" spellcheck="false" data-email value="mehdimoumni@hotmail.com" aria-label="Adresse e-mail"></span><button type="button" class="mail-pen" tabindex="-1" aria-label="Modifier l’adresse"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button></p>
+<p class="reg-text">dès qu’une demande est enregistrée. Gratuit.</p>
+</div>
 </div>
 <button type="button" class="reg-switch is-on" data-key="notif_email_on" role="switch" aria-pressed="true" aria-label="E-mail à chaque nouvelle demande"><span></span></button>
 </div>
@@ -37,12 +41,15 @@
 <div class="reg-row">
 <div class="reg-copy">
 <p class="reg-title">WhatsApp ou notification sur le téléphone</p>
-<p class="reg-text">Pour prévenir Mehdi automatiquement sur WhatsApp, il faut l’API WhatsApp Business, payante. Plus tard, si vous le souhaitez. <span class="later">Plus tard</span></p>
+<div class="reg-body">
+<p class="reg-text">Pour prévenir Mehdi automatiquement sur WhatsApp, il faut l’API WhatsApp Business, payante. Plus tard, si vous le souhaitez.</p>
+<p class="later">Plus tard</p>
+</div>
 </div>
 <button type="button" class="reg-switch" role="switch" aria-pressed="false" disabled aria-disabled="true" aria-label="WhatsApp, plus tard"><span></span></button>
 </div>
 </section>
-<section class="block reg-card">
+<section class="block reg-card reg-access">
 <p class="kicker">Accès</p>
 <p class="reg-title">Connexion avec le compte Google</p>
 <p class="reg-text">Seuls Mehdi et Jedy peuvent ouvrir cette page, avec leur compte Google. Pas de mot de passe supplémentaire. Le Google Sheet reste le carnet (réservations, demandes), pas l’écran de travail du jour.</p>

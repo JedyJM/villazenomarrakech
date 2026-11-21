@@ -23,19 +23,38 @@
   }
   function fitEmail(input) {
     if (!input) return;
+    if (input.classList.contains("is-editing")) {
+      input.style.width = "100%";
+      return;
+    }
     var probe = fitEmail.probe;
     if (!probe) {
       probe = fitEmail.probe = document.createElement("span");
       probe.setAttribute("aria-hidden", "true");
-      probe.style.cssText = "position:absolute;left:-9999px;top:0;white-space:pre;font-weight:500;font-size:16px;font-family:Inter,system-ui,sans-serif;";
+      probe.style.cssText = "position:absolute;left:-9999px;top:0;white-space:pre;font-weight:500;font-size:12px;font-family:Inter,system-ui,sans-serif;";
       document.body.appendChild(probe);
     }
     probe.textContent = input.value || " ";
-    var copy = input.closest(".reg-copy");
-    var max = copy ? copy.clientWidth : 240;
-    var width = Math.ceil(probe.getBoundingClientRect().width) + 1;
+    var line = input.closest(".mail-line");
+    var max = line ? line.clientWidth - 18 : 240;
+    var width = Math.ceil(probe.getBoundingClientRect().width) + 2;
     if (max > 40) width = Math.min(width, max);
     input.style.width = width + "px";
+  }
+  function lineOf(input) {
+    return input.closest(".mail-line");
+  }
+  function beginEdit(input) {
+    input.classList.add("is-editing");
+    var line = lineOf(input);
+    if (line) line.classList.add("is-editing");
+    input.style.width = "100%";
+  }
+  function endEdit(input) {
+    input.classList.remove("is-editing");
+    var line = lineOf(input);
+    if (line) line.classList.remove("is-editing");
+    fitEmail(input);
   }
   function paint() {
     document.querySelectorAll("[data-key]").forEach(function (button) {
@@ -92,17 +111,30 @@
     });
     var email = root.querySelector("[data-email]");
     if (email) {
-      email.addEventListener("input", function () { fitEmail(email); });
-      email.addEventListener("change", function () {
+      var pen = root.querySelector(".mail-pen");
+      function commit() {
         var value = String(email.value || "").trim();
         if (!value || value.indexOf("@") < 1) {
           email.value = model.notif_email_to;
-          fitEmail(email);
           return;
         }
-        model.notif_email_to = value;
-        fitEmail(email);
-        save();
+        if (value !== model.notif_email_to) {
+          model.notif_email_to = value;
+          save();
+        }
+      }
+      email.addEventListener("pointerdown", function () { beginEdit(email); });
+      email.addEventListener("touchstart", function () { beginEdit(email); }, { passive: true });
+      email.addEventListener("focus", function () { beginEdit(email); });
+      email.addEventListener("input", function () { if (!email.classList.contains("is-editing")) fitEmail(email); });
+      email.addEventListener("blur", function () {
+        commit();
+        endEdit(email);
+      });
+      if (pen) pen.addEventListener("pointerdown", function (event) {
+        event.preventDefault();
+        beginEdit(email);
+        email.focus();
       });
       if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fitEmail(email); });
     }

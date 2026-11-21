@@ -128,7 +128,7 @@
     var open = openId === item.id;
     var price = item.price
       ? '<span class="req-price">' + esc(item.price) + (item.dh ? '<span class="req-dh"> · ' + esc(item.dh) + '</span>' : '') + '</span>'
-      : "<span></span>";
+      : '<span class="req-price">\u00A0</span>';
     var href = relanceHref(item);
     var relance = href
       ? '<a href="' + esc(href) + '" target="_blank" rel="noopener">Relancer</a>'

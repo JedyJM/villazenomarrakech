@@ -67,7 +67,7 @@
     if (item.total == null || item.total === "") return "";
     var unit = item.service === "restauration" ? "\u00A0€" : "\u00A0DH";
     var text = item.total + unit;
-    if (item.supplement_dh) text += " + " + item.supplement_dh + "\u00A0DH";
+    if (item.supplement_dh && item.service !== "restauration") text += " + " + item.supplement_dh + "\u00A0DH";
     return text;
   }
   function paint(items) {

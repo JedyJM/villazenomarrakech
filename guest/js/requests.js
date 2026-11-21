@@ -885,14 +885,14 @@
       return hour + "\u00A0h\u00A0" + parts[1];
     }
     function earlyRule() {
-      return prices.earlyBreakfast || { supplementDh: 100, before: "09:00" };
+      return prices.earlyBreakfast || { supplementEur: 10, before: "09:00" };
     }
-    function supplementDh() {
+    function supplementEuro() {
       if (mealKind() !== "breakfast") return 0;
       var time = form.querySelector("[name='time']").value;
       var rule = earlyRule();
       if (!time || time >= rule.before) return 0;
-      return Number(rule.supplementDh) || 0;
+      return Number(rule.supplementEur) || 0;
     }
     function fillTimes(kind) {
       var select = form.querySelector("[name='time']");
@@ -905,7 +905,7 @@
         var m = t % 60;
         var value = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
         var label = clockLabel(value);
-        if (kind === "breakfast" && value < rule.before) label += " · + " + rule.supplementDh + "\u00A0DH";
+        if (kind === "breakfast" && value < rule.before) label += " · + " + euro(Number(rule.supplementEur) || 0);
         html += "<option value=\"" + value + "\">" + label + "</option>";
       }
       select.innerHTML = html;
@@ -917,7 +917,7 @@
       var rule = earlyRule();
       if (kind === "breakfast") {
         el.classList.add("meal-hours-split");
-        el.innerHTML = "<span>Servi de 9\u00A0h à 12\u00A0h.</span><span>Avant " + clockLabel(rule.before) + ", un supplément de " + rule.supplementDh + "\u00A0DH vous sera demandé.</span>";
+        el.innerHTML = "<span>Servi de 9\u00A0h à 12\u00A0h.</span><span>Avant " + clockLabel(rule.before) + ", un supplément de " + euro(Number(rule.supplementEur) || 0) + " vous sera demandé.</span>";
         return;
       }
       el.classList.remove("meal-hours-split");
@@ -990,12 +990,11 @@
           total += item.sum;
         });
       }
-      var extra = supplementDh();
+      var extra = supplementEuro();
+      if (extra) total += extra;
       var verb = { breakfast: "petit-déjeuner", lunch: "déjeuner", dinner: "dîner" };
       var send = form.querySelector("[data-send-label]");
-      if (send) {
-        send.textContent = "Réserver mon " + verb[kind] + " · " + euro(total) + (extra ? " + " + extra + "\u00A0DH" : "");
-      }
+      if (send) send.textContent = "Réserver mon " + verb[kind] + " · " + euro(total);
       return { people: people, total: total, supplement: extra };
     }
     function tomorrowISO() {
@@ -1104,8 +1103,8 @@
         rows.push([item.label, item.count + " · " + euro(item.sum)]);
       });
       if (kind === "breakfast") rows.push(["Personnes", String(quote.people)]);
-      if (quote.supplement) rows.push(["Supplément", "Petit-déjeuner avant " + clockLabel(earlyRule().before) + " : " + quote.supplement + "\u00A0DH"]);
-      rows.push(["Total", personWord(quote.people) + " · " + euro(quote.total) + (quote.supplement ? " + " + quote.supplement + "\u00A0DH" : "")]);
+      if (quote.supplement) rows.push(["Supplément", "Petit-déjeuner avant " + clockLabel(earlyRule().before) + " : " + euro(quote.supplement)]);
+      rows.push(["Total", personWord(quote.people) + " · " + euro(quote.total)]);
       if (allergies) rows.push(["Allergies ou demandes", allergies]);
       var lines = [
         "Bonjour,",
@@ -1122,8 +1121,8 @@
         lines.push(item.label + " : " + item.count + " · " + euro(item.sum));
       });
       if (kind === "breakfast") lines.push("Personnes : " + quote.people);
-      if (quote.supplement) lines.push("Supplément petit-déjeuner avant " + clockLabel(earlyRule().before) + " : " + quote.supplement + "\u00A0DH");
-      lines.push("Total : " + personWord(quote.people) + " · " + euro(quote.total) + (quote.supplement ? " + " + quote.supplement + "\u00A0DH" : ""));
+      if (quote.supplement) lines.push("Supplément petit-déjeuner avant " + clockLabel(earlyRule().before) + " : " + euro(quote.supplement));
+      lines.push("Total : " + personWord(quote.people) + " · " + euro(quote.total));
       if (allergies) lines.push("Allergies ou demandes : " + allergies);
       lines.push("", "Merci d’avance.");
       fields.message = lines.join("\n");

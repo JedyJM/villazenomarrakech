@@ -12,14 +12,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/admin.css">
 </head>
-<body data-page="soon" data-tab="stats">
+<body class="page-stats" data-page="stats" data-tab="stats">
 <header class="site-header">
-<div class="wrap header-inner"><a class="logo" href="sejours.html">Villa Zen’O<small>Administration</small></a></div>
+<div class="wrap header-inner"><a class="logo" href="aujourdhui.html">Villa Zen’O<small>Administration</small></a></div>
 </header>
-<main class="page wrap">
-<h1>Stats</h1>
-<p class="soon">Cette section arrive à l’étape suivante.</p>
-</main>
+<main class="page wrap" data-stats></main>
+<button type="button" class="statut-back" data-sheet-back hidden></button>
+<section class="statut-sheet" data-sheet hidden aria-label="Choisir une période"></section>
+<div class="photo-view" data-photo hidden><button type="button" data-photo-close>Fermer</button><img alt="Facture" data-photo-img></div>
+<script src="js/calc.js"></script>
 <script src="js/shell.js"></script>
+<script src="js/stats.js"></script>
 </body>
 </html>

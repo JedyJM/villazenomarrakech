@@ -41,3 +41,9 @@ Les colonnes déjà prévues restent utilisées : `booking_id`, `date_arrivee`, 
 ## Admin, onglet Demandes
 
 Même republication (Nouvelle version). Actions protégées par la liste Google : `demandes` en lecture, `set-demande` pour écrire `statut` ou `offert`. Aucune colonne nouvelle : le nom du prestataire est déjà `destinataire`, le prix `total_dh`, le détail (date, heure, personnes, jeton) reste dans `details_json`.
+
+## Admin, onglet Stats et dépenses
+
+Même republication. Le script crée l’onglet `Dépenses` s’il manque, avec les colonnes `id`, `date`, `categorie`, `detail`, `fournisseur`, `montant_dh`, `montant_eur`, `devise_saisie`, `facture_url`, `cree_le`.
+
+Actions : `depenses` (liste d’une année), `save-depense` et `delete-depense`. La photo de facture est enregistrée dans le dossier Drive `Villa Zen’O – Factures` du compte de la villa. Le taux est 1 € = 10 DH. Rien n’est envoyé à l’invité.

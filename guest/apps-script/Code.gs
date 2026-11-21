@@ -68,7 +68,7 @@ function doPost(e) {
 function doGet(e) {
   var params = (e && e.parameter) || {};
   if (params.action === "list") return listDemandes_(params.stay || "");
-  if (params.action === "stays" || params.action === "stay" || params.action === "demandes") return adminGet_(params);
+  if (params.action === "stays" || params.action === "stay" || params.action === "demandes" || params.action === "depenses") return adminGet_(params);
   if (params.action !== "confirm" || !params.id || !params.t) {
     return htmlPage_("Ce lien n\u2019est pas valable.");
   }
@@ -419,6 +419,7 @@ function adminGet_(params) {
   if (!adminAllowed_(params)) return jsonOut({ ok: false, error: "forbidden" });
   if (params.action === "stay") return jsonOut({ ok: true, stay: adminStay_(params.id || "") });
   if (params.action === "demandes") return adminDemandes_(params);
+  if (params.action === "depenses") return jsonOut({ ok: true, depenses: adminDepenses_(params.year || "") });
   return jsonOut({ ok: true, stays: adminStays_(params.year || "") });
 }
 
@@ -431,6 +432,8 @@ function adminPost_(data) {
   if (data.action === "save-stay") return saveStay_(data.stay || data);
   if (data.action === "stay-link") return stayLink_(data);
   if (data.action === "set-demande") return setDemande_(data);
+  if (data.action === "save-depense") return saveDepense_(data);
+  if (data.action === "delete-depense") return deleteDepense_(data);
   return jsonOut({ ok: false });
 }
 
@@ -699,6 +702,114 @@ function findRowInColumn_(sheet, col, id) {
   var values = sheet.getRange(2, col, last - 1, 1).getValues();
   for (var i = 0; i < values.length; i++) if (String(values[i][0]) === id) return i + 2;
   return 0;
+}
+
+var DEPENSE_HEADERS = ["id", "date", "categorie", "detail", "fournisseur", "montant_dh", "montant_eur", "devise_saisie", "facture_url", "cree_le"];
+var EURO_DH = 10;
+
+function depensesSheet_() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName("D\u00e9penses");
+  if (!sheet) {
+    sheet = ss.insertSheet("D\u00e9penses");
+    sheet.getRange(1, 1, 1, DEPENSE_HEADERS.length).setValues([DEPENSE_HEADERS]).setFontWeight("bold");
+    return sheet;
+  }
+  var headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  var have = {};
+  var col = 0;
+  var i;
+  for (i = 0; i < headers.length; i++) if (headers[i]) { have[String(headers[i])] = true; col = i + 1; }
+  for (i = 0; i < DEPENSE_HEADERS.length; i++) {
+    if (have[DEPENSE_HEADERS[i]]) continue;
+    col += 1;
+    sheet.getRange(1, col).setValue(DEPENSE_HEADERS[i]).setFontWeight("bold");
+  }
+  return sheet;
+}
+
+function adminDepenses_(year) {
+  var sheet = depensesSheet_();
+  if (sheet.getLastRow() < 2) return [];
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  var items = [];
+  for (var i = 0; i < values.length; i++) {
+    var date = cellDate_(values[i], { date: 1 }, ["date"]);
+    if (!values[i][0]) continue;
+    if (year && String(date).slice(0, 4) !== String(year)) continue;
+    items.push({
+      id: String(values[i][0] || ""),
+      date: date,
+      categorie: String(values[i][2] || ""),
+      detail: String(values[i][3] || ""),
+      fournisseur: String(values[i][4] || ""),
+      montant_dh: Number(values[i][5]) || 0,
+      montant_eur: Number(values[i][6]) || 0,
+      devise_saisie: String(values[i][7] || ""),
+      facture_url: String(values[i][8] || ""),
+      cree_le: String(values[i][9] || "")
+    });
+  }
+  return items;
+}
+
+function facturesFolder_() {
+  var name = "Villa Zen\u2019O \u2013 Factures";
+  var found = DriveApp.getFoldersByName(name);
+  if (found.hasNext()) return found.next();
+  return DriveApp.createFolder(name);
+}
+
+function saveFacture_(data) {
+  var raw = String(data.facture_base64 || "");
+  if (!raw) return data.depense && data.depense.facture_url ? String(data.depense.facture_url) : "";
+  var parts = raw.split(",");
+  var bytes = Utilities.base64Decode(parts.length > 1 ? parts[1] : parts[0]);
+  var name = String(data.facture_nom || "facture.jpg");
+  var file = facturesFolder_().createFile(Utilities.newBlob(bytes, "image/jpeg", name));
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return file.getUrl();
+}
+
+function saveDepense_(data) {
+  var sheet = depensesSheet_();
+  var item = data.depense || data;
+  var id = String(item.id || "");
+  if (!id) id = "d" + String(new Date().getTime());
+  var row = findRowInColumn_(sheet, 1, id);
+  if (!row) {
+    sheet.appendRow([""]);
+    row = sheet.getLastRow();
+  }
+  var eur = Number(item.montant_eur) || 0;
+  var dh = Number(item.montant_dh) || Math.round(eur * EURO_DH * 100) / 100;
+  var url = saveFacture_(data) || String(item.facture_url || "");
+  sheet.getRange(row, 1, 1, DEPENSE_HEADERS.length).setValues([[
+    id,
+    item.date || "",
+    item.categorie || "",
+    item.detail || "",
+    item.fournisseur || "",
+    dh,
+    eur,
+    item.devise_saisie || "",
+    url,
+    item.cree_le || Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd")
+  ]]);
+  return jsonOut({ ok: true, id: id, facture_url: url });
+}
+
+function deleteDepense_(data) {
+  var sheet = depensesSheet_();
+  var row = findRowInColumn_(sheet, 1, String(data.id || ""));
+  if (!row) return jsonOut({ ok: false });
+  var url = String(sheet.getRange(row, 9).getValue() || "");
+  var match = url.match(/\/d\/([^/]+)/);
+  if (match) {
+    try { DriveApp.getFileById(match[1]).setTrashed(true); } catch (err) {}
+  }
+  sheet.deleteRow(row);
+  return jsonOut({ ok: true });
 }
 
 function newStayId_(sheet, col) {

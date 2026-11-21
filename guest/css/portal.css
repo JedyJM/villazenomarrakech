@@ -850,14 +850,17 @@ body.is-typing .meal-dock { display: none; }
 }
 .meal-breakfast, .meal-menu { display: grid; gap: 8px; }
 .meal-includes {
-  padding: 10px 2px 8px;
+  width: calc(100% + 1.5rem);
+  margin-inline: -0.75rem;
+  padding: 12px 1px 10px;
   background: #efe6d8;
-  border-radius: 14px;
+  border-radius: 0;
+  box-sizing: border-box;
 }
 .meal-includes p {
-  margin: 0 2px 8px;
+  margin: 0 11px 8px;
   font-family: var(--serif);
-  font-size: 1.02rem;
+  font-size: 1.05rem;
   font-weight: 500;
   letter-spacing: -0.02em;
   text-align: left;
@@ -865,7 +868,7 @@ body.is-typing .meal-dock { display: none; }
 .meal-includes ul {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 1px;
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -874,7 +877,7 @@ body.is-typing .meal-dock { display: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
 }
 .meal-includes svg {
@@ -890,19 +893,22 @@ body.is-typing .meal-dock { display: none; }
 .meal-includes li span {
   display: flex;
   flex-direction: column;
+  align-items: center;
   width: 100%;
-  height: 2.3em;
+  height: 2.35em;
   color: var(--ink);
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1.15;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.11em;
   text-align: center;
 }
 .meal-includes li b {
   display: block;
+  max-width: 100%;
   font-weight: 400;
   white-space: nowrap;
 }
+.meal-includes li b:only-child { margin-top: 0.58em; }
 .meal-breakfast .people-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;

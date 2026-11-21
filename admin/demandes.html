@@ -12,14 +12,27 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/admin.css">
 </head>
-<body data-page="soon" data-tab="demandes">
+<body data-page="demandes" data-tab="demandes">
 <header class="site-header">
 <div class="wrap header-inner"><a class="logo" href="sejours.html">Villa Zen’O<small>Administration</small></a></div>
 </header>
-<main class="page wrap">
+<main class="page wrap" data-demandes>
 <h1>Demandes</h1>
-<p class="soon">Cette section arrive à l’étape suivante.</p>
+<div class="filters" role="group" aria-label="Filtrer les demandes">
+<button type="button" data-filter="confirmer" aria-pressed="true">À confirmer <span class="count" data-count>0</span></button>
+<button type="button" data-filter="aujourd" aria-pressed="false">Aujourd’hui</button>
+<button type="button" data-filter="toutes" aria-pressed="false">Toutes</button>
+</div>
+<div data-list></div>
+<p class="foot-note">Relancer ouvre votre WhatsApp. Rien n’est envoyé tout seul.</p>
+<button type="button" class="statut-back" data-sheet-back hidden></button>
+<section class="statut-sheet" data-sheet hidden aria-label="Changer le statut">
+<p class="kicker">Changer le statut</p>
+<div data-statut-list></div>
+<button type="button" class="ghost" data-sheet-close>Fermer</button>
+</section>
 </main>
 <script src="js/shell.js"></script>
+<script src="js/demandes.js"></script>
 </body>
 </html>

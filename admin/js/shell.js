@@ -60,11 +60,20 @@
     });
   }
 
+  function confirmerCount() {
+    try {
+      var stored = sessionStorage.getItem("vz.admin.confirmer");
+      if (stored != null && stored !== "") return Number(stored) || 0;
+    } catch (e) {}
+    return TEST_MODE ? 3 : 0;
+  }
+
   function paintNav() {
     var tab = document.body.getAttribute("data-tab") || "";
     var html = '<nav class="bottom-nav" aria-label="Administration">' + TABS.map(function (item) {
       var current = item[0] === tab ? ' aria-current="location"' : "";
-      return '<a href="' + item[1] + '"' + current + ' data-nav="' + item[0] + '">'
+      var dot = item[0] === "demandes" && confirmerCount() > 0 ? " has-dot" : "";
+      return '<a href="' + item[1] + '"' + current + ' class="' + dot + '" data-nav="' + item[0] + '">'
         + '<svg viewBox="0 0 24 24" aria-hidden="true"><g class="stroke">' + ICONS[item[0]] + '</g></svg>'
         + item[2] + '</a>';
     }).join("") + "</nav>";

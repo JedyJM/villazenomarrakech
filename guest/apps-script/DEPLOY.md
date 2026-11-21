@@ -37,3 +37,7 @@ Nouvelles colonnes de l’onglet Réservations, ajoutées toutes seules au premi
 `nom`, `telephone`, `source`, `adultes`, `enfants`, `ages_enfants`, `notes`, `airbnb_frais_chambre`, `airbnb_reduction`, `airbnb_frais_service`, `airbnb_gain`, `booking_montant`, `booking_commission`, `booking_frais_bancaires`, `booking_net`, `direct_tarif`, `acompte_montant`, `acompte_date`, `acompte_mode`, `reste_a_payer`, `offert_petit_dejeuner`.
 
 Les colonnes déjà prévues restent utilisées : `booking_id`, `date_arrivee`, `date_depart`, `lien_actif`, `lien_expire_le`, `chauffage_piscine_jours`, `chauffage_piscine_tarif_eur`, `chauffage_piscine_offert`, `chauffage_jacuzzi_jours`, `chauffage_jacuzzi_tarif_eur`, `chauffage_jacuzzi_offert`. Pour un séjour Booking, le portail invité ajoute la taxe de séjour (2,50 € × personnes × nuits) au récapitulatif, sans la retrancher du net.
+
+## Admin, onglet Demandes
+
+Même republication (Nouvelle version). Actions protégées par la liste Google : `demandes` en lecture, `set-demande` pour écrire `statut` ou `offert`. Aucune colonne nouvelle : le nom du prestataire est déjà `destinataire`, le prix `total_dh`, le détail (date, heure, personnes, jeton) reste dans `details_json`.

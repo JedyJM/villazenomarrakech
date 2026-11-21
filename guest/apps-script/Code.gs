@@ -67,7 +67,7 @@ function doPost(e) {
 function doGet(e) {
   var params = (e && e.parameter) || {};
   if (params.action === "list") return listDemandes_(params.stay || "");
-  if (params.action === "stays" || params.action === "stay") return adminGet_(params);
+  if (params.action === "stays" || params.action === "stay" || params.action === "demandes") return adminGet_(params);
   if (params.action !== "confirm" || !params.id || !params.t) {
     return htmlPage_("Ce lien n\u2019est pas valable.");
   }
@@ -417,6 +417,7 @@ function adminEmail_(token) {
 function adminGet_(params) {
   if (!adminAllowed_(params)) return jsonOut({ ok: false, error: "forbidden" });
   if (params.action === "stay") return jsonOut({ ok: true, stay: adminStay_(params.id || "") });
+  if (params.action === "demandes") return adminDemandes_(params);
   return jsonOut({ ok: true, stays: adminStays_(params.year || "") });
 }
 
@@ -428,7 +429,68 @@ function adminPost_(data) {
   if (!adminAllowed_(data)) return jsonOut({ ok: false, error: "forbidden" });
   if (data.action === "save-stay") return saveStay_(data.stay || data);
   if (data.action === "stay-link") return stayLink_(data);
+  if (data.action === "set-demande") return setDemande_(data);
   return jsonOut({ ok: false });
+}
+
+function adminDemandes_(params) {
+  var sheet = getDemandesSheet_();
+  var map = ensureDemandes_(sheet);
+  var last = sheet.getLastRow();
+  var items = [];
+  var confirmer = 0;
+  if (last >= 2) {
+    var values = sheet.getRange(2, 1, last - 1, sheet.getLastColumn()).getValues();
+    var today = Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd");
+    for (var i = 0; i < values.length; i++) {
+      var details = {};
+      try { details = JSON.parse(String(values[i][5] || "{}")); } catch (err) { details = {}; }
+      var when = String(details.date || "").slice(0, 10);
+      var status = canonStatus_(map.statut ? values[i][map.statut - 1] : values[i][8]);
+      var offert = map.offert ? offertValue_(values[i][map.offert - 1]) : false;
+      var item = {
+        id: String(values[i][0] || ""),
+        created: String(values[i][1] || ""),
+        service: String(values[i][2] || ""),
+        sous_type: String(values[i][3] || ""),
+        guest: String(values[i][4] || ""),
+        staff: String(values[i][7] || ""),
+        total: values[i][6] === "" ? null : values[i][6],
+        status: status,
+        offert: offert,
+        date: when,
+        time: String(details.time_label || details.time || ""),
+        adults: Number(details.adults || details.people || 0) || 0,
+        children: Number(details.children || 0) || 0,
+        meal: String(details.meal || ""),
+        trip: String(details.trip_type || ""),
+        token: String(details.token || ""),
+        stay: String(details.booking_id || "")
+      };
+      if (status === "Envoy\u00e9e" && when && when >= today) confirmer += 1;
+      var filter = String(params.filter || "toutes");
+      if (filter === "confirmer" && !(status === "Envoy\u00e9e" && when && when >= today)) continue;
+      if (filter === "aujourd" && when !== today) continue;
+      items.push(item);
+    }
+  }
+  return jsonOut({ ok: true, items: items, confirmer: confirmer });
+}
+
+function setDemande_(data) {
+  var sheet = getDemandesSheet_();
+  var map = ensureDemandes_(sheet);
+  var row = findRow_(sheet, String(data.id || ""));
+  if (!row) return jsonOut({ ok: false });
+  if (data.statut && map.statut) {
+    var status = canonStatus_(data.statut);
+    sheet.getRange(row, map.statut).setValue(status);
+    if (status === "Confirm\u00e9e" && map.date_confirmation) {
+      sheet.getRange(row, map.date_confirmation).setValue(Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd HH:mm"));
+    }
+  }
+  if (data.offert != null && map.offert) sheet.getRange(row, map.offert).setValue(data.offert === true || String(data.offert) === "true");
+  return jsonOut({ ok: true });
 }
 
 function reservationsSheet_() {

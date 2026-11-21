@@ -911,11 +911,17 @@
       select.innerHTML = html;
       if (select.querySelector("option[value='" + previous + "']")) select.value = previous;
     }
-    function paintHours() {
+    function paintHours(kind) {
       var el = form.querySelector("[data-meal-hours]");
       if (!el) return;
       var rule = earlyRule();
-      el.textContent = "Petit-déjeuner servi de 9\u00A0h à 12\u00A0h, déjeuner de 12\u00A0h à 16\u00A0h, dîner de 19\u00A0h à 21\u00A0h. Pour un petit-déjeuner avant " + clockLabel(rule.before) + ", un supplément de " + rule.supplementDh + "\u00A0DH vous sera demandé.";
+      var text = "Servi de 19\u00A0h à 21\u00A0h.";
+      if (kind === "breakfast") {
+        text = "Servi de 9\u00A0h à 12\u00A0h. Avant " + clockLabel(rule.before) + ", un supplément de " + rule.supplementDh + "\u00A0DH vous sera demandé.";
+      } else if (kind === "lunch") {
+        text = "Servi de 12\u00A0h à 16\u00A0h.";
+      }
+      el.textContent = text;
     }
     function readDish(dish) {
       var input = dish.querySelector("input[type='hidden']");
@@ -955,6 +961,7 @@
       var fouzia = form.querySelector("[data-meal-fouzia]");
       if (fouzia) fouzia.hidden = kind !== "breakfast";
       fillTimes(kind);
+      paintHours(kind);
       paintPrices();
       paintMeal();
     }
@@ -1122,7 +1129,6 @@
       fields.message = lines.join("\n");
       dispatchService(root, baseRecord("restauration", guest, fields, { price_base: quote.total, supplements: [], total: quote.total, blocked: false }), rows, kind, "Cuisine", RECIPIENTS.cuisine);
     });
-    paintHours();
     showMeal("lunch");
   }
 

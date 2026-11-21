@@ -340,10 +340,11 @@ body.is-locked .bottom-nav { display: none; }
   font-size: 13px; font-weight: 600; line-height: 1.2; text-align: right; white-space: nowrap;
 }
 .req-chip {
-  grid-column: 3; grid-row: 1; justify-self: end; align-self: baseline;
   padding: 1px 7px 2px; border-radius: 999px; font-size: 10px; font-weight: 600;
   letter-spacing: 0.04em; line-height: 1.35; text-transform: uppercase; white-space: nowrap;
 }
+.req-row .req-chip { grid-column: 3; grid-row: 1; justify-self: end; align-self: baseline; }
+.svc-row .req-chip { justify-self: end; }
 .status-envoyee { background: #f6e4dc; color: #8c3f2a; }
 .status-confirmee { background: #e3f2e6; color: #1d6b3a; }
 .status-terminee { background: #ece7e1; color: #6d655c; }
@@ -370,3 +371,41 @@ body.is-locked .bottom-nav { display: none; }
 }
 .statut-choice.is-current { background: var(--terracotta); border-color: var(--terracotta); color: #fffaf3; }
 .foot-note { color: var(--muted); font-size: 12px; line-height: 1.35; text-align: center; }
+
+body.page-today { padding-bottom: var(--nav); }
+body.page-today .page { gap: 6px; padding: 4px 0 8px; }
+body.page-today h1 { font-size: 1.35rem; }
+.today-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.today-head p { margin: 0; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.stay-card { display: grid; gap: 2px; padding: 8px 12px 8px; text-decoration: none; color: inherit; }
+.stay-who { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0; }
+.stay-who span:first-child { font-family: var(--serif); font-size: 1.15rem; line-height: 1.1; white-space: nowrap; }
+.stay-dates, .stay-next { margin: 0; font-size: 13px; white-space: nowrap; }
+.stay-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0; font-size: 12px; white-space: nowrap; }
+.stay-meta span:last-child { color: var(--muted); }
+.stay-bar { display: block; height: 4px; margin-top: 4px; border-radius: 99px; background: #efe6d8; overflow: hidden; }
+.stay-bar span { display: block; height: 100%; background: var(--gold); }
+.stay-empty { margin: 2px 0 0; font-family: var(--serif); font-size: 1.05rem; }
+.stay-card.is-empty { cursor: default; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; min-width: 0; }
+.mini { display: grid; align-content: start; gap: 1px; min-height: 62px; padding: 8px 10px; text-decoration: none; color: inherit; min-width: 0; }
+.mini strong, .mini span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini strong { font-size: 14px; }
+.mini span { font-size: 12px; color: var(--muted); }
+.alert-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; align-items: center; min-height: 32px; text-decoration: none; color: inherit; }
+.alert-row strong, .alert-row em { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alert-row strong { font-size: 13px; font-weight: 600; line-height: 1.2; }
+.alert-row em { font-style: normal; font-size: 11px; color: var(--muted); line-height: 1.2; }
+.alert-row em b { font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #8c3f2a; }
+.alert-ico { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: #f6e4dc; color: var(--terracotta); }
+.alert-ico svg { width: 13px; height: 13px; }
+.svc-row { display: grid; grid-template-columns: 2.4rem 8px minmax(0, 1fr) auto; gap: 6px; align-items: center; min-height: 26px; }
+.svc-time { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.svc-dot { width: 8px; height: 8px; border-radius: 50%; }
+.svc-dot.is-grey { background: #b7b0a8; }
+.svc-dot.is-gold { background: var(--gold); }
+.svc-dot.is-terra { background: var(--terracotta); }
+.svc-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.today-empty { margin: 0; color: var(--muted); font-size: 13px; }
+body.page-today .block { padding: 8px 12px; gap: 4px; }
+body.page-today .kicker { font-size: 0.58rem; }

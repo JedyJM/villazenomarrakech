@@ -56,7 +56,7 @@
     });
     if (test) test.addEventListener("click", function () {
       setSession("test");
-      window.location.href = "sejours.html";
+      window.location.href = "aujourdhui.html";
     });
   }
 
@@ -110,7 +110,7 @@
 
   var page = document.body.getAttribute("data-page") || "";
   if (page === "gate") {
-    if (session()) window.location.replace("sejours.html");
+    if (session()) window.location.replace("aujourdhui.html");
     else bindGate(document);
   } else if (!session()) {
     document.body.classList.add("is-locked");

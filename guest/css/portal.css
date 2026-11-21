@@ -2366,3 +2366,185 @@ body.is-stay-closed [data-request-page] [data-panel] { display: none !important;
   .page-access .access-warning { padding: 18px 20px; }
   .page-access .route-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+
+/* Zero-scroll compact layout for the Villa Zen’O access page */
+.page-access {
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+.page-access .site-header { height: var(--header); }
+.page-access .access-main {
+  height: calc(100svh - var(--header) - var(--nav-space));
+  min-height: 0;
+  overflow: hidden;
+  padding: 5px 0 6px;
+}
+.page-access .access-stack {
+  height: 100%;
+  min-height: 0;
+  width: min(900px, calc(100% - 1.25rem));
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+  overflow: hidden;
+}
+.page-access .request-back {
+  flex: none;
+  font-size: 0.68rem;
+  line-height: 1.1;
+}
+.page-access .access-intro {
+  flex: none;
+  gap: 3px;
+  margin: 0;
+}
+.page-access .request h1 {
+  font-size: clamp(1.55rem, 5.2vw, 2.35rem);
+  line-height: 1.05;
+}
+.page-access .route-copy { display: none; }
+.page-access .access-routes {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 7px;
+  min-width: 0;
+}
+.page-access .access-section-head {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.page-access .access-section-head h2 { font-size: 0.94rem; }
+.page-access .access-time-total {
+  padding: 4px 8px;
+  font-size: 0.65rem;
+}
+.page-access .access-route-card {
+  min-width: 0;
+  gap: 5px;
+  padding: 9px 9px 8px;
+  border-radius: 13px;
+}
+.page-access .access-route-top {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.page-access .access-route-top h3 { font-size: 0.82rem; line-height: 1.2; }
+.page-access .access-recommended {
+  padding: 3px 6px;
+  font-size: 0.57rem;
+}
+.page-access .access-route-meta {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 2px;
+}
+.page-access .access-route-name {
+  gap: 5px;
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+.page-access .access-route-name svg { width: 16px; height: 16px; }
+.page-access .access-route-duration {
+  font-size: 0.72rem;
+  line-height: 1.1;
+}
+.page-access .access-route-card p {
+  font-size: 0.67rem;
+  line-height: 1.28;
+}
+.page-access .access-warning {
+  flex: none;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 0.69rem;
+  line-height: 1.25;
+}
+.page-access .access-warning-title {
+  gap: 5px;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+.page-access .access-warning-title svg { width: 17px; height: 17px; }
+.page-access .access-warning p { font-size: inherit; }
+.page-access .access-map-section {
+  flex: 1 1 auto;
+  min-height: 72px;
+  max-height: 21svh;
+  margin: 0;
+  display: flex;
+  align-items: center;
+}
+.page-access .route-map-btn {
+  width: 100%;
+  height: 100%;
+  max-height: 21svh;
+  border-radius: 12px;
+}
+.page-access .route-map {
+  width: 100%;
+  height: 100%;
+  max-height: 21svh;
+  aspect-ratio: auto;
+  object-fit: fill;
+  border-radius: 12px;
+}
+.page-access .route-actions {
+  flex: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.page-access .route-actions a {
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 5px;
+  gap: 5px;
+  border-radius: 11px;
+  font-size: 0.68rem;
+  line-height: 1.15;
+  white-space: normal;
+  text-align: center;
+}
+.page-access .route-actions svg { width: 16px; height: 16px; }
+
+/* Shorter browser viewports: reclaim space without hiding the map or actions. */
+@media (max-height: 740px) {
+  .page-access .access-stack { gap: 4px; }
+  .page-access .access-route-card { padding: 7px; gap: 4px; }
+  .page-access .access-route-card p { font-size: 0.62rem; line-height: 1.22; }
+  .page-access .access-map-section,
+  .page-access .route-map-btn,
+  .page-access .route-map { max-height: 17svh; }
+  .page-access .access-warning { padding: 6px 8px; }
+  .page-access .route-actions a { min-height: 36px; }
+}
+@media (max-width: 359px) {
+  .page-access .access-route-card p { font-size: 0.59rem; }
+  .page-access .access-route-top h3 { font-size: 0.75rem; }
+  .page-access .access-route-name { font-size: 0.66rem; }
+  .page-access .access-warning { font-size: 0.62rem; }
+  .page-access .route-actions a { font-size: 0.61rem; }
+}
+@media (min-width: 760px) {
+  .page-access { height: 100svh; }
+  .page-access .access-main {
+    height: calc(100svh - var(--header));
+    padding: 12px 0;
+  }
+  .page-access .access-stack { width: min(900px, calc(100% - 2rem)); }
+  .page-access .route-copy { display: block; font-size: 0.95rem; }
+  .page-access .access-route-meta { flex-direction: row; align-items: center; }
+  .page-access .access-route-card p { font-size: 0.9rem; }
+  .page-access .access-map-section,
+  .page-access .route-map-btn,
+  .page-access .route-map { max-height: 25svh; }
+  .page-access .route-actions a { min-height: 48px; font-size: 0.86rem; }
+}

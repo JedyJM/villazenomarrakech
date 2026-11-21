@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Accès à la villa | Villa Zen’O</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f6f1ea">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/portal.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+</head>
+<body class="page-request">
+<a class="skip-link" href="#contenu">Aller au contenu</a>
+<header class="site-header">
+<div class="wrap header-inner">
+<a class="logo" href="./">Villa Zen’O<small>Marrakech Palmeraie</small></a>
+<div class="lang-switch" aria-label="Langue"><a href="acces.html" hreflang="fr" lang="fr" aria-current="page">FR</a><a href="en/" hreflang="en" lang="en">EN</a></div>
+</div>
+</header>
+<main id="contenu" class="request">
+<div class="wrap route-stack">
+<a class="request-back" href="./">Accueil</a>
+<h1>Accès à la villa</h1>
+<p class="route-copy">Depuis Marrakech, suivez la route N8 en direction de Fès. Deux itinéraires sont possibles, environ 20&nbsp;minutes&nbsp;:</p>
+<p class="route-step"><strong>Itinéraire 1&nbsp;:</strong> au feu rouge où se trouve une pharmacie sur votre gauche, tournez à gauche, puis continuez tout droit jusqu’à la villa.</p>
+<p class="route-step"><strong>Itinéraire 2&nbsp;:</strong> continuez sur la N8 jusqu’au rond-point Bab Atlas, puis tournez à gauche et suivez la route jusqu’à la villa.</p>
+<p class="route-warn"><strong>Important&nbsp;:</strong> ne passez jamais par la piste qui longe le Palais Namaskar (croix rouge), même si votre GPS la propose.</p>
+<button type="button" class="route-map-btn" data-open-map aria-haspopup="dialog" aria-controls="route-lightbox">
+<img class="route-map" src="assets/acces-carte.webp" alt="Plan des deux itinéraires par la N8 jusqu’à la villa, et de la piste du Palais Namaskar marquée d’une croix rouge." width="1000" height="750">
+</button>
+<div class="route-actions">
+<a href="https://www.google.com/maps/dir/?api=1&amp;origin=31.6347,-8.0089&amp;destination=31.676719,-7.909583&amp;waypoints=31.650133,-7.929123&amp;travelmode=driving"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5 2.5 2.5 0 0 1 12 11.5z"/></svg>Ouvrir dans Google Maps</a>
+<a class="route-alt" href="https://www.waze.com/ul?ll=31.676719,-7.909583&amp;navigate=yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#33ccff" d="M12 3.2A8.2 8.2 0 0 0 4 12.6c0 2.4 1 3.8 2.2 4.6.4.3.6.6.6 1v.6c0 .5.4.9.9.9h2.1c.3 0 .6-.2.7-.5l.4-.9c.2-.4.6-.6 1.1-.6s.9.2 1.1.6l.4.9c.1.3.4.5.7.5h2.1c.5 0 .9-.4.9-.9v-.6c0-.4.2-.7.6-1 1.2-.8 2.2-2.2 2.2-4.6A8.2 8.2 0 0 0 12 3.2z"/><circle cx="9" cy="11" r="1.1" fill="#1c1916"/><circle cx="15" cy="11" r="1.1" fill="#1c1916"/></svg>Ouvrir dans Waze</a>
+</div>
+</div>
+</main>
+<dialog class="route-lightbox" id="route-lightbox" aria-label="Plan en grand">
+<button type="button" class="sheet-close" data-close-map>Fermer</button>
+<img src="assets/acces-carte-full.webp" alt="">
+</dialog>
+<script src="js/guest-shell.js" data-home="./"></script>
+<script src="../js/config.js"></script>
+<script src="js/portal.js"></script>
+<script src="js/requests.js"></script>
+<script>
+(function () {
+  var open = document.querySelector("[data-open-map]");
+  var box = document.getElementById("route-lightbox");
+  if (!open || !box) return;
+  open.addEventListener("click", function () { box.showModal(); });
+  box.addEventListener("click", function (event) {
+    if (event.target === box || event.target.closest("[data-close-map]")) box.close();
+  });
+})();
+</script>
+</body>
+</html>

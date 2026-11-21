@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content">
+<title>Aujourd’hui | Villa Zen’O</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f6f1ea">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="page-today" data-page="aujourdhui" data-tab="aujourdhui">
+<header class="site-header">
+<div class="wrap header-inner"><a class="logo" href="aujourdhui.html">Villa Zen’O<small>Administration</small></a></div>
+</header>
+<main class="page wrap" data-today>
+<div class="today-head"><h1>Aujourd’hui</h1><p data-date></p></div>
+<a class="block stay-card" data-stay href="sejour.html"></a>
+<div class="split">
+<a class="block mini" data-depart href="sejour.html"></a>
+<a class="block mini" data-arrive href="sejour.html"></a>
+</div>
+<section class="block">
+<p class="kicker">Alertes · <span data-alert-count>0</span> envoyées</p>
+<div data-alerts></div>
+</section>
+<section class="block">
+<p class="kicker">Services du jour</p>
+<div data-services></div>
+</section>
+</main>
+<script src="js/sample.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/aujourdhui.js"></script>
+</body>
+</html>

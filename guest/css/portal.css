@@ -2074,30 +2074,67 @@ a.guide-row .ext { margin-left: auto; width: 13px; height: 13px; color: var(--mu
   place-items: center;
   width: 52px;
   height: 52px;
-  margin: 1.1rem auto 0.8rem;
+  margin: 24px 0 0;
   border-radius: 50%;
   background: #e3f2e6;
   color: #1d6b3a;
 }
+.confirm-clock { background: #efe6d8; color: #6b3022; }
 .confirm-check svg { width: 28px; height: 28px; }
 .page-confirm h1 {
+  margin-top: 20px;
   font-family: var(--serif);
   font-size: 1.7rem;
   font-weight: 500;
   line-height: 1.25;
 }
-.confirm-line { margin-top: 0.55rem; color: var(--muted); font-size: 0.86rem; line-height: 1.35; }
-.confirm-thanks {
-  margin-top: 1.1rem;
+.page-confirm .confirm-line { margin-top: 8px; color: var(--muted); font-size: 0.86rem; line-height: 1.35; }
+.page-confirm .confirm-ask { margin-top: 16px; font-size: 0.86rem; line-height: 1.35; }
+.confirm-wa {
+  display: inline-grid;
+  place-items: center;
+  margin-top: 10px;
+  min-width: 8.5rem;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: #18853c;
+  color: #fffaf3;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+}
+.page-confirm .confirm-thanks {
+  margin-top: 16px;
   font-family: var(--serif);
   font-style: italic;
   font-size: 1.15rem;
   line-height: 1.3;
 }
-.stay-closed-note { display: none; margin: 0.4rem 0 0; color: var(--muted); font-size: 0.84rem; line-height: 1.4; text-align: center; }
+.stay-closed-card { display: none; }
 body.is-stay-closed .tiles,
-body.is-stay-closed .services > .visually-hidden { display: none; }
-body.is-stay-closed .stay-closed-note { display: block; }
+body.is-stay-closed .services > .visually-hidden,
+body.is-stay-closed .portal-footer { display: none; }
+body.is-stay-closed .stay-closed-card {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin: 4px 0 0;
+  padding: 18px 16px;
+  background: #fff;
+  border: 1px solid rgba(28, 25, 22, 0.1);
+  border-radius: 16px;
+  text-align: center;
+}
+.stay-closed-card p {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.08rem;
+  line-height: 1.35;
+}
+.stay-closed-card a { color: var(--terracotta); font-size: 0.86rem; line-height: 1.3; text-decoration: none; }
 body.is-stay-closed [data-request-page] form,
 body.is-stay-closed [data-request-page] .segment-notes,
 body.is-stay-closed [data-request-page] [data-panel] { display: none !important; }

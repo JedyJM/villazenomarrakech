@@ -1760,15 +1760,16 @@
       }
       if (state !== "closed") return;
       document.body.classList.add("is-stay-closed");
-      var note = document.createElement("p");
-      note.className = "stay-closed-note";
-      note.textContent = "Votre séjour se termine, merci pour votre visite";
+      var prefix = location.pathname.indexOf("/en/") >= 0 ? "../" : "";
+      var card = document.createElement("div");
+      card.className = "stay-closed-card";
+      card.innerHTML = "<p>Votre séjour se termine, merci pour votre visite</p><a href=\"" + prefix + "recap.html" + (location.search || "") + "\">Voir mon récapitulatif</a>";
       var services = document.querySelector(".services");
-      if (services && !services.querySelector(".stay-closed-note")) services.appendChild(note);
+      if (services && !services.querySelector(".stay-closed-card")) services.appendChild(card);
       var blocked = ["transfert", "restauration", "menage", "piscine", "activites", "massage", "transfer"];
       var main = document.querySelector("[data-request-page]");
-      if (main && blocked.some(function (name) { return file.indexOf(name) === 0; }) && !main.querySelector(".stay-closed-note")) {
-        main.insertBefore(note, main.firstChild);
+      if (main && blocked.some(function (name) { return file.indexOf(name) === 0; }) && !main.querySelector(".stay-closed-card")) {
+        main.insertBefore(card, main.firstChild);
       }
     }
     var demo = "";

@@ -329,7 +329,7 @@ function confirmLine_(details) {
 
 function htmlPage_(message, summary, branded) {
   var summaryHtml = summary
-    ? "<p style=\"margin:0.7rem 0 0;color:#5e554c;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:0.9rem;line-height:1.4;\">" + escapeHtml_(summary) + "</p>"
+    ? "<p style=\"margin:8px 0 0;color:#5e554c;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:0.9rem;line-height:1.4;\">" + escapeHtml_(summary) + "</p>"
     : "";
   var html;
   if (branded) {
@@ -339,10 +339,10 @@ function htmlPage_(message, summary, branded) {
       + "<body style=\"margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f6f1ea;color:#1c1916;font-family:Georgia,'Times New Roman',serif;\">"
       + "<main style=\"width:min(22rem,calc(100% - 2.5rem));text-align:center;\">"
       + "<p style=\"margin:0;font-size:1.35rem;\">Villa Zen\u2019O</p>"
-      + "<div style=\"width:52px;height:52px;margin:1.1rem auto 0.8rem;border-radius:50%;background:#e3f2e6;color:#1d6b3a;display:flex;align-items:center;justify-content:center;font-size:1.5rem;line-height:1;\">\u2713</div>"
-      + "<h1 style=\"margin:0;font-weight:500;font-size:1.7rem;line-height:1.25;\">" + escapeHtml_(message) + "</h1>"
+      + "<div style=\"width:52px;height:52px;margin:24px auto 0;border-radius:50%;background:#e3f2e6;color:#1d6b3a;display:flex;align-items:center;justify-content:center;font-size:1.5rem;line-height:1;\">\u2713</div>"
+      + "<h1 style=\"margin:20px 0 0;font-weight:500;font-size:1.7rem;line-height:1.25;\">" + escapeHtml_(message) + "</h1>"
       + summaryHtml
-      + "<p style=\"margin:1.1rem 0 0;font-style:italic;font-size:1.15rem;\">Merci</p>"
+      + "<p style=\"margin:16px 0 0;font-style:italic;font-size:1.15rem;\">Merci</p>"
       + "</main></body></html>";
   } else {
     html = "<!DOCTYPE html><html lang=\"fr\"><head><meta charset=\"utf-8\">"

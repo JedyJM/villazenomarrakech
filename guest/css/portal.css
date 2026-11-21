@@ -172,7 +172,9 @@ p { margin: 0; }
 .demand-empty-ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 .demand-empty p { margin: 0; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
 .route-stack { display: grid; gap: 8px; }
-.route-copy { margin: 0; font-size: 0.9rem; line-height: 1.55; }
+.route-copy { margin: 0; font-size: 0.88rem; line-height: 1.4; }
+.route-step { margin: 0; font-size: 0.84rem; line-height: 1.35; }
+.route-step strong { font-weight: 600; }
 .route-warn {
   margin: 0;
   padding: 8px 10px;
@@ -180,9 +182,38 @@ p { margin: 0; }
   border-radius: 12px;
   color: #6b3022;
   font-size: 0.78rem;
-  line-height: 1.4;
+  line-height: 1.35;
 }
-.route-map { width: 100%; height: auto; display: block; background: #f8f1e6; border: 1px solid rgba(28, 25, 22, 0.1); border-radius: 14px; }
+.route-map-btn {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 14px;
+  cursor: pointer;
+}
+.route-map { width: 100%; height: auto; display: block; background: #efe6d8; border: 1px solid rgba(28, 25, 22, 0.1); border-radius: 14px; }
+.route-lightbox {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #1c1916;
+}
+.route-lightbox::backdrop { background: #1c1916; }
+.route-lightbox img { width: 100%; height: 100%; object-fit: contain; background: #1c1916; }
+.route-lightbox .sheet-close {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: 12px;
+  z-index: 2;
+  color: #fffaf3;
+}
 .route-actions { display: grid; gap: 6px; }
 .route-actions a {
   display: flex;

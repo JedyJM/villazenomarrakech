@@ -57,7 +57,7 @@
 
   function withStaffConfirm(message, id, token) {
     if (!APPS_SCRIPT_URL || !token) return message;
-    return message + "\n\n✅ Merci de confirmer ici :\n" + confirmLink(id, token);
+    return message + "\n\nConfirmer :\n" + confirmLink(id, token);
   }
 
   function sheetPayload(record, token, sousType, destinataire, rows) {
@@ -1719,7 +1719,8 @@
     return window.fetch(url).then(function (response) {
       return response.json();
     }).then(function (data) {
-      return data && data.items ? data.items : [];
+      if (Array.isArray(data)) return { items: data, stay: null };
+      return { items: (data && data.items) || [], stay: (data && data.stay) || null };
     });
   }
 

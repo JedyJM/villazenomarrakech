@@ -12,3 +12,13 @@ Compte : villazeno.marrakech@gmail.com. Projet autonome sur script.google.com (i
 8. Cliquez sur Déployer. L’adresse /exec ne change pas. Elle est déjà dans guest/js/requests.js (APPS_SCRIPT_URL).
 
 La page Mes demandes lit `?action=list&stay=…`. Il faut republier le script pour que cette lecture fonctionne. Sans identifiant de séjour, la page reste vide.
+
+## Statuts et récapitulatif
+
+Après avoir collé le nouveau Code.gs :
+
+1. Enregistrez, puis Déployer → Gérer les déploiements → crayon Modifier → Version : Nouvelle version → Déployer. L’adresse /exec ne change pas.
+2. Dans l’éditeur, choisissez la fonction `installDemandesTrigger` dans la liste des fonctions, puis cliquez sur Exécuter. Autorisez le script si Google le demande. Cela crée un déclencheur horaire qui passe une demande Confirmée en Terminée deux heures après l’heure prévue. Vous ne le lancez qu’une fois.
+3. Ouvrez le classeur, onglet Demandes. La colonne `statut` propose Envoyée, Confirmée, Terminée, Annulée. La colonne `offert` est une case à cocher. Une nouvelle demande arrive en Envoyée. Vous pouvez changer le statut ou cocher Offert à la main : le portail suit la feuille.
+4. Onglet Réservations : ajoutez, si elles n’y sont pas, les colonnes `chauffage_piscine_jours`, `chauffage_piscine_tarif_eur`, `chauffage_piscine_offert`, `chauffage_jacuzzi_jours`, `chauffage_jacuzzi_tarif_eur`, `chauffage_jacuzzi_offert`. Les dates de séjour sont lues dans `date_arrivee` et `date_depart` (ou `check_in` / `check_out`). L’identifiant de séjour est `booking_id`.
+5. Le lien Confirmer dans le message WhatsApp ouvre la page « Merci, demande confirmée » et passe le statut à Confirmée.

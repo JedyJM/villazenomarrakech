@@ -3,6 +3,8 @@
    /js/config.js. The prefilled text is the guest message, not the booking message.
    VILLA_WHATSAPP is the only villa number. Change it here. */
 var VILLA_WHATSAPP = "212661147610";
+/* Placeholder PayPal.me name. Change it here. TEST_MODE does not send a real payment. */
+var PAYPAL_ME = "VillaZenO";
 (function () {
   "use strict";
 
@@ -180,7 +182,7 @@ var VILLA_WHATSAPP = "212661147610";
     var file = (location.pathname.split("/").pop() || "").toLowerCase();
     var key = "";
     if (!file || file === "index.html") key = "accueil";
-    else if (file.indexOf("demandes") === 0) key = "demandes";
+    else if (file.indexOf("demandes") === 0 || file.indexOf("recap") === 0) key = "demandes";
     else if (file.indexOf("acces") === 0) key = "acces";
     if (key) setCurrent(key);
   })();

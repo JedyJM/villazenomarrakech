@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Récapitulatif de séjour | Villa Zen’O</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f6f1ea">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/portal.css">
+</head>
+<body class="page-request page-recap">
+<a class="skip-link" href="#contenu">Aller au contenu</a>
+<header class="site-header">
+<div class="wrap header-inner">
+<a class="logo" href="./">Villa Zen’O<small>Marrakech Palmeraie</small></a>
+<div class="lang-switch" aria-label="Langue"><a href="recap.html" hreflang="fr" lang="fr" aria-current="page">FR</a><a href="en/" hreflang="en" lang="en">EN</a></div>
+</div>
+</header>
+<main id="contenu" class="request" data-recap-page>
+<div class="wrap recap-stack">
+<a class="request-back" href="demandes.html" data-back>Mes demandes</a>
+<h1>Récapitulatif de séjour</h1>
+<section class="recap-card">
+<p class="recap-kicker">À RÉGLER À LA VILLA</p>
+<ul class="recap-lines" data-bill></ul>
+</section>
+<p class="recap-total" data-total></p>
+<p class="recap-rate">Taux appliqué&nbsp;: 1&nbsp;€ = 10&nbsp;DH</p>
+<p class="recap-fee" data-fee hidden>Frais PayPal (4,4&nbsp;% + 0,35&nbsp;€)</p>
+<section class="recap-card is-paid" data-paid-card>
+<p class="recap-kicker">DÉJÀ RÉGLÉ AUX PRESTATAIRES</p>
+<ul class="recap-lines" data-paid></ul>
+</section>
+<div class="pay-choice">
+<button type="button" class="pay-cash" data-pay="cash" aria-pressed="true">Espèces<small>euros ou dirhams</small></button>
+<a class="pay-paypal" data-pay="paypal" aria-pressed="false" href="#">PayPal</a>
+</div>
+</div>
+</main>
+<script src="js/guest-shell.js" data-home="./"></script>
+<script src="../js/config.js"></script>
+<script src="js/portal.js"></script>
+<script src="js/requests.js"></script>
+<script src="js/stay-board.js"></script>
+<script>
+(function () {
+  var back = document.querySelector("[data-back]");
+  var query = window.location.search || "";
+  if (back && query) back.href = "demandes.html" + query;
+})();
+</script>
+</body>
+</html>

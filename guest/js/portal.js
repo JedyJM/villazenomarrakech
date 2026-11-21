@@ -1,6 +1,8 @@
 /* Guest portal behaviour.
    Wi-Fi values come from wifi-config.js. The WhatsApp number is read from
-   /js/config.js. The prefilled text is the guest message, not the booking message. */
+   /js/config.js. The prefilled text is the guest message, not the booking message.
+   VILLA_WHATSAPP is the only villa number. Change it here. */
+var VILLA_WHATSAPP = "212661147610";
 (function () {
   "use strict";
 
@@ -8,11 +10,16 @@
   var lang = (document.documentElement.lang || "fr").slice(0, 2);
   var isEn = lang === "en";
   var cfg = window.VILLA_ZENO || {};
-  var number = String(cfg.whatsappNumber || "").replace(/\D/g, "");
+  var number = String(window.VILLA_WHATSAPP || cfg.whatsappNumber || "").replace(/\D/g, "");
   var message = isEn
     ? "Hello, I am a guest at Villa Zen'O and I would like to get in touch."
     : "Bonjour, je suis un invité de la Villa Zen'O et j'aimerais vous contacter.";
   var href = number && message ? "https://wa.me/" + number + "?text=" + encodeURIComponent(message) : "";
+
+  document.querySelectorAll("[data-villa-whatsapp]").forEach(function (el) {
+    if (!number) return;
+    el.href = "https://wa.me/" + number;
+  });
 
   document.querySelectorAll("[data-guest-whatsapp]").forEach(function (el) {
     if (!href) {

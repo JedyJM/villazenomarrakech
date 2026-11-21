@@ -14,25 +14,25 @@
      An empty value skips the sheet and keeps the request in localStorage only. */
   var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrmyFtKdhIovJAh2A-DjYfIYNwGWz7s-r_yKz8TDj29J1OcbnBPA7tIBV1qRJbtFcwlw/exec";
 
-  /* Test routing for request WhatsApp buttons only.
-     Flip TEST_MODE to false to open the real recipients again.
-     TEST_WHATSAPP is Mehdi, the owner number in Contacts utiles. */
+  /* Test routing for transfer and car-rental WhatsApp buttons only.
+     Flip TEST_MODE to false to open Hicham and Massillya again.
+     Meals, housekeeping and the pool always use VILLA_WHATSAPP. */
   var TEST_MODE = true;
-  var TEST_WHATSAPP = "212661147610";
+  var TEST_WHATSAPP = VILLA_WHATSAPP;
   var RECIPIENTS = {
     hicham: "212661775422",
     massillya: "212616172974",
-    menage: "212661147610",
-    piscine: "212661147610",
-    activites: "212661147610",
-    massage: "212661147610",
-    /* Mama Fouzia. The real number is not set yet. */
-    cuisine: "212661147610"
+    activites: VILLA_WHATSAPP,
+    massage: VILLA_WHATSAPP
   };
 
   function requestWhatsApp(realNumber, message) {
     var number = TEST_MODE ? TEST_WHATSAPP : realNumber;
     return "https://api.whatsapp.com/send?phone=" + number + "&text=" + encodeURIComponent(message);
+  }
+
+  function villaWhatsApp(message) {
+    return "https://wa.me/" + String(VILLA_WHATSAPP).replace(/\D/g, "") + "?text=" + encodeURIComponent(message);
   }
 
   function randomBase36(length) {
@@ -848,12 +848,12 @@
     list.innerHTML = lines.map(function (line) { return "<li><span>" + line + "</span></li>"; }).join("");
   }
 
-  function dispatchService(root, record, rows, sousType, destinataire, number) {
+  function dispatchService(root, record, rows, sousType, destinataire, number, viaVilla) {
     record.token = newToken();
     var message = withStaffConfirm(record.fields.message, record.id, record.token);
     record.fields.message = message;
     submitRequest(record);
-    openGuestWhatsApp(requestWhatsApp(number, message));
+    openGuestWhatsApp(viaVilla ? villaWhatsApp(message) : requestWhatsApp(number, message));
     postToSheet(sheetPayload(record, record.token, sousType, destinataire, rows));
     showServiceReceived(root, rows);
   }
@@ -1126,7 +1126,7 @@
       if (allergies) lines.push("Allergies ou demandes : " + allergies);
       lines.push("", "Merci d’avance.");
       fields.message = lines.join("\n");
-      dispatchService(root, baseRecord("restauration", guest, fields, { price_base: quote.total, supplements: [], total: quote.total, blocked: false }), rows, kind, "Cuisine", RECIPIENTS.cuisine);
+      dispatchService(root, baseRecord("restauration", guest, fields, { price_base: quote.total, supplements: [], total: quote.total, blocked: false }), rows, kind, "Cuisine", "", true);
     });
     showMeal("lunch");
   }
@@ -1177,7 +1177,7 @@
         if (fields.comment) lines.push("Note : " + fields.comment);
         lines.push("", "Merci d’avance.");
         fields.message = lines.join("\n");
-        dispatchService(root, baseRecord("menage", guest, fields, null), rows, scope.value === "chambres" ? "chambres" : "maison", "Ménage", RECIPIENTS.menage);
+        dispatchService(root, baseRecord("menage", guest, fields, null), rows, scope.value === "chambres" ? "chambres" : "maison", "Ménage", "", true);
       });
     }
 
@@ -1231,7 +1231,7 @@
         if (fields.comment) lines.push("Note : " + fields.comment);
         lines.push("", "Merci d’avance.");
         fields.message = lines.join("\n");
-        dispatchService(root, baseRecord("piscine", guest, fields, null), rows, "nettoyage", "Piscine", RECIPIENTS.piscine);
+        dispatchService(root, baseRecord("piscine", guest, fields, null), rows, "nettoyage", "Piscine", "", true);
       });
     }
 

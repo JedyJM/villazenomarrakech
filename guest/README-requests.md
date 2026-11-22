@@ -1,23 +1,41 @@
 # Demandes invités
 
-The guest portal does not send these requests anywhere yet. Each one is stored in `localStorage` under `villazeno.demandes`. A later connection can POST the same JSON to `GuestRequests.config.endpoint` when `enabled` is set to true. Until then `enabled` stays false, and this page never calls the network.
+Every request (transfert, course en ville, location, restauration, ménage, piscine, activités, massage) is sent to the Google Apps Script web app and added as a row on the tab Demandes of the Sheet “Villa Zen'O – Bookings”. A copy is also stored in the browser’s `localStorage` under `villazeno.demandes`. The old `GuestRequests.config.endpoint` / `enabled` settings are unused (still empty / false): sending goes through `APPS_SCRIPT_URL` only.
 
 WhatsApp buttons only open the guest’s own WhatsApp. The page does not send those messages.
 
-Request buttons are in test mode. `TEST_MODE` and `TEST_WHATSAPP` live at the top of `guest/js/requests.js`. While `TEST_MODE` is true, those buttons, the guest WhatsApp in the bar and Contacts utiles open `212661147610`. Guests always reach Mehdi on `MEHDI_WHATSAPP` `212661147610`. `VILLA_WHATSAPP` `212661552597` is reserved for future automated staff messages and no guest button opens it. The real staff numbers stay in `RECIPIENTS`: Hicham `212661775422`, Massillya `212616172974`, Fouzia `212767202011` (restauration), Nadera `212639474843` (ménage), Khalid `212630415956` (piscine, jardin, jacuzzi, activités), Massages & soins `212661614469`. PayPal uses `PAYPAL_EMAIL` (`Mr.moums@gmail.com`); in test mode the recap button does not open it. Set `TEST_MODE` to false to use the real numbers and the PayPal link. Button labels do not change. The saved row still names the real recipient.
+Request buttons are in test mode. `TEST_MODE` and `TEST_WHATSAPP` live at the top of `guest/js/requests.js`. While `TEST_MODE` is true, those buttons, the guest WhatsApp in the bar and the villa line in Contacts utiles open `212661147610` (the Hicham line in Contacts utiles is a direct `wa.me` link and ignores `TEST_MODE`). Rows are still sent to the Sheet in test mode. Guests always reach Mehdi on `MEHDI_WHATSAPP` `212661147610`. `VILLA_WHATSAPP` `212661552597` is reserved for future automated staff messages and no guest button opens it. The real staff numbers stay in `RECIPIENTS`: Hicham `212661775422`, Massillya `212616172974`, Fouzia `212767202011` (restauration), Nadera `212639474843` (ménage), Khalid `212630415956` (piscine, jardin, jacuzzi, activités), Massages & soins `212661614469`. PayPal uses `PAYPAL_EMAIL` (`Mr.moums@gmail.com`); in test mode the recap button does not open it. Set `TEST_MODE` to false to use the real numbers and the PayPal link. Button labels do not change. The saved row still names the real recipient.
 
-`APPS_SCRIPT_URL` is also at the top of `guest/js/requests.js`. While it is empty, nothing is sent to Google. After the web app is deployed, paste its `/exec` URL there. Each send then adds a row on the tab Demandes, and the WhatsApp message ends with a one-tap confirmation link. Setup steps are in `guest/apps-script/DEPLOY.md`.
+`APPS_SCRIPT_URL` is at the top of `guest/js/requests.js` and is filled in with the deployed `/exec` URL (the same URL is in `c/index.html` and in `admin/js/shell.js` as `SCRIPT_URL`). Each send adds a row on the tab Demandes, and the WhatsApp message ends with a one-tap confirmation link `/c?r=<id>&k=<token>`. `c/index.html` forwards it to the Apps Script (`action=confirm`), which sets the row to Confirmée. Mes demandes and the recap read `?action=list&stay=<booking_id>`: only rows whose `details_json.booking_id` matches the stay are listed. Deploy and update steps are in `guest/apps-script/DEPLOY.md`.
 
 ## Sheet tab: Demandes
 
-One row per request. Amounts are in MAD. The French pages display the same amounts as DH.
+One row per request, written by `doPost` in `guest/apps-script/Code.gs`.
 
-| Column | JSON | Notes |
+| Column | Content |
+| --- | --- |
+| id | Request id (8 characters) |
+| date_creation | ISO time |
+| service | `transfert`, `course`, `location_voiture`, `restauration`, `menage`, `piscine`, `activites` or `massage` |
+| sous_type | e.g. `arrivée` / `départ`, `en ville`, `citadine` / `4x4`, meal, `maison` / `chambres`, activity, treatment ids |
+| nom_client | `Invité` while `getGuestFromStay()` is a placeholder |
+| details_json | The form `fields` below (without `message`), plus `token` (confirmation key), `resume` (summary lines) and `booking_id` (stay id from `?stay=`) |
+| total_dh | Total. In DH, except `restauration`, where it is in euros. Empty when there is no price |
+| destinataire | Real recipient name (Hicham, Massillya, Fouzia, Nadera, Khalid, Massages & soins), even in test mode |
+| statut | `Envoyée` on arrival; then `Confirmée` (Confirmer link or admin), `Terminée` (2 h after the planned time, by `installDemandesTrigger`) or `Annulée` |
+| date_confirmation | Set when the Confirmer link is opened |
+| offert | Checkbox |
+
+## Local record (`localStorage`) for transfers, city rides and rentals
+
+The browser copy keeps the full record. Amounts are in MAD; the French pages display them as DH. Inside the Sheet, the `fields.*` values are in `details_json`.
+
+| Name | JSON | Notes |
 | --- | --- | --- |
 | id | `id` | |
 | created_at | `created_at` | ISO time |
 | service | `service` | `transfert`, `course`, or `location_voiture` |
-| status | `status` | `nouvelle` when the guest saves it. `confirmee` when the staff link in the WhatsApp message is opened on a browser that holds the same request |
+| status | `status` | Always `nouvelle` in the local copy. The real status lives in the Sheet column `statut` |
 | guest_name | `guest.name` | Looked up from the Google Sheet “Villa Zen'O – Bookings”, tab Réservations, by booking id. Not typed by the guest. `getGuestFromStay()` is the placeholder until that lookup exists |
 | guest_phone | `guest.phone` | Same booking lookup as the name. Not typed by the guest |
 | guest_villa | `guest.villa` | |
@@ -54,4 +72,4 @@ One row per request. Amounts are in MAD. The French pages display the same amoun
 | rental_agency | `fields.agency` | Agence Massillya |
 | rental_message | `fields.message` | Text the guest opens in WhatsApp |
 
-Sales KPIs can sum `price_base`, `supplement_baby_seat`, and `total` where `service` is `transfert` and `status` is not cancelled.
+Sales KPIs can sum `total_dh` on the tab Demandes where `service` is `transfert` and `statut` is not `Annulée` (`price_base` and the baby-seat supplement are only in the local copy; `details_json` keeps `baby_seats`).

@@ -1192,54 +1192,197 @@ function waClean_(value) {
   return text || "—";
 }
 
+// French labels (accent-free, lower case keys) to Arabic for the staff body.
 var WA_LABELS_AR = {
-  "Personnes": "الأشخاص",
-  "Périmètre": "النطاق",
-  "Entretien": "الصيانة",
-  "Note": "ملاحظة",
-  "Total": "المجموع",
-  "Allergies ou demandes": "الحساسية أو الطلبات",
-  "Salades": "السلطات",
-  "Activité": "النشاط",
-  "Durée": "المدة",
-  "Supplément": "إضافة",
-  "Départ": "الانطلاق"
+  "personnes": "أشخاص",
+  "repas": "الوجبة",
+  "perimetre": "النطاق",
+  "entretien": "الصيانة",
+  "note": "ملاحظة",
+  "allergies ou demandes": "الحساسية أو الطلبات",
+  "salades": "السلطات",
+  "activite": "النشاط",
+  "duree": "المدة",
+  "depart": "الانطلاق"
+};
+
+// Whole French values translated for staff (accent-free, lower case keys).
+var WA_VALUES_AR = {
+  "petit-dejeuner": "الفطور",
+  "dejeuner": "الغداء",
+  "diner": "العشاء"
 };
 
 // Meal kinds sent by the portal for restauration.
 var WA_SOUS_TYPE_AR = { breakfast: "الفطور", lunch: "الغداء", dinner: "العشاء" };
 
-// Builds the 4 body parameters: service, guest, horaire, details.
-function waTemplateParams_(data) {
-  var details = data.details || {};
-  var date = String(details.date || "");
-  var m = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) date = m[3] + "/" + m[2] + "/" + m[1];
-  var horaire = (date + " " + String(details.time_label || details.time || "")).replace(/^\s+|\s+$/g, "");
+// Labels whose line carries money: staff must never see a price.
+var WA_MONEY_LABELS = { total: 1, supplement: 1, prix: 1, tarif: 1, montant: 1 };
 
+// Guest-typed values are kept as written.
+var WA_FREE_TEXT = { "allergies ou demandes": 1, note: 1 };
+
+// First-strong isolate so LTR digits keep their order inside Arabic RTL text.
+var WA_FSI = "\u2068";
+var WA_PDI = "\u2069";
+
+function waTrim_(value) {
+  return String(value == null ? "" : value).replace(/^\s+|\s+$/g, "");
+}
+
+// Lower case, accents removed, single spaces: used as lookup key.
+function waKey_(value) {
+  return waTrim_(value).toLowerCase()
+    .replace(/[àâä]/g, "a").replace(/[éèêë]/g, "e").replace(/[îï]/g, "i")
+    .replace(/[ôö]/g, "o").replace(/[ùûü]/g, "u").replace(/ç/g, "c")
+    .replace(/\s+/g, " ");
+}
+
+function waIsolate_(value) {
+  return WA_FSI + value + WA_PDI;
+}
+
+// True when a text fragment carries an amount or a currency.
+function waHasMoney_(text) {
+  return /€|\b(eur|euros?|dhs?|mad)\b|\d\s*(eur|dhs?|mad)\b/i.test(String(text));
+}
+
+// Removes every money segment (" · " or ", " separated) from a value.
+function waStripMoney_(value) {
+  var segs = String(value).split(/\s+·\s+|,\s+/);
+  var kept = [];
+  for (var i = 0; i < segs.length; i++) {
+    var seg = waTrim_(segs[i]);
+    if (seg && !waHasMoney_(seg)) kept.push(seg);
+  }
+  return kept.join(" · ");
+}
+
+// "4 personnes" -> "4 أشخاص"; whole meal names -> Arabic.
+function waValueAr_(value) {
+  var whole = WA_VALUES_AR[waKey_(value)];
+  if (whole) return whole;
+  return String(value).replace(/\bpersonnes?\b/gi, WA_LABELS_AR.personnes);
+}
+
+// "09:30", "9:30", "9 h 30", "9h", "9 h" -> "09:30". Empty if unknown.
+function waClock_(value) {
+  var m = waTrim_(value).match(/^(\d{1,2})\s*(?::|h)\s*(\d{2})?/i);
+  if (!m) return "";
+  var h = Number(m[1]);
+  var min = m[2] ? Number(m[2]) : 0;
+  if (h > 23 || min > 59) return "";
+  return (h < 10 ? "0" : "") + h + ":" + (min < 10 ? "0" : "") + min;
+}
+
+// ISO day after "yyyy-MM-dd".
+function waNextDay_(iso) {
+  var p = iso.split("-");
+  var d = new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + 1));
+  var mm = d.getUTCMonth() + 1;
+  var dd = d.getUTCDate();
+  return d.getUTCFullYear() + "-" + (mm < 10 ? "0" : "") + mm + "-" + (dd < 10 ? "0" : "") + dd;
+}
+
+// RTL-safe horaire: [اليوم|غدا] dd/mm/yyyy HH:MM, LTR parts isolated.
+// todayIso is "yyyy-MM-dd" in Africa/Casablanca.
+function waHoraire_(details, todayIso) {
+  var out = [];
+  var m = String(details.date || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    var iso = m[1] + "-" + m[2] + "-" + m[3];
+    if (todayIso && iso === todayIso) out.push("اليوم");
+    else if (todayIso && iso === waNextDay_(todayIso)) out.push("غدا");
+    out.push(waIsolate_(m[3] + "/" + m[2] + "/" + m[1]));
+  }
+  var clock = waClock_(details.time) || waClock_(details.time_label);
+  if (clock) out.push(waIsolate_(clock));
+  return out.join(" ");
+}
+
+// Arabic details without any price, meal shown once.
+function waDetails_(data, details) {
+  var meal = WA_SOUS_TYPE_AR[waTrim_(data.sous_type)] || "";
   var parts = [];
+  var people = "";
+  var hasPeople = false;
   var lines = String(details.resume || "").split("\n");
   for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].replace(/^\s+|\s+$/g, "");
+    var line = waTrim_(lines[i]);
     if (!line) continue;
-    var cut = line.indexOf(" : ");
-    if (cut > 0) {
-      var label = line.slice(0, cut).replace(/^\s+|\s+$/g, "");
-      if (label === "Date" || label === "Heure") continue;
-      line = (WA_LABELS_AR[label] || label) + " : " + line.slice(cut + 3);
+    var lm = line.match(/^([^:]*[^\s:\d][^:]*?)\s*:\s*(.*)$/);
+    if (!lm) {
+      line = waValueAr_(waStripMoney_(line));
+      if (line) parts.push(line);
+      continue;
     }
-    parts.push(line);
+    var key = waKey_(lm[1]);
+    var value = waTrim_(lm[2]);
+    if (key === "date" || key === "heure" || key === "nom") continue;
+    if (key === "repas" && meal) continue;
+    var first = key.split(" ")[0];
+    if (WA_MONEY_LABELS[first] && (key === first || waHasMoney_(value))) {
+      // Keep a head count hidden in "Total : 4 personnes · 80 €".
+      var pm = value.match(/(\d+)\s*personnes?\b/i);
+      if (pm) people = pm[1];
+      continue;
+    }
+    if (key === "personnes") hasPeople = true;
+    if (!WA_FREE_TEXT[key]) {
+      value = waValueAr_(waStripMoney_(value));
+      if (!value) continue;
+    }
+    parts.push((WA_LABELS_AR[key] || waTrim_(lm[1])) + " : " + value);
   }
-  var detail = parts.join(" · ");
-  var sousType = String(data.sous_type || "").replace(/^\s+|\s+$/g, "");
-  if (WA_SOUS_TYPE_AR[sousType]) sousType = WA_SOUS_TYPE_AR[sousType];
-  if (sousType && detail.indexOf(sousType) < 0) detail = sousType + (detail ? " · " + detail : "");
+  if (people && !hasPeople) parts.push(WA_LABELS_AR.personnes + " : " + people);
+  if (meal) parts.unshift(meal);
+  return parts.join(" · ");
+}
 
+// True when nom_client is missing or the portal placeholder.
+function waIsPlaceholderName_(name) {
+  var key = waKey_(name);
+  return key === "" || key === "invite" || key === "guest";
+}
+
+// Réservations.nom for a stay id, "" if unknown. Read only.
+function waStayNom_(stayId) {
+  stayId = waTrim_(stayId);
+  if (!stayId) return "";
+  var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName("R\u00e9servations");
+  if (!sheet || sheet.getLastRow() < 2) return "";
+  var map = headerMap_(sheet);
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  for (var i = 0; i < values.length; i++) {
+    var stay = stayFromRow_(values[i], map);
+    if (stay.id === stayId) return waTrim_(stay.nom);
+  }
+  return "";
+}
+
+// Guest name for staff: the posted one, or the stay's real name when the
+// portal sent its placeholder. lookup(stayId) defaults to waStayNom_.
+function waGuestName_(data, lookup) {
+  var name = waTrim_(data.nom_client);
+  if (!waIsPlaceholderName_(name)) return name;
+  var details = data.details || {};
+  var found = "";
+  try { found = (lookup || waStayNom_)(details.booking_id); } catch (err) { found = ""; }
+  return found || name;
+}
+
+// Builds the 4 body parameters: service, guest, horaire, details.
+// Pure: opts.guestName (resolved name) and opts.today ("yyyy-MM-dd",
+// Africa/Casablanca) are optional.
+function waTemplateParams_(data, opts) {
+  opts = opts || {};
+  var details = data.details || {};
+  var today = opts.today || Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd");
   return [
     waClean_(WA_SERVICE_AR[data.service] || data.service),
-    waClean_(data.nom_client),
-    waClean_(horaire),
-    waClean_(detail)
+    waClean_(opts.guestName || data.nom_client),
+    waClean_(waHoraire_(details, today)),
+    waClean_(waDetails_(data, details))
   ];
 }
 
@@ -1293,7 +1436,7 @@ function waNotifyStaff_(data) {
       logWhatsAppEnvoi_("", demandeId, to, { statut: "non envoyé", resultat: "jeton absent" });
       return;
     }
-    var r = waSendTemplate_(to, waTemplateParams_(data));
+    var r = waSendTemplate_(to, waTemplateParams_(data, { guestName: waGuestName_(data) }));
     if (r.ok) {
       logWhatsAppEnvoi_(r.wamid, demandeId, to);
     } else {

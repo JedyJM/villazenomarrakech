@@ -75,3 +75,24 @@ Onglet `WhatsApp_log` (créé tout seul au premier événement) :
 - une ligne par événement : `envoi` (message parti), `statut` (sent, delivered, read, failed avec le code et le détail de l’erreur), `bouton` (appui sur un bouton) ou `message` (texte reçu) ;
 - un appui sur un bouton passe la demande en Confirmée seulement s’il répond à un envoi connu ; la colonne `resultat` dit ce qui s’est passé ;
 - les doublons envoyés par Meta sont ignorés. Vous pouvez lire cet onglet, mais ne le modifiez pas.
+
+### Envoi automatique WhatsApp
+
+À chaque nouvelle demande Restauration, Ménage, Piscine/jacuzzi/jardin ou Activités, le script envoie lui-même le modèle WhatsApp `nouvelle_demande` (en arabe) au personnel concerné. Quand la personne appuie sur le bouton, la demande passe en Confirmée (seulement si la réponse vient du numéro qui a reçu le message).
+
+1. Jedy ajoute le jeton : dans l’éditeur Apps Script, Paramètres du projet (roue dentée) → Propriétés du script → Ajouter une propriété → nom `WHATSAPP_TOKEN`, valeur = le jeton permanent → Enregistrer. Le jeton n’est jamais écrit dans le code ni dans les journaux.
+2. Republiez : Déployer → Gérer les déploiements → crayon Modifier → Version : Nouvelle version → Déployer.
+3. Facultatif : choisissez `waCheckConfig` dans la liste des fonctions puis Exécuter. Le journal affiche le mode des destinataires, le code HTTP et le numéro WhatsApp vu par Meta. Rien n’est envoyé.
+
+Tant que `ADMIN_TEST_MODE = true`, tous les messages partent vers 33614675789 (Jedy), jamais vers le personnel.
+
+Destinataires en mode réel :
+
+| Service | Personne |
+| --- | --- |
+| Restauration | Fouzia |
+| Ménage | Nadera |
+| Piscine / jacuzzi / jardin | Khalid |
+| Activités | Khalid |
+
+Sans jeton, rien ne part : une ligne `envoi` « non envoyé · jeton absent » est ajoutée dans `WhatsApp_log`. En cas de refus de Meta, la ligne `envoi` porte le statut `erreur` avec le code et le titre de l’erreur. La demande de l’invité est enregistrée dans tous les cas.

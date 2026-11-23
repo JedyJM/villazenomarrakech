@@ -27,6 +27,26 @@ var DEMANDES_HEADERS = [
   "offert"
 ];
 
+// WhatsApp Cloud API sending. The token lives in Script properties (WHATSAPP_TOKEN).
+// Recipients are chosen on the server by service, never from client data.
+var WA_PHONE_NUMBER_ID = "1349306241609019";
+var WA_GRAPH = "https://graph.facebook.com/v21.0/";
+var WA_TEMPLATE = "nouvelle_demande";
+var WA_LANG = "ar_MA";
+var WA_TEST_TO = "33614675789"; // Jedy
+var WA_STAFF = {
+  restauration: "212767202011", // Fouzia
+  menage: "212639474843", // Nadera
+  piscine: "212630415956", // Khalid
+  activites: "212630415956" // Khalid
+};
+var WA_SERVICE_AR = {
+  restauration: "المطعم",
+  menage: "التنظيف",
+  piscine: "المسبح والجاكوزي والحديقة",
+  activites: "الأنشطة"
+};
+
 function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(15000);
@@ -65,6 +85,7 @@ function doPost(e) {
       false
     ]);
     notifyNewDemande_(data);
+    waNotifyStaff_(data);
     return jsonOut({ ok: true });
   } finally {
     lock.releaseLock();
@@ -1024,15 +1045,20 @@ function waSeen_(rows, type, wamid, statut) {
   return false;
 }
 
-// Finds the demande id of an earlier "envoi" row for this message id.
-function waDemandeForEnvoi_(rows, wamid) {
-  if (!wamid) return "";
+// Finds the earlier "envoi" row (with a demande id) for this message id, or null.
+function waEnvoiRow_(rows, wamid) {
+  if (!wamid) return null;
   for (var i = 0; i < rows.length; i++) {
     if (String(rows[i][1]) === "envoi" && String(rows[i][2]) === wamid && String(rows[i][11])) {
-      return String(rows[i][11]);
+      return rows[i];
     }
   }
-  return "";
+  return null;
+}
+
+// Digits only, so "+212 6..." and "2126..." compare equal.
+function waDigits_(value) {
+  return String(value || "").replace(/\D/g, "");
 }
 
 // Confirms a demande after a button press. Returns the text for "resultat".
@@ -1102,10 +1128,16 @@ function waWebhook_(payload) {
         var resultat = "";
         if (type === "bouton") {
           // Only trust a send we logged ourselves, never the button payload alone.
-          demandeId = waDemandeForEnvoi_(rows, contexte);
-          if (demandeId) {
-            resultat = waConfirmDemande_(demandeId);
-            if (resultat === "confirmée") counts.confirmees += 1;
+          var envoi = waEnvoiRow_(rows, contexte);
+          if (envoi) {
+            demandeId = String(envoi[11]);
+            // The reply must come from the number we sent to (column 5).
+            if (!waDigits_(msg.from) || waDigits_(msg.from) !== waDigits_(envoi[4])) {
+              resultat = "numéro différent";
+            } else {
+              resultat = waConfirmDemande_(demandeId);
+              if (resultat === "confirmée") counts.confirmees += 1;
+            }
           } else {
             resultat = "non reliée (aucun envoi connu)";
           }
@@ -1122,15 +1154,176 @@ function waWebhook_(payload) {
   return counts;
 }
 
-// To be called by future sending code right after Meta accepts a message.
-// Links the returned wamid to a demande so a later button press can confirm it.
-function logWhatsAppEnvoi_(wamid, demandeId, destinataire) {
+// Called right after Meta accepts a message: links the returned wamid to a
+// demande so a later button press can confirm it. Optional "extra"
+// { statut, code, titre, resultat } records a failed or skipped send instead.
+function logWhatsAppEnvoi_(wamid, demandeId, destinataire, extra) {
+  extra = extra || {};
   var sheet = whatsappLogSheet_();
   var now = Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd HH:mm:ss");
   waAppend_(sheet, [], [
-    now, "envoi", wamid || "", "accepted", destinataire || "",
-    "", "", "", "", "", "", demandeId || "", ""
+    now, "envoi", wamid || "", extra.statut || "accepted", destinataire || "",
+    extra.code || "", extra.titre || "", "", "", "", "", demandeId || "", extra.resultat || ""
   ]);
+}
+
+// ---------- WhatsApp Cloud API sending ----------
+
+// Hard rule: while ADMIN_TEST_MODE is on, only the test number ever receives.
+function waRecipient_(service) {
+  if (ADMIN_TEST_MODE) return WA_TEST_TO;
+  return WA_STAFF[service] || "";
+}
+
+function waToken_() {
+  return PropertiesService.getScriptProperties().getProperty("WHATSAPP_TOKEN") || "";
+}
+
+// Makes a value safe for a template body parameter (no newlines/tabs,
+// no runs of spaces, max 900 chars, never empty).
+function waClean_(value) {
+  var text = String(value == null ? "" : value)
+    .replace(/\r?\n/g, " · ")
+    .replace(/\t/g, " ")
+    .replace(/ {2,}/g, " ")
+    .replace(/^\s+|\s+$/g, "")
+    .slice(0, 900)
+    .replace(/\s+$/, "");
+  return text || "—";
+}
+
+var WA_LABELS_AR = {
+  "Personnes": "الأشخاص",
+  "Périmètre": "النطاق",
+  "Entretien": "الصيانة",
+  "Note": "ملاحظة",
+  "Total": "المجموع",
+  "Allergies ou demandes": "الحساسية أو الطلبات",
+  "Salades": "السلطات",
+  "Activité": "النشاط",
+  "Durée": "المدة",
+  "Supplément": "إضافة",
+  "Départ": "الانطلاق"
+};
+
+// Meal kinds sent by the portal for restauration.
+var WA_SOUS_TYPE_AR = { breakfast: "الفطور", lunch: "الغداء", dinner: "العشاء" };
+
+// Builds the 4 body parameters: service, guest, horaire, details.
+function waTemplateParams_(data) {
+  var details = data.details || {};
+  var date = String(details.date || "");
+  var m = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) date = m[3] + "/" + m[2] + "/" + m[1];
+  var horaire = (date + " " + String(details.time_label || details.time || "")).replace(/^\s+|\s+$/g, "");
+
+  var parts = [];
+  var lines = String(details.resume || "").split("\n");
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].replace(/^\s+|\s+$/g, "");
+    if (!line) continue;
+    var cut = line.indexOf(" : ");
+    if (cut > 0) {
+      var label = line.slice(0, cut).replace(/^\s+|\s+$/g, "");
+      if (label === "Date" || label === "Heure") continue;
+      line = (WA_LABELS_AR[label] || label) + " : " + line.slice(cut + 3);
+    }
+    parts.push(line);
+  }
+  var detail = parts.join(" · ");
+  var sousType = String(data.sous_type || "").replace(/^\s+|\s+$/g, "");
+  if (WA_SOUS_TYPE_AR[sousType]) sousType = WA_SOUS_TYPE_AR[sousType];
+  if (sousType && detail.indexOf(sousType) < 0) detail = sousType + (detail ? " · " + detail : "");
+
+  return [
+    waClean_(WA_SERVICE_AR[data.service] || data.service),
+    waClean_(data.nom_client),
+    waClean_(horaire),
+    waClean_(detail)
+  ];
+}
+
+// Sends the template. Returns { ok, wamid, code, title }. Never exposes the token.
+function waSendTemplate_(to, params) {
+  var token = waToken_();
+  if (!token) return { ok: false, wamid: "", code: "", title: "jeton absent" };
+  var res = UrlFetchApp.fetch(WA_GRAPH + WA_PHONE_NUMBER_ID + "/messages", {
+    method: "post",
+    contentType: "application/json",
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true,
+    payload: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: to,
+      type: "template",
+      template: {
+        name: WA_TEMPLATE,
+        language: { code: WA_LANG },
+        components: [{
+          type: "body",
+          parameters: params.map(function (p) { return { type: "text", text: p }; })
+        }]
+      }
+    })
+  });
+  var http = res.getResponseCode();
+  var body = {};
+  try { body = JSON.parse(res.getContentText()); } catch (err) { body = {}; }
+  var wamid = (body.messages && body.messages[0] && body.messages[0].id) || "";
+  if (http >= 200 && http < 300 && wamid) return { ok: true, wamid: String(wamid), code: http, title: "" };
+  var e = body.error || {};
+  return {
+    ok: false,
+    wamid: "",
+    code: e.code || http,
+    title: String(e.error_user_title || e.message || ("HTTP " + http)).slice(0, 300)
+  };
+}
+
+// Sends the staff WhatsApp for a new demande. Never throws: a guest
+// request must not fail because of WhatsApp.
+function waNotifyStaff_(data) {
+  try {
+    var service = String(data.service || "");
+    if (!WA_STAFF.hasOwnProperty(service)) return;
+    var to = waRecipient_(service);
+    if (!to) return;
+    var demandeId = String(data.id);
+    if (!waToken_()) {
+      logWhatsAppEnvoi_("", demandeId, to, { statut: "non envoyé", resultat: "jeton absent" });
+      return;
+    }
+    var r = waSendTemplate_(to, waTemplateParams_(data));
+    if (r.ok) {
+      logWhatsAppEnvoi_(r.wamid, demandeId, to);
+    } else {
+      logWhatsAppEnvoi_("", demandeId, to, { statut: "erreur", code: r.code, titre: r.title });
+    }
+  } catch (err) {
+    try {
+      logWhatsAppEnvoi_("", String(data.id || ""), "", { statut: "erreur", titre: String((err && err.message) || err).slice(0, 300) });
+    } catch (ignore) {}
+  }
+}
+
+// Run from the editor to check the setup. Sends nothing.
+function waCheckConfig() {
+  Logger.log("Destinataires : " + (ADMIN_TEST_MODE ? "test → " + WA_TEST_TO : "réel"));
+  var token = waToken_();
+  if (!token) {
+    Logger.log("WHATSAPP_TOKEN absent");
+    return;
+  }
+  var res = UrlFetchApp.fetch(WA_GRAPH + WA_PHONE_NUMBER_ID + "?fields=display_phone_number,verified_name", {
+    method: "get",
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true
+  });
+  var body = {};
+  try { body = JSON.parse(res.getContentText()); } catch (err) { body = {}; }
+  Logger.log("HTTP " + res.getResponseCode()
+    + " · display_phone_number=" + (body.display_phone_number || "")
+    + " · verified_name=" + (body.verified_name || ""));
 }
 
 function newStayId_(sheet, col) {

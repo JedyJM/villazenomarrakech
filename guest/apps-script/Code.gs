@@ -1345,29 +1345,58 @@ function waIsPlaceholderName_(name) {
   return key === "" || key === "invite" || key === "guest";
 }
 
-// Réservations.nom for a stay id, "" if unknown. Read only.
+// Tabs searched for a stay's guest name, in order. Read only, never created.
+var WA_STAY_TABS = ["Bookings", "R\u00e9servations"];
+var WA_STAY_ID_COLS = ["booking_id", "id_reservation", "reservation_id", "id"];
+var WA_STAY_NAME_COLS = ["nom", "guestname", "guest_name", "name", "guest"];
+
+// Names of the portal TEST_MODE example stays (admin/js/stays.js).
+// Used only while ADMIN_TEST_MODE is true and the Sheet has no match.
+var WA_TEST_STAY_NAMES = {
+  cmartin26a: "Camille Martin",
+  jroche26bk: "Julien Roche",
+  imoreau26d: "In\u00e8s Moreau"
+};
+
+// Guest name for a stay id in one tab, "" if unknown. A tab without a
+// stay-id column or a name column never matches.
+function waTabStayNom_(sheet, stayId) {
+  if (!sheet || sheet.getLastRow() < 2) return "";
+  var map = headerMap_(sheet);
+  var idCol = firstCol_(map, WA_STAY_ID_COLS);
+  var nameCol = firstCol_(map, WA_STAY_NAME_COLS);
+  if (idCol == null || nameCol == null) return "";
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  for (var i = 0; i < values.length; i++) {
+    if (waTrim_(values[i][idCol]) === stayId) return waTrim_(values[i][nameCol]);
+  }
+  return "";
+}
+
+// Guest name for a stay id: tab Bookings, then Réservations. "" if unknown.
 function waStayNom_(stayId) {
   stayId = waTrim_(stayId);
   if (!stayId) return "";
-  var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName("R\u00e9servations");
-  if (!sheet || sheet.getLastRow() < 2) return "";
-  var map = headerMap_(sheet);
-  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
-  for (var i = 0; i < values.length; i++) {
-    var stay = stayFromRow_(values[i], map);
-    if (stay.id === stayId) return waTrim_(stay.nom);
+  var book = SpreadsheetApp.openById(SHEET_ID);
+  for (var i = 0; i < WA_STAY_TABS.length; i++) {
+    var nom = waTabStayNom_(book.getSheetByName(WA_STAY_TABS[i]), stayId);
+    if (nom) return nom;
   }
   return "";
 }
 
 // Guest name for staff: the posted one, or the stay's real name when the
-// portal sent its placeholder. lookup(stayId) defaults to waStayNom_.
-function waGuestName_(data, lookup) {
+// portal sent its placeholder. lookup(stayId) defaults to waStayNom_;
+// testMode defaults to ADMIN_TEST_MODE and gates the example-stay names.
+function waGuestName_(data, lookup, testMode) {
   var name = waTrim_(data.nom_client);
   if (!waIsPlaceholderName_(name)) return name;
   var details = data.details || {};
+  var stayId = waTrim_(details.booking_id);
   var found = "";
-  try { found = (lookup || waStayNom_)(details.booking_id); } catch (err) { found = ""; }
+  try { found = (lookup || waStayNom_)(stayId); } catch (err) { found = ""; }
+  if (testMode == null) testMode = ADMIN_TEST_MODE;
+  if (!found && testMode && WA_TEST_STAY_NAMES.hasOwnProperty(stayId)) found = WA_TEST_STAY_NAMES[stayId];
   return found || name;
 }
 

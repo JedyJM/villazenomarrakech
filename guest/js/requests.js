@@ -109,16 +109,26 @@
     try { return localStorage.getItem("villazeno.stay") || ""; } catch (e3) { return ""; }
   }
 
+  // TEST_MODE only: the example stays of admin/js/stays.js.
+  var EXAMPLE_GUESTS = {
+    cmartin26a: { name: "Camille Martin", phone: "+33 6 12 00 00 01" },
+    jroche26bk: { name: "Julien Roche", phone: "+33 6 12 00 00 02" },
+    imoreau26d: { name: "Inès Moreau", phone: "+33 6 12 00 00 03" }
+  };
+
   function getGuestFromStay() {
     // Placeholder. Name and phone will be looked up from the Google Sheet
-    // "Villa Zen'O – Bookings", tab Réservations, using the stay booking id.
-    // The guest does not type them.
+    // "Villa Zen'O – Bookings" (tab Bookings), using the stay booking id.
+    // The guest does not type them. In TEST_MODE the example stays get
+    // their example name and phone.
+    var id = stayId();
+    var known = TEST_MODE && EXAMPLE_GUESTS.hasOwnProperty(id) ? EXAMPLE_GUESTS[id] : null;
     return {
-      name: isEn() ? "Guest" : "Invité",
-      phone: "+212 600 000 000",
+      name: known ? known.name : (isEn() ? "Guest" : "Invité"),
+      phone: known ? known.phone : "+212 600 000 000",
       villa: "Villa Zen’O",
-      bookingId: stayId(),
-      example: true,
+      bookingId: id,
+      example: !known,
       // Read only. Tab Réservations, never written by the portal.
       // chauffage_piscine_jours, chauffage_piscine_tarif_eur
       // chauffage_jacuzzi_jours, chauffage_jacuzzi_tarif_eur

@@ -40,6 +40,11 @@ function doPost(e) {
     if (data.action === "save-stay" || data.action === "stay-link" || data.action === "admin-auth" || data.action === "set-demande" || data.action === "save-depense" || data.action === "delete-depense" || data.action === "save-reglages") {
       return adminPost_(data);
     }
+    // WhatsApp Cloud API events relayed by the Vercel function api/wa-webhook.js.
+    if (data.action === "wa-webhook") {
+      var counts = waWebhook_(data.payload || {});
+      return jsonOut({ ok: true, statuts: counts.statuts, messages: counts.messages, confirmees: counts.confirmees });
+    }
     if (!data.id) return jsonOut({ ok: false });
     var sheet = getDemandesSheet_();
     if (findRow_(sheet, String(data.id)) > 0) return jsonOut({ ok: true, duplicate: true });
@@ -966,6 +971,166 @@ function installRecapTrigger() {
     if (triggers[i].getHandlerFunction() === "sendDailyRecap_") return;
   }
   ScriptApp.newTrigger("sendDailyRecap_").timeBased().everyDays(1).atHour(8).inTimezone("Africa/Casablanca").create();
+}
+
+// ---------- WhatsApp Cloud API webhook ----------
+// Events arrive from the Vercel relay api/wa-webhook.js (action "wa-webhook").
+// Every event is written to the "WhatsApp_log" tab. Meta retries, so rows are deduped.
+
+var WA_LOG_HEADERS = [
+  "recu_le", "type", "wamid", "statut", "destinataire",
+  "erreur_code", "erreur_titre", "erreur_detail",
+  "contexte_wamid", "bouton_texte", "bouton_payload", "demande_id", "resultat"
+];
+
+// Opens the WhatsApp_log tab, creating it with bold frozen headers if missing.
+function whatsappLogSheet_() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName("WhatsApp_log");
+  if (!sheet) sheet = ss.insertSheet("WhatsApp_log");
+  if (sheet.getLastRow() === 0 || String(sheet.getRange(1, 1).getValue()) !== "recu_le") {
+    if (sheet.getLastRow() > 0) sheet.insertRowBefore(1);
+    sheet.getRange(1, 1, 1, WA_LOG_HEADERS.length).setValues([WA_LOG_HEADERS]).setFontWeight("bold");
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+// Reads all log rows (without header) so we can dedupe and find earlier sends.
+function waLogRows_(sheet) {
+  var last = sheet.getLastRow();
+  if (last < 2) return [];
+  return sheet.getRange(2, 1, last - 1, WA_LOG_HEADERS.length).getValues();
+}
+
+// Appends one row as plain text (keeps phone numbers and ids intact) and
+// remembers it in the in-memory list so later items in the same call see it.
+function waAppend_(sheet, rows, values) {
+  var row = sheet.getLastRow() + 1;
+  var line = [];
+  for (var i = 0; i < WA_LOG_HEADERS.length; i++) {
+    line.push(values[i] == null ? "" : String(values[i]));
+  }
+  sheet.getRange(row, 1, 1, line.length).setNumberFormat("@").setValues([line]);
+  rows.push(line);
+}
+
+// True if a row with this type + wamid (+ statut when given) already exists.
+function waSeen_(rows, type, wamid, statut) {
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i][1]) !== type || String(rows[i][2]) !== wamid) continue;
+    if (statut == null || String(rows[i][3]) === statut) return true;
+  }
+  return false;
+}
+
+// Finds the demande id of an earlier "envoi" row for this message id.
+function waDemandeForEnvoi_(rows, wamid) {
+  if (!wamid) return "";
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i][1]) === "envoi" && String(rows[i][2]) === wamid && String(rows[i][11])) {
+      return String(rows[i][11]);
+    }
+  }
+  return "";
+}
+
+// Confirms a demande after a button press. Returns the text for "resultat".
+function waConfirmDemande_(demandeId) {
+  var sheet = getDemandesSheet_();
+  var row = findRow_(sheet, demandeId);
+  if (!row) return "demande introuvable";
+  var status = canonStatus_(sheet.getRange(row, 9).getValue());
+  if (status === "Confirmée" || status === "Terminée" || status === "Annulée") {
+    return "déjà " + status.toLowerCase();
+  }
+  sheet.getRange(row, 9).setValue("Confirmée");
+  sheet.getRange(row, 10).setValue(Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd HH:mm"));
+  return "confirmée";
+}
+
+// Handles one Meta webhook payload. Returns counts of new rows written.
+function waWebhook_(payload) {
+  var counts = { statuts: 0, messages: 0, confirmees: 0 };
+  var sheet = whatsappLogSheet_();
+  var rows = waLogRows_(sheet);
+  var now = Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd HH:mm:ss");
+  var entries = (payload && payload.entry) || [];
+  for (var e = 0; e < entries.length; e++) {
+    var changes = (entries[e] && entries[e].changes) || [];
+    for (var c = 0; c < changes.length; c++) {
+      var value = (changes[c] && changes[c].value) || {};
+
+      // Delivery statuses: sent / delivered / read / failed.
+      var statuses = value.statuses || [];
+      for (var s = 0; s < statuses.length; s++) {
+        var st = statuses[s] || {};
+        var wamid = String(st.id || "");
+        var statut = String(st.status || "");
+        if (waSeen_(rows, "statut", wamid, statut)) continue;
+        var err = (st.errors && st.errors[0]) || null;
+        waAppend_(sheet, rows, [
+          now, "statut", wamid, statut, st.recipient_id || "",
+          err ? err.code : "",
+          err ? err.title : "",
+          err ? ((err.error_data && err.error_data.details) || err.message || "") : "",
+          "", "", "", "", ""
+        ]);
+        counts.statuts += 1;
+      }
+
+      // Incoming messages: button replies or free messages from the staff.
+      var messages = value.messages || [];
+      for (var m = 0; m < messages.length; m++) {
+        var msg = messages[m] || {};
+        var msgId = String(msg.id || "");
+        var type = "message";
+        var texte = (msg.text && msg.text.body) || msg.type || "";
+        var buttonPayload = "";
+        if (msg.type === "button" && msg.button) {
+          type = "bouton";
+          texte = msg.button.text || "";
+          buttonPayload = msg.button.payload || "";
+        } else if (msg.type === "interactive" && msg.interactive && msg.interactive.button_reply) {
+          type = "bouton";
+          texte = msg.interactive.button_reply.title || "";
+          buttonPayload = msg.interactive.button_reply.id || "";
+        }
+        if (waSeen_(rows, type, msgId, null)) continue;
+        var contexte = String((msg.context && msg.context.id) || "");
+        var demandeId = "";
+        var resultat = "";
+        if (type === "bouton") {
+          // Only trust a send we logged ourselves, never the button payload alone.
+          demandeId = waDemandeForEnvoi_(rows, contexte);
+          if (demandeId) {
+            resultat = waConfirmDemande_(demandeId);
+            if (resultat === "confirmée") counts.confirmees += 1;
+          } else {
+            resultat = "non reliée (aucun envoi connu)";
+          }
+        }
+        waAppend_(sheet, rows, [
+          now, type, msgId, "", msg.from || "",
+          "", "", "",
+          contexte, texte, buttonPayload, demandeId, resultat
+        ]);
+        counts.messages += 1;
+      }
+    }
+  }
+  return counts;
+}
+
+// To be called by future sending code right after Meta accepts a message.
+// Links the returned wamid to a demande so a later button press can confirm it.
+function logWhatsAppEnvoi_(wamid, demandeId, destinataire) {
+  var sheet = whatsappLogSheet_();
+  var now = Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd HH:mm:ss");
+  waAppend_(sheet, [], [
+    now, "envoi", wamid || "", "accepted", destinataire || "",
+    "", "", "", "", "", "", demandeId || "", ""
+  ]);
 }
 
 function newStayId_(sheet, col) {

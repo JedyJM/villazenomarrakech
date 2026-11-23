@@ -59,3 +59,19 @@ Quand l’usage réel commencera (`ADMIN_TEST_MODE` remis à false, puis nouvell
 1. Dans l’éditeur, choisissez `installRecapTrigger`, puis Exécuter, une seule fois. Cela crée le déclencheur quotidien à 8&nbsp;h, fuseau Africa/Casablanca. Il envoie le récapitulatif (alertes en cours, services du jour, arrivées et départs) seulement si l’interrupteur du récapitulatif est activé.
 2. L’e-mail « nouvelle demande » part à l’enregistrement, sans déclencheur, seulement si son interrupteur est activé. Les deux messages vont à l’adresse enregistrée dans `notif_email_to`.
 3. Rien n’est envoyé aux invités ni au personnel depuis cet écran.
+
+## Webhook WhatsApp
+
+WhatsApp (Meta) prévient la villa quand un message est envoyé, reçu, lu ou en échec, et quand le personnel appuie sur un bouton. Meta parle à une petite page relais sur Vercel, qui transmet tout au script.
+
+1. Republiez le script : collez `Code.gs`, Enregistrez, puis Déployer → Gérer les déploiements → crayon Modifier → Version : Nouvelle version → Déployer. L’adresse /exec ne change pas.
+2. Dans Meta (developers.facebook.com → votre application → WhatsApp → Configuration → Webhook), cliquez sur Modifier et remplissez :
+   - URL de rappel (Callback URL) : `https://villazenomarrakech-git-cursor-portal-accueil-626d-jalilmoumni-4572.vercel.app/api/wa-webhook`
+     Si l’aperçu Vercel est protégé par mot de passe ou connexion, ajoutez à la fin le paramètre de contournement donné par Vercel (Settings → Deployment Protection → Protection Bypass for Automation), par exemple `?x-vercel-protection-bypass=VOTRE_CODE`.
+   - Jeton de vérification (Verify token) : `vzo-wh-7f3c9a1e5b2d48c6a0e4f9b1d3c7e852`
+3. Cliquez sur Vérifier et enregistrer. Puis, dans la liste des champs du webhook, abonnez-vous (Subscribe) au champ `messages`.
+
+Onglet `WhatsApp_log` (créé tout seul au premier événement) :
+- une ligne par événement : `envoi` (message parti), `statut` (sent, delivered, read, failed avec le code et le détail de l’erreur), `bouton` (appui sur un bouton) ou `message` (texte reçu) ;
+- un appui sur un bouton passe la demande en Confirmée seulement s’il répond à un envoi connu ; la colonne `resultat` dit ce qui s’est passé ;
+- les doublons envoyés par Meta sont ignorés. Vous pouvez lire cet onglet, mais ne le modifiez pas.

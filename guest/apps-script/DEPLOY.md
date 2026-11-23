@@ -66,7 +66,7 @@ WhatsApp (Meta) prévient la villa quand un message est envoyé, reçu, lu ou en
 
 1. Republiez le script : collez `Code.gs`, Enregistrez, puis Déployer → Gérer les déploiements → crayon Modifier → Version : Nouvelle version → Déployer. L’adresse /exec ne change pas.
 2. Dans Meta (developers.facebook.com → votre application → WhatsApp → Configuration → Webhook), cliquez sur Modifier et remplissez :
-   - URL de rappel (Callback URL) : `https://villazenomarrakech-git-cursor-portal-accueil-626d-jalilmoumni-4572.vercel.app/api/wa-webhook`
+   - URL de rappel (Callback URL) : `https://villazenomarrakech-git-cursor-portal-ac-5cb684-jalilmoumni-4572.vercel.app/api/wa-webhook`
      Si l’aperçu Vercel est protégé par mot de passe ou connexion, ajoutez à la fin le paramètre de contournement donné par Vercel (Settings → Deployment Protection → Protection Bypass for Automation), par exemple `?x-vercel-protection-bypass=VOTRE_CODE`.
    - Jeton de vérification (Verify token) : `vzo-wh-7f3c9a1e5b2d48c6a0e4f9b1d3c7e852`
 3. Cliquez sur Vérifier et enregistrer. Puis, dans la liste des champs du webhook, abonnez-vous (Subscribe) au champ `messages`.

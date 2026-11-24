@@ -199,10 +199,10 @@
     });
     return { total: total, delayHours: null, types: TYPE_LABELS.map(function (t) { return [t[1], counts[t[0]]]; }) };
   }
-  // Real data only: rows with origine "test" are dropped unless the
-  // « Jeu de test » switch (Réglages, off by default) is on.
+  // Real data only: rows with origine "test" never count in Stats (the
+  // « Jeu de test » switch only affects Séjours).
   function realOnly(list) {
-    return shell.realOnly ? shell.realOnly(list || []) : (list || []).filter(function (row) { return String((row && row.origine) || "").toLowerCase() !== "test"; });
+    return (list || []).filter(function (row) { return String((row && row.origine) || "").trim().toLowerCase() !== "test"; });
   }
 
   // All stays for Stats, every year: the stats feed (action=stays-stats),

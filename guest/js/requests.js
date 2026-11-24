@@ -564,6 +564,8 @@
     if (segments) segments.hidden = true;
     var pageTitle = root.querySelector("h1");
     if (pageTitle) pageTitle.hidden = true;
+    var lead = root.querySelector(".meal-lead");
+    if (lead) lead.hidden = true;
     var notes = root.querySelector("[data-segment-notes]");
     if (notes) notes.hidden = true;
     framePage();

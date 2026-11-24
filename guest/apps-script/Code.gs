@@ -4,7 +4,10 @@
  */
 var SHEET_ID = "1bd3xmrdjz7_Ae8xiu__OuxKUliQUWCvYg8i7J1ugMj8";
 var ADMIN_TEST_MODE = true;
-var ADMIN_ALLOWLIST = ["villazeno.marrakech@gmail.com", "jalil.moumni@gmail.com"];
+// Fallback until the Script Property ADMIN_EMAILS (comma-separated) is set.
+var ADMIN_ALLOWLIST = ["jalil.moumni@gmail.com", "villazeno.marrakech@gmail.com"];
+// Public OAuth web client ID used by the admin front-end (GIS). Token aud must match.
+var ADMIN_OAUTH_CLIENT_ID = "971461193352-3kafun281dtmvorv1tpp2j7n9l2g8klf.apps.googleusercontent.com";
 var STAY_HEADERS = [
   "nom", "telephone", "source", "agence_nom", "adultes", "enfants", "ages_enfants", "notes",
   "airbnb_frais_chambre", "airbnb_reduction", "airbnb_frais_service", "airbnb_gain",
@@ -440,20 +443,44 @@ function adminAllowed_(params) {
   return adminEmail_(params.token || params.id_token || "") !== "";
 }
 
-function adminEmail_(token) {
-  if (!token) return "";
+// Script Property ADMIN_EMAILS (comma-separated, case-insensitive), else ADMIN_ALLOWLIST.
+function adminEmails_() {
+  var raw = "";
+  try { raw = String(PropertiesService.getScriptProperties().getProperty("ADMIN_EMAILS") || ""); } catch (err) {}
+  var list = raw ? raw.split(",") : ADMIN_ALLOWLIST;
+  var out = [];
+  for (var i = 0; i < list.length; i++) {
+    var email = String(list[i] || "").replace(/^\s+|\s+$/g, "").toLowerCase();
+    if (email) out.push(email);
+  }
+  return out;
+}
+
+// Verifies a Google ID token with tokeninfo: HTTP 200, our aud, verified email, allowlisted.
+// Returns { email: "...", error: "" } or { email: "", error: "invalid_token" | "unauthorized" }.
+function adminCheck_(token) {
+  if (!token || !ADMIN_OAUTH_CLIENT_ID) return { email: "", error: "invalid_token" };
   try {
     var res = UrlFetchApp.fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(token), { muteHttpExceptions: true });
-    if (res.getResponseCode() !== 200) return "";
+    if (res.getResponseCode() !== 200) return { email: "", error: "invalid_token" };
     var data = JSON.parse(res.getContentText());
+    if (String(data.aud || "") !== ADMIN_OAUTH_CLIENT_ID) return { email: "", error: "invalid_token" };
+    var iss = String(data.iss || "");
+    if (iss && iss !== "accounts.google.com" && iss !== "https://accounts.google.com") return { email: "", error: "invalid_token" };
     var email = String(data.email || "").toLowerCase();
     var verified = data.email_verified === true || String(data.email_verified) === "true";
-    if (!verified || !email) return "";
-    for (var i = 0; i < ADMIN_ALLOWLIST.length; i++) {
-      if (String(ADMIN_ALLOWLIST[i]).toLowerCase() === email) return email;
+    if (!verified || !email) return { email: "", error: "unauthorized" };
+    var allowed = adminEmails_();
+    for (var i = 0; i < allowed.length; i++) {
+      if (allowed[i] === email) return { email: email, error: "" };
     }
+    return { email: "", error: "unauthorized" };
   } catch (err) {}
-  return "";
+  return { email: "", error: "invalid_token" };
+}
+
+function adminEmail_(token) {
+  return adminCheck_(token).email;
 }
 
 function adminGet_(params) {
@@ -468,8 +495,8 @@ function adminGet_(params) {
 
 function adminPost_(data) {
   if (data.action === "admin-auth") {
-    var email = adminEmail_(data.token || data.id_token || "");
-    return jsonOut(email ? { ok: true, email: email } : { ok: false, error: "forbidden" });
+    var check = adminCheck_(data.id_token || data.token || "");
+    return jsonOut(check.email ? { ok: true, email: check.email } : { ok: false, error: check.error || "forbidden" });
   }
   if (!adminAllowed_(data)) return jsonOut({ ok: false, error: "forbidden" });
   if (data.action === "save-stay") return saveStay_(data.stay || data);

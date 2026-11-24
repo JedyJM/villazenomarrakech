@@ -1,11 +1,17 @@
-/* Admin shell: test-mode gate, bottom nav, keyboard hide. French. */
+/* Admin shell: Google sign-in gate (+ test mode), bottom nav, keyboard hide. French. */
 (function () {
   "use strict";
 
   var TEST_MODE = true;
   var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrmyFtKdhIovJAh2A-DjYfIYNwGWz7s-r_yKz8TDj29J1OcbnBPA7tIBV1qRJbtFcwlw/exec";
-  var GOOGLE_CLIENT_ID = "";
+  // Public OAuth web client ID (safe in the front-end). The script checks aud.
+  var GOOGLE_CLIENT_ID = "971461193352-3kafun281dtmvorv1tpp2j7n9l2g8klf.apps.googleusercontent.com";
+  var GIS_SRC = "https://accounts.google.com/gsi/client";
   var SESSION_KEY = "vz.admin";
+  var EMAIL_KEY = "vz.admin.email";
+  var MSG_DENIED = "Ce compte Google n’est pas autorisé à ouvrir l’administration.";
+  var MSG_INVALID = "La connexion Google n’a pas pu être vérifiée. Réessayez.";
+  var MSG_NETWORK = "Connexion au serveur impossible. Vérifiez le réseau et réessayez.";
 
   function query(name) {
     try { return new URLSearchParams(window.location.search).get(name) || ""; } catch (e) { return ""; }
@@ -15,6 +21,32 @@
   }
   function setSession(value) {
     try { sessionStorage.setItem(SESSION_KEY, value); } catch (e) {}
+  }
+  function clearSession() {
+    try {
+      sessionStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem(EMAIL_KEY);
+    } catch (e) {}
+  }
+  // A Google ID token lasts about an hour: drop it once expired.
+  function tokenExpired(token) {
+    var parts = String(token || "").split(".");
+    if (parts.length !== 3) return false;
+    try {
+      var b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      while (b64.length % 4) b64 += "=";
+      var payload = JSON.parse(window.atob(b64));
+      return !payload.exp || payload.exp * 1000 <= new Date().getTime();
+    } catch (e) {
+      return true;
+    }
+  }
+  function signOut() {
+    clearSession();
+    try {
+      if (window.google && window.google.accounts && window.google.accounts.id) window.google.accounts.id.disableAutoSelect();
+    } catch (e) {}
+    window.location.href = "index.html";
   }
 
   var ICONS = {
@@ -37,27 +69,124 @@
       + '<p class="logo">Villa Zen’O<small>Administration</small></p>'
       + '<h1>Espace de Mehdi</h1>'
       + '<p class="lead">Connexion réservée à Mehdi et Jedy.</p>'
+      + '<div class="google-slot" data-google-slot></div>'
       + '<button type="button" class="primary" data-google>Continuer avec Google</button>'
       + (TEST_MODE ? '<button type="button" class="ghost" data-test>Mode test</button>' : '')
-      + '<p class="note" data-gate-note></p>'
+      + '<p class="note" data-gate-note role="status" aria-live="polite"></p>'
       + '</div>';
+  }
+
+  function loadGis(done) {
+    if (window.google && window.google.accounts && window.google.accounts.id) { done(true); return; }
+    var existing = document.querySelector('script[data-gis]');
+    var script = existing || document.createElement("script");
+    script.addEventListener("load", function () { done(!!(window.google && window.google.accounts && window.google.accounts.id)); });
+    script.addEventListener("error", function () { done(false); });
+    if (existing) return;
+    script.src = GIS_SRC;
+    script.async = true;
+    script.defer = true;
+    script.setAttribute("data-gis", "");
+    document.head.appendChild(script);
+  }
+
+  function afterSignIn() {
+    if ((document.body.getAttribute("data-page") || "") === "gate") window.location.replace("aujourdhui.html");
+    else window.location.reload();
+  }
+
+  function verifyToken(idToken, note) {
+    if (note) note.textContent = "Vérification du compte…";
+    if (!window.fetch) { if (note) note.textContent = MSG_NETWORK; return; }
+    window.fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "admin-auth", id_token: idToken })
+    }).then(function (res) { return res.json(); }).then(function (data) {
+      if (data && data.ok) {
+        setSession(idToken);
+        try { sessionStorage.setItem(EMAIL_KEY, String(data.email || "")); } catch (e) {}
+        afterSignIn();
+        return;
+      }
+      clearSession();
+      var error = data && data.error;
+      if (note) note.textContent = (error === "invalid_token") ? MSG_INVALID : MSG_DENIED;
+    }).catch(function () {
+      if (note) note.textContent = MSG_NETWORK;
+    });
   }
 
   function bindGate(root) {
     var note = root.querySelector("[data-gate-note]");
     var google = root.querySelector("[data-google]");
+    var slot = root.querySelector("[data-google-slot]");
     var test = root.querySelector("[data-test]");
+    var ready = false;
+    if (!slot && google) {
+      slot = document.createElement("div");
+      slot.className = "google-slot";
+      slot.setAttribute("data-google-slot", "");
+      google.parentNode.insertBefore(slot, google);
+    }
     if (google) google.addEventListener("click", function () {
       if (!GOOGLE_CLIENT_ID) {
-        if (note) note.textContent = "La connexion Google se vérifie dans le script, pour Mehdi et Jedy. En aperçu, utilisez le mode test.";
+        if (note) note.textContent = "La connexion Google n’est pas encore configurée. En aperçu, utilisez le mode test.";
         return;
       }
-      if (note) note.textContent = "Ouverture de Google…";
+      if (ready) {
+        window.google.accounts.id.prompt();
+        return;
+      }
+      if (note) note.textContent = "Chargement de Google…";
+      start();
     });
     if (test) test.addEventListener("click", function () {
       setSession("test");
       window.location.href = "aujourdhui.html";
     });
+    function start() {
+      if (!GOOGLE_CLIENT_ID) return;
+      loadGis(function (ok) {
+        if (!ok) {
+          if (note) note.textContent = "Google n’a pas pu être chargé. Vérifiez le réseau et réessayez.";
+          return;
+        }
+        if (!ready) {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: function (response) {
+              if (response && response.credential) verifyToken(response.credential, note);
+              else if (note) note.textContent = MSG_INVALID;
+            },
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            ux_mode: "popup"
+          });
+          ready = true;
+        }
+        if (slot && !slot.hasChildNodes()) {
+          var width = Math.min(320, Math.max(200, (slot.parentNode && slot.parentNode.clientWidth ? slot.parentNode.clientWidth - 48 : 320)));
+          window.google.accounts.id.renderButton(slot, {
+            type: "standard", theme: "outline", size: "large", shape: "pill",
+            text: "continue_with", logo_alignment: "left", locale: "fr", width: width
+          });
+          if (google) google.hidden = true;
+          if (note && note.textContent === "Chargement de Google…") note.textContent = "";
+        }
+      });
+    }
+    start();
+  }
+
+  function bindSignOut() {
+    var buttons = document.querySelectorAll("[data-signout]");
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].addEventListener("click", function (event) {
+        event.preventDefault();
+        signOut();
+      });
+    }
   }
 
   function confirmerCount() {
@@ -107,6 +236,8 @@
   }
 
   if (TEST_MODE && query("test") === "1") setSession("test");
+  if (!TEST_MODE && session() === "test") clearSession();
+  if (session() && session() !== "test" && tokenExpired(session())) clearSession();
 
   var page = document.body.getAttribute("data-page") || "";
   if (page === "gate") {
@@ -118,12 +249,15 @@
     bindGate(document);
   } else {
     paintNav();
+    bindSignOut();
   }
 
   window.AdminShell = {
     TEST_MODE: TEST_MODE,
     SCRIPT_URL: SCRIPT_URL,
     GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID,
-    session: session
+    session: session,
+    email: function () { try { return sessionStorage.getItem(EMAIL_KEY) || ""; } catch (e) { return ""; } },
+    signOut: signOut
   };
 })();

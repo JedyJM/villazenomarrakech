@@ -67,7 +67,7 @@
   function yearDays(year) {
     return (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) ? 366 : 365;
   }
-  function money(cents) {
+  function amountText(cents) {
     var n = Math.round(Number(cents) || 0);
     var neg = n < 0;
     n = Math.abs(n);
@@ -75,7 +75,38 @@
     var frac = n % 100;
     var text = whole;
     if (frac) text += "," + (frac < 10 ? "0" : "") + frac;
-    return (neg ? "−" : "") + text + "\u00A0€";
+    return (neg ? "−" : "") + text;
+  }
+  function money(cents) { return amountText(cents) + "\u00A0€"; }
+  // Stay currency: EUR (default, and Zen'O), MAD (MAD / DH / Dhs), else the code.
+  function curOf(stay) {
+    var c = String((stay && stay.devise) || "").replace(/[\s.]/g, "").toUpperCase();
+    if (!c || c === "EUR" || c === "€") return "EUR";
+    if (c === "MAD" || c === "DH" || c === "DHS") return "MAD";
+    return c;
+  }
+  // Amount in its own currency. Never converted.
+  function moneyIn(cents, cur) {
+    if (!cur || cur === "EUR") return money(cents);
+    return amountText(cents) + "\u00A0" + (cur === "MAD" ? "DH" : cur);
+  }
+  // Currencies of a rollup (or source row), EUR first, then MAD, then others.
+  function curList(roll) {
+    var keys = Object.keys(roll.cur || {});
+    if (!keys.length) return ["EUR"];
+    return keys.sort(function (a, b) {
+      var ra = a === "EUR" ? 0 : (a === "MAD" ? 1 : 2);
+      var rb = b === "EUR" ? 0 : (b === "MAD" ? 1 : 2);
+      return ra - rb || (a < b ? -1 : (a > b ? 1 : 0));
+    });
+  }
+  // "1 875 € · 17 952 DH": one figure per currency, never summed.
+  function perCur(roll, field, whole) {
+    return curList(roll).map(function (c) {
+      var v = roll.cur && roll.cur[c] ? roll.cur[c][field] : 0;
+      if (whole) v = Math.round((Number(v) || 0) / 100) * 100;
+      return moneyIn(v, c);
+    }).join(" · ");
   }
   function dirhams(cents) {
     var n = Math.round((Number(cents) || 0) * RATE);
@@ -296,18 +327,27 @@
     return { start: year + "-01-01", end: (year + 1) + "-01-01", days: yearDays(year) };
   }
   function selection(bien) { return bien === "Tous" || !bien ? BIENS.slice() : [bien]; }
-  function emptySource() { return { count: 0, nights: 0, brut: 0, frais: 0, net: 0 }; }
+  function emptySource() { return { count: 0, nights: 0, brut: 0, frais: 0, net: 0, cur: {} }; }
+  function curBucket(holder, cur) {
+    if (!holder.cur[cur]) holder.cur[cur] = { count: 0, nights: 0, brut: 0, frais: 0, net: 0, adr: 0, revpar: 0 };
+    return holder.cur[cur];
+  }
   // Pure. KPIs of confirmed stays over a period, for the properties in sel.
   // Nights are split across periods (a stay spanning two months counts its
   // nights in each), amounts pro rata of those nights. Future nights in the
-  // period count; cancelled stays never. Stays without departure (Booking
-  // stubs) count as bookings / arrivals only.
+  // period count; cancelled stays never (no nights, occupancy or revenue).
+  // Stays without departure (Booking stubs) count as bookings / arrivals only.
+  // Money is kept per currency in r.cur (EUR, MAD…), never summed across
+  // currencies and never converted: r.brut / r.frais / r.net / r.adr /
+  // r.revpar are the EUR figures; r.cur.MAD has the dirham ones. ADR per
+  // currency = brut / nights of that currency's stays; RevPAR per currency
+  // = brut / available nights.
   function rollup(list, period, sel) {
     var inSel = {};
     sel.forEach(function (b) { inSel[b] = true; });
     var by = {};
     SOURCES.forEach(function (k) { by[k] = emptySource(); });
-    var r = { by: by, brut: 0, frais: 0, net: 0, nights: 0, count: 0, arrivals: 0, departures: 0, stayNights: 0, staysWithNights: 0, todo: 0, other: 0 };
+    var r = { by: by, cur: {}, brut: 0, frais: 0, net: 0, nights: 0, count: 0, arrivals: 0, departures: 0, stayNights: 0, staysWithNights: 0, todo: 0, other: 0 };
     list.forEach(function (stay) {
       if (cancelled(stay)) return;
       if (!inSel[bienOf(stay)]) { if (BIENS.indexOf(bienOf(stay)) < 0) r.other += 1; return; }
@@ -330,28 +370,47 @@
       var frais = Math.round((Number(stay.frais) || 0) * share);
       var net = Math.round((Number(stay.net) || 0) * share);
       var key = sourceKey(stay.source);
+      var cur = curOf(stay);
       r.count += 1;
       if (arrives) r.arrivals += 1;
       if (leaves) r.departures += 1;
       if (full > 0) { r.stayNights += full; r.staysWithNights += 1; }
       if (stay.a_completer) r.todo += 1;
       r.nights += part;
-      r.brut += brut;
-      r.frais += frais;
-      r.net += net;
       by[key].count += 1;
       by[key].nights += part;
-      by[key].brut += brut;
-      by[key].frais += frais;
-      by[key].net += net;
+      // A stub with no amount and no night (Booking à compléter) opens no currency.
+      if (!brut && !frais && !net && !part && !stay.devise) return;
+      [curBucket(r, cur), curBucket(by[key], cur)].forEach(function (b) {
+        b.count += 1;
+        b.nights += part;
+        b.brut += brut;
+        b.frais += frais;
+        b.net += net;
+      });
     });
     r.units = sel.length;
     r.days = period.days;
     r.available = period.days * sel.length;
     r.occupancy = r.available ? r.nights / r.available : 0;
     r.rate = Math.round(r.occupancy * 100);
-    r.adr = r.nights ? Math.round(r.brut / r.nights) : 0;
-    r.revpar = r.available ? Math.round(r.brut / r.available) : 0;
+    Object.keys(r.cur).forEach(function (c) {
+      var b = r.cur[c];
+      b.adr = b.nights ? Math.round(b.brut / b.nights) : 0;
+      b.revpar = r.available ? Math.round(b.brut / r.available) : 0;
+    });
+    SOURCES.forEach(function (k) {
+      var e = by[k].cur.EUR || emptySource();
+      by[k].brut = e.brut;
+      by[k].frais = e.frais;
+      by[k].net = e.net;
+    });
+    var eur = r.cur.EUR || { brut: 0, frais: 0, net: 0, adr: 0, revpar: 0 };
+    r.brut = eur.brut;
+    r.frais = eur.frais;
+    r.net = eur.net;
+    r.adr = eur.adr;
+    r.revpar = eur.revpar;
     r.avgStay = r.staysWithNights ? Math.round(r.stayNights / r.staysWithNights * 10) / 10 : 0;
     r.avg = Math.round(r.avgStay);
     return r;
@@ -376,16 +435,17 @@
   function sourceCard(roll) {
     return '<section class="block stat-source"><p class="kicker">Par source</p>' + SOURCES.map(function (name) {
       var row = roll.by[name];
-      var width = row.brut > 0 ? Math.round(row.frais / row.brut * 100) : 0;
+      var main = row.cur[curList(row)[0]] || row;
+      var width = main.brut > 0 ? Math.round(main.frais / main.brut * 100) : 0;
       return '<div class="src"><p class="src-top"><span>' + esc(SOURCE_LABELS[name]) + '</span><em>' + esc(plural(row.count, "séjour") + " · " + plural(row.nights, "nuit")) + "</em></p>"
         + '<span class="src-bar" aria-hidden="true"><i style="width:' + width + '%"></i></span>'
-        + '<p class="src-nums"><span><small>Brut</small>' + esc(money(row.brut)) + '</span><span><small>Frais</small>' + esc(money(row.frais)) + '</span><span><small>Net</small>' + esc(money(row.net)) + "</span></p></div>";
+        + '<p class="src-nums"><span><small>Brut</small>' + esc(perCur(row, "brut")) + '</span><span><small>Frais</small>' + esc(perCur(row, "frais")) + '</span><span><small>Net</small>' + esc(perCur(row, "net")) + "</span></p></div>";
     }).join("") + "</section>";
   }
   function bienCard(list, period) {
     var rows = BIENS.map(function (bien) {
       var r = rollup(list, period, [bien]);
-      return "<tr><th>" + esc(bien) + "</th><td>" + r.nights + "</td><td>" + esc(pct(r)) + "</td><td>" + esc(euros(r.adr)) + "</td><td>" + esc(euros(r.brut)) + "</td><td>" + esc(euros(r.net)) + "</td></tr>";
+      return "<tr><th>" + esc(bien) + "</th><td>" + r.nights + "</td><td>" + esc(pct(r)) + "</td><td>" + esc(perCur(r, "adr", true)) + "</td><td>" + esc(perCur(r, "brut", true)) + "</td><td>" + esc(perCur(r, "net", true)) + "</td></tr>";
     }).join("");
     return '<section class="block stat-table"><p class="kicker">Par bien</p><table><thead><tr><th></th><th>Nuits</th><th>Occ.</th><th>ADR</th><th>Brut</th><th>Net</th></tr></thead><tbody>' + rows + "</tbody></table></section>";
   }
@@ -393,7 +453,7 @@
     var rows = MONTHS.map(function (name, index) {
       var id = state.year + "-" + pad(index + 1);
       var r = rollup(list, periodOf(state.year, id), sel);
-      return '<tr data-smonth="' + id + '"><th>' + esc(name) + "</th><td>" + r.nights + "</td><td>" + esc(pct(r)) + "</td><td>" + esc(euros(r.adr)) + "</td><td>" + esc(euros(r.revpar)) + "</td><td>" + r.count + "</td><td>" + esc(euros(r.brut)) + "</td><td>" + esc(euros(r.net)) + "</td></tr>";
+      return '<tr data-smonth="' + id + '"><th>' + esc(name) + "</th><td>" + r.nights + "</td><td>" + esc(pct(r)) + "</td><td>" + esc(perCur(r, "adr", true)) + "</td><td>" + esc(perCur(r, "revpar", true)) + "</td><td>" + r.count + "</td><td>" + esc(perCur(r, "brut", true)) + "</td><td>" + esc(perCur(r, "net", true)) + "</td></tr>";
     }).join("");
     return '<section class="block stat-table"><p class="kicker">Par mois</p><table><thead><tr><th></th><th>Nuits</th><th>Occ.</th><th>ADR</th><th>RevPAR</th><th>Séj.</th><th>Brut</th><th>Net</th></tr></thead><tbody>' + rows + "</tbody></table></section>";
   }
@@ -413,14 +473,14 @@
     if (roll.todo) notes.push(plural(roll.todo, "séjour") + " Booking à compléter (montants ou départ manquants).");
     if (roll.other && state.bien === "Tous") notes.push(plural(roll.other, "séjour") + " d’un bien inconnu non compté" + (roll.other > 1 ? "s" : "") + ".");
     return bienSegment()
-      + '<div class="stat-3">' + tile("Brut", esc(money(roll.brut))) + tile("Frais plateformes", esc(money(roll.frais))) + tile("Net (versé)", esc(money(roll.net))) + "</div>"
-      + '<div class="stat-3">' + tile("Occupation", esc(pct(roll)), esc(avail), "is-detail") + tile("ADR", esc(money(roll.adr)), "brut / nuit") + tile("RevPAR", esc(money(roll.revpar)), "brut / nuit dispo.") + "</div>"
+      + '<div class="stat-3">' + tile("Brut", esc(perCur(roll, "brut"))) + tile("Frais plateformes", esc(perCur(roll, "frais"))) + tile("Net (versé)", esc(perCur(roll, "net"))) + "</div>"
+      + '<div class="stat-3">' + tile("Occupation", esc(pct(roll)), esc(avail), "is-detail") + tile("ADR", esc(perCur(roll, "adr")), "brut / nuit") + tile("RevPAR", esc(perCur(roll, "revpar")), "brut / nuit dispo.") + "</div>"
       + '<div class="stat-3">' + tile("Séjours", esc(String(roll.count)), esc("moy. " + String(roll.avgStay).replace(".", ",") + " nuits")) + tile("Arrivées", esc(String(roll.arrivals))) + tile("Départs", esc(String(roll.departures))) + "</div>"
       + sourceCard(roll)
       + (sel.length > 1 ? bienCard(list, period) : "")
       + (state.sMonth ? "" : monthCard(list, sel))
       + (notes.length ? '<p class="stat-note">' + esc(notes.join(" ")) + "</p>" : "")
-      + '<p class="stat-note">Nuits réparties par mois, futures comprises ; séjours annulés exclus. Occupation = nuits / (jours × biens). ADR = brut / nuits, RevPAR = brut / nuits disponibles. Frais plateformes = frais de service hôte (Airbnb) et commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net.</p>';
+      + '<p class="stat-note">Nuits réparties par mois, futures comprises ; séjours annulés exclus. Montants par devise (€ et DH) : jamais additionnés, aucune conversion. Occupation = nuits / (jours × biens). ADR = brut / nuits, RevPAR = brut / nuits disponibles. Frais plateformes = frais de service hôte (Airbnb) et commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net.</p>';
   }
   function serviceSums(book) {
     var repas = book.repas.reduce(function (s, n) { return s + n; }, 0);
@@ -631,7 +691,7 @@
     }
     return {
       source: source, arrival: stay.arrival, departure: stay.departure, brut: brut, frais: frais, net: net,
-      bien: stay.portal === false ? String(stay.bien || "Autre") : ZENO, statut: stay.statut || "", a_completer: stay.a_completer || "", confirmed: true,
+      bien: stay.portal === false ? String(stay.bien || "Autre") : ZENO, devise: stay.devise ? curOf(stay) : "", statut: stay.statut || "", a_completer: stay.a_completer || "", confirmed: true,
       poolDays: stay.poolDays || 0, poolRate: stay.poolRate || 0, jacuzziDays: stay.jacuzziDays || 0, jacuzziRate: stay.jacuzziRate || 0,
       encaisse_le: stay.encaisse_le || "", offerts: stay.offerts || ""
     };
@@ -651,6 +711,8 @@
     periodOf: periodOf,
     selection: selection,
     sourceKey: sourceKey,
-    apiStay: apiStay
+    apiStay: apiStay,
+    curOf: curOf,
+    moneyIn: moneyIn
   };
 })();

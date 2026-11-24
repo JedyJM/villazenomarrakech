@@ -633,6 +633,7 @@ function otherStatsFromRow_(row, map) {
     brut: cents("brut"),
     frais: cents("frais"),
     net: cents("net"),
+    devise: String(col("devise") || ""),
     a_completer: String(col("a_completer") || "")
   };
 }
@@ -652,6 +653,7 @@ function stayFromRow_(row, map) {
     arrival: cellDate_(row, map, ["date_arrivee", "arrivee", "check_in", "arrival"]),
     departure: cellDate_(row, map, ["date_depart", "depart", "check_out", "departure"]),
     source: String(col("source") || ""),
+    devise: String(col("devise") || ""),
     agency: String(col("agence_nom") || ""),
     adults: num("adultes"),
     children: num("enfants"),
@@ -1758,7 +1760,7 @@ var IMPORT_QUERIES = [
 ];
 var IMPORT_HEADERS = [
   "booking_id", "nom", "telephone", "date_arrivee", "date_depart", "source", "listing", "statut",
-  "adultes", "enfants", "notes", "total_voyageur", "devise",
+  "adultes", "enfants", "voyageurs", "notes", "total_voyageur", "devise",
   "airbnb_frais_chambre", "airbnb_reduction", "airbnb_frais_service", "airbnb_gain",
   "booking_montant", "booking_net", "gmail_id", "a_completer", "bien"
 ];
@@ -1859,21 +1861,66 @@ function impPad_(n) { return n < 10 ? "0" + n : String(n); }
 function impIso_(y, m, d) { return y + "-" + impPad_(m) + "-" + impPad_(d); }
 
 // "1 875,10 €" (spaces may be no-break) → 1875.1. "" when absent.
+// "MAD17 952,00" → 17952, "4224.17" → 4224.17, "1,234.56" → 1234.56.
 function impAmount_(text) {
-  var s = String(text || "").replace(/[\s   ]/g, "").replace(/[^\d,.\-]/g, "");
+  var s = String(text || "").replace(/[\s\u00a0\u202f\u2009]/g, "").replace(/[^\d,.\-]/g, "");
   if (!s) return "";
-  if (s.indexOf(",") >= 0) s = s.replace(/\./g, "").replace(",", ".");
+  var lastComma = s.lastIndexOf(",");
+  var lastDot = s.lastIndexOf(".");
+  if (lastComma >= 0 && lastDot >= 0) {
+    s = lastComma > lastDot ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "");
+  } else if (lastComma >= 0) {
+    s = s.replace(/,/g, s.split(",").length > 2 ? "" : ".");
+  }
   var n = Number(s);
   return isNaN(n) ? "" : Math.round(n * 100) / 100;
+}
+
+// Currency symbol / code → ISO code. DH, Dhs, MAD → MAD; € → EUR. "" if unknown.
+function impCurrency_(sym) {
+  var s = String(sym || "").replace(/[\s.]/g, "").toUpperCase();
+  if (!s) return "";
+  if (s === "\u20ac" || s === "EUR" || s === "EUROS" || s === "EURO") return "EUR";
+  if (s === "DH" || s === "DHS" || s === "MAD") return "MAD";
+  if (s === "$" || s === "USD") return "USD";
+  if (s === "\u00a3" || s === "GBP") return "GBP";
+  return /^[A-Z]{3}$/.test(s) ? s : "";
+}
+
+// Amount + currency at the END of one line, prefix or suffix currency:
+// "TOTAL (MAD)   MAD17 952,00", "-MAD450,00", "VOUS GAGNEZ   6 402,00 DH",
+// "Frais de chambre pour 4 nuits   2 206,00 €", "1 000 Dhs". The amount must
+// follow whitespace (so "pour 4 nuits" never counts). null when absent.
+var IMP_CUR_ = "(?:\u20ac|\\$|\u00a3|MAD|EUR|USD|GBP|Dhs|DHS|DH|Dh)";
+var IMP_NUM_ = "(?:\\d{1,3}(?:[ \u00a0\u202f\u2009.,]\\d{3})+|\\d+)(?:[.,]\\d{1,2})?";
+var IMP_MONEY_END_ = new RegExp("(?:^|[ \\t\u00a0])(-?)[ \u00a0]?(?:(" + IMP_CUR_ + ")[ \u00a0]?(-?)(" + IMP_NUM_ + ")|(-?)(" + IMP_NUM_ + ")[ \u00a0\u202f]?(" + IMP_CUR_ + "|[A-Z]{3})?)[ \\t\u00a0]*$");
+function impMoney_(line) {
+  var m = String(line || "").replace(/\r/g, "").match(IMP_MONEY_END_);
+  if (!m) return null;
+  var neg = m[1] === "-" || m[3] === "-" || m[5] === "-";
+  var num = m[4] != null ? m[4] : m[6];
+  var amount = impAmount_(num);
+  if (amount === "") return null;
+  return { amount: neg ? -amount : amount, devise: impCurrency_(m[2] || m[7] || "") };
+}
+
+// First line that starts with a label, "" if absent.
+function impLabelLine_(body, labelRe) {
+  var line = String(body || "").match(new RegExp("(?:^|\\n)[ \\t]*" + labelRe + "[^\\n]*", "i"));
+  return line ? line[0] : "";
+}
+
+// Amount + currency at the end of the line that starts with a label, null if absent.
+function impLineMoney_(body, labelRe) {
+  var line = impLabelLine_(body, labelRe);
+  return line ? impMoney_(line) : null;
 }
 
 // Amount at the end of the line that starts with a label, "" if absent.
 // "Frais de chambre pour 4 nuits   2 206,00 €" → 2206 (not the 4).
 function impLineAmount_(body, labelRe) {
-  var line = body.match(new RegExp("(?:^|\\n)[ \\t]*" + labelRe + "[^\\n]*", "i"));
-  if (!line) return "";
-  var m = line[0].match(/(-?\d[\d \u00a0\u202f\u2009.,]*\d|-?\d)[ \t\u00a0]*(?:\u20ac|[A-Z]{3}|\$)?[ \t\u00a0]*$/);
-  return m ? impAmount_(m[1]) : "";
+  var m = impLineMoney_(body, labelRe);
+  return m ? m.amount : "";
 }
 
 // Year for a day/month with no year (Airbnb). A confirmation is normally for
@@ -1916,11 +1963,52 @@ function impPhone_(body) {
 function impEmptyStay_(source, msg) {
   return {
     booking_id: "", source: source, nom: "", telephone: "", adultes: "", enfants: "", notes: "",
-    date_arrivee: "", date_depart: "", listing: "", statut: impStatut_(msg.subject),
+    date_arrivee: "", date_depart: "", listing: "", statut: impStatut_(msg.subject), voyageurs: "",
     total: "", devise: "", airbnb_frais_chambre: "", airbnb_reduction: "", airbnb_frais_service: "",
     airbnb_gain: "", booking_montant: "", booking_net: "",
     gmail_id: msg.id || "", email_date: "", a_completer: "", zeno: "", bien: "", hotel_id: ""
   };
+}
+
+// "jeu. 20 mai 2027   dim. 30 mai 2027" or "mer. 23 déc.   dim. 27 déc."
+// → [{ day, month, year|0 }, …] in order. Weekday words carry no digit and
+// are skipped; a 4-digit year right after the month belongs to that date.
+function impDayMonths_(line) {
+  var out = [];
+  var re = /(\d{1,2})[ \t\u00a0]+([^\s\d,;()\u2013\-]+)(?:[ \t\u00a0]+(\d{4})\b)?/g;
+  var m;
+  while ((m = re.exec(String(line || ""))) !== null) {
+    var month = impMonth_(m[2]);
+    if (month) out.push({ day: Number(m[1]), month: month, year: m[3] ? Number(m[3]) : 0 });
+  }
+  return out;
+}
+
+// Arrival / departure ISO from two parsed dates. A written year is used as
+// is (never inferred); without one, the arrival year comes from the email
+// date (impInferDate_) and the departure follows the arrival.
+function impStayDates_(a, d, emailDate) {
+  var res = { arrivee: "", depart: "" };
+  if (!a) return res;
+  if (a.year) res.arrivee = impIso_(a.year, a.month, a.day);
+  else if (d && d.year) res.arrivee = impIso_(a.month > d.month ? d.year - 1 : d.year, a.month, a.day);
+  else if (emailDate && !isNaN(emailDate.getTime())) res.arrivee = impInferDate_(a.month, a.day, emailDate);
+  if (d && res.arrivee) res.depart = d.year ? impIso_(d.year, d.month, d.day) : impDepartDate_(d.month, d.day, res.arrivee);
+  return res;
+}
+
+// Airbnb cancellation range: "(19–23 oct.)", "(15–20 juil. 2026)",
+// "(28 juin–2 juil.)", "19–23 oct., 8 voyageurs" (en dash or hyphen).
+// Returns [arrival, departure] day/months or null.
+function impRange_(text) {
+  var m = String(text || "").match(/(\d{1,2})(?:[ \t\u00a0]+([^\s\d,()\u2013\-]+?)\.?)?(?:[ \t\u00a0]+(\d{4}))?[ \t\u00a0]*[\u2013\u2014\-][ \t\u00a0]*(\d{1,2})[ \t\u00a0]+([^\s\d,()]+?)\.?(?:[ \t\u00a0]+(\d{4}))?(?=[\s,)]|$)/);
+  if (!m) return null;
+  var dm = impMonth_(m[5]);
+  if (!dm) return null;
+  var am = m[2] ? impMonth_(m[2]) : dm;
+  if (!am) return null;
+  var dy = m[6] ? Number(m[6]) : 0;
+  return [{ day: Number(m[1]), month: am, year: m[3] ? Number(m[3]) : 0 }, { day: Number(m[4]), month: dm, year: dy }];
 }
 
 function impParseAirbnb_(msg) {
@@ -1937,26 +2025,47 @@ function impParseAirbnb_(msg) {
   if (!code) return null;
   stay.booking_id = code[1];
 
+  var cancelled = stay.statut === "annulée";
   var name = subject.match(/confirmée\s*:\s*(.+?)\s+arrive le\b/i);
   if (name) stay.nom = name[1].replace(/\s+/g, " ").trim();
-  if (!stay.nom) {
-    var link = body.match(/\/reservations\/details\/[A-Z0-9]+\?\S*[ \t]{2,}([^\n\[]+)/);
-    if (link) stay.nom = link[1].trim();
-  }
+  // Text after the details URL on the same line: the guest name in a
+  // confirmation, the listing in a cancellation ("RÉSERVATION ANNULÉE").
+  var link = body.match(/\/reservations\/details\/[A-Z0-9]+\S*[ \t\u00a0]{2,}([^\n\[]+)/);
+  var afterLink = link ? link[1].replace(/[ \t\u00a0]+$/, "").trim() : "";
+  if (!stay.nom && afterLink && !cancelled) stay.nom = afterLink;
 
   var listing = body.match(/\n[ \t]*([^\n]+?)[ \t]*\n\s*(?:Logement entier|Chambre privée|Entire home)/i);
   if (listing && !/^https?:/.test(listing[1].trim())) stay.listing = listing[1].trim();
+  if (!stay.listing && cancelled && afterLink) stay.listing = afterLink;
 
-  if (stay.email_date) {
-    var dates = body.match(/Arrivée[ \t]+Départ[^\n]*\n\s*[a-zéû.]*\.?[ \t]*(\d{1,2})[ \t]+([^\s\d]+)[ \t]+[a-zéû.]*\.?[ \t]*(\d{1,2})[ \t]+([^\s\d]+)/i);
-    if (dates && impMonth_(dates[2])) {
-      stay.date_arrivee = impInferDate_(impMonth_(dates[2]), Number(dates[1]), date);
-      if (impMonth_(dates[4])) stay.date_depart = impDepartDate_(impMonth_(dates[4]), Number(dates[3]), stay.date_arrivee);
-    } else {
-      var arr = subject.match(/arrive le\s+(\d{1,2})\s+([^\s\d]+)/i);
-      if (arr && impMonth_(arr[2])) stay.date_arrivee = impInferDate_(impMonth_(arr[2]), Number(arr[1]), date);
+  // "Arrivée   Départ", then (after optional blank lines) one line with
+  // both dates, each with an optional year: "jeu. 20 mai 2027   dim. 30 mai 2027".
+  var head = body.match(/Arrivée[ \t\u00a0]+Départ[^\n]*\n(?:[ \t\u00a0]*\n)*([^\n]*\d[^\n]*)/i);
+  var dm = head ? impDayMonths_(head[1]) : [];
+  if (!dm.length) {
+    // Cancellation: subject "(19–23 oct.[ 2026])", else the body line
+    // "19–23 oct., 8 voyageurs".
+    var range = impRange_((subject.match(/\(([^()]*\d[^()]*)\)/) || [])[1]);
+    if (!range) {
+      var gl = body.match(/(?:^|\n)[ \t\u00a0]*([^\n]*\d[ \t\u00a0]*[\u2013\u2014\-][^\n]*?,[ \t\u00a0]*\d+[ \t\u00a0]+voyageurs?)/i);
+      range = gl ? impRange_(gl[1]) : null;
+    }
+    if (range) dm = range;
+  }
+  if (dm.length) {
+    var sd = impStayDates_(dm[0], dm[1], date);
+    stay.date_arrivee = sd.arrivee;
+    stay.date_depart = sd.depart;
+  }
+  if (!stay.date_arrivee) {
+    var arr = subject.match(/arrive le\s+(\d{1,2})\s+([^\s\d]+)(?:\s+(\d{4}))?/i);
+    if (arr && impMonth_(arr[2])) {
+      stay.date_arrivee = arr[3] ? impIso_(Number(arr[3]), impMonth_(arr[2]), Number(arr[1]))
+        : (isNaN(date.getTime()) ? "" : impInferDate_(impMonth_(arr[2]), Number(arr[1]), date));
     }
   }
+  var count = body.match(/(?:^|[\s,])(\d+)[ \t\u00a0]+voyageurs?\b/i);
+  if (count && cancelled) stay.voyageurs = Number(count[1]);
 
   var guests = body.match(/VOYAGEURS\s*\n\s*([^\n]+)/);
   if (guests) {
@@ -1967,27 +2076,38 @@ function impParseAirbnb_(msg) {
     if (a) stay.adultes = Number(a[1]);
     if (a || c) stay.enfants = c ? Number(c[1]) : 0;
     if (b) stay.notes = b[1] + (Number(b[1]) > 1 ? " bébés" : " bébé");
+    if (a || c) stay.voyageurs = (a ? Number(a[1]) : 0) + (c ? Number(c[1]) : 0);
   }
 
-  var total = body.match(/TOTAL \(([A-Z]{3})\)[ \t]+(-?\d[\d    .,]*)/);
-  if (total) { stay.devise = total[1]; stay.total = impAmount_(total[2]); }
+  // Amounts: currency as prefix or suffix ("MAD17 952,00", "7 898,91 DH",
+  // "1 875,10 €"); DH / Dhs = MAD. devise is always set with an amount: the
+  // TOTAL (XXX) code first, else the currency written next to any amount.
+  var seen = [];
+  function take(m) { if (m && m.devise) seen.push(m.devise); return m ? m.amount : ""; }
+  var totalLine = impLabelLine_(body, "TOTAL[ \\t\\u00a0]*\\(");
+  if (totalLine) {
+    stay.total = take(impMoney_(totalLine));
+    var cur = totalLine.match(/TOTAL[ \t\u00a0]*\(([^)]+)\)/i);
+    if (cur && impCurrency_(cur[1])) seen.unshift(impCurrency_(cur[1]));
+  }
 
   // Host payout block: room fee, reductions/adjustments (stored positive),
   // host service fee (stored positive) and payout, as the admin form expects.
   var payout = body.split(/VERSEMENT DE L'HÔTE|VERSEMENT DE L’HÔTE/)[1] || "";
-  stay.airbnb_frais_chambre = impLineAmount_(payout, "Frais de chambre");
-  stay.airbnb_gain = impLineAmount_(body, "VOUS GAGNEZ");
-  var fee = impLineAmount_(payout, "Frais de service hôte");
+  stay.airbnb_frais_chambre = take(impLineMoney_(payout, "Frais de chambre"));
+  stay.airbnb_gain = take(impLineMoney_(body, "VOUS GAGNEZ"));
+  var fee = take(impLineMoney_(payout, "Frais de service hôte"));
   if (fee !== "") stay.airbnb_frais_service = Math.abs(fee);
   var lines = payout.split(/VOUS GAGNEZ/)[0].split("\n");
   var reduction = 0;
   var hasReduction = false;
   for (var i = 0; i < lines.length; i++) {
     if (/Frais de service|Frais de chambre/i.test(lines[i])) continue;
-    var neg = lines[i].match(/[ \t](-\d[\d    .,]*)\s*\S*\s*$/);
-    if (neg) { reduction += Math.abs(impAmount_(neg[1])); hasReduction = true; }
+    var neg = impMoney_(lines[i]);
+    if (neg && neg.amount < 0) { reduction += Math.abs(take(neg)); hasReduction = true; }
   }
   if (hasReduction) stay.airbnb_reduction = Math.round(reduction * 100) / 100;
+  if (stay.total !== "" || stay.airbnb_frais_chambre !== "" || stay.airbnb_gain !== "") stay.devise = seen[0] || "";
 
   stay.telephone = impPhone_(body);
   return stay;
@@ -2057,9 +2177,15 @@ function parseReservationEmailRaw_(msg) {
   return null;
 }
 
-// Pure: one stay per booking_id. The latest email wins field by field;
-// older emails only fill fields the latest one lacks (a cancellation email
-// usually has no dates or amounts).
+// Pure: one stay per booking_id (confirmation code). The latest email wins
+// field by field; older emails only fill fields the latest one lacks: a
+// later cancellation keeps statut "annulée" and inherits name, amounts and
+// listing from the confirmation. A cancellation alone still gives one row
+// (code, dates, listing, guests from the cancellation itself).
+// Different codes are different bookings, even when the dates overlap on
+// the same property (e.g. Villa la tour 13→19 and 18→21 juil. 2026, or a
+// new code booked after a cancellation): never merged, see importOverlaps_.
+// Running it again on the same messages gives the same stays.
 function dedupeStays_(stays) {
   var sorted = stays.filter(function (s) { return s && s.booking_id; }).sort(function (a, b) {
     return a.email_date < b.email_date ? 1 : (a.email_date > b.email_date ? -1 : 0);
@@ -2075,6 +2201,25 @@ function dedupeStays_(stays) {
   return order.map(function (id) { return byId[id]; }).sort(function (a, b) {
     return a.date_arrivee < b.date_arrivee ? -1 : (a.date_arrivee > b.date_arrivee ? 1 : 0);
   });
+}
+
+// Pure: confirmed stays of the same bien whose nights overlap, with
+// different codes. Kept as separate bookings; reported in the dry run only
+// (bien + dates, no code, no guest data).
+function importOverlaps_(stays) {
+  var out = [];
+  var live = stays.filter(function (s) { return s.statut !== "annulée" && s.date_arrivee && s.date_depart; });
+  for (var i = 0; i < live.length; i++) {
+    for (var j = i + 1; j < live.length; j++) {
+      var a = live[i];
+      var b = live[j];
+      if ((a.bien || "") !== (b.bien || "") || a.booking_id === b.booking_id) continue;
+      if (a.date_arrivee < b.date_depart && b.date_arrivee < a.date_depart) {
+        out.push({ bien: a.bien || "", a: a.date_arrivee + " → " + a.date_depart, b: b.date_arrivee + " → " + b.date_depart });
+      }
+    }
+  }
+  return out;
 }
 
 // Pure: counts by source, arrival month and statut.
@@ -2119,7 +2264,8 @@ function importOtherRow_(s) {
     booking_id: s.booking_id, bien: s.bien, source: s.source, statut: s.statut,
     date_arrivee: s.date_arrivee, date_depart: s.date_depart,
     nuits: s.date_arrivee && s.date_depart ? impNights_(s.date_arrivee, s.date_depart) : "",
-    voyageurs: s.adultes === "" && s.enfants === "" ? "" : (Number(s.adultes) || 0) + (Number(s.enfants) || 0),
+    voyageurs: s.adultes === "" && s.enfants === "" ? (s.voyageurs === "" || s.voyageurs == null ? "" : Number(s.voyageurs))
+      : (Number(s.adultes) || 0) + (Number(s.enfants) || 0),
     brut: brut, frais: frais, net: net, devise: s.devise, hotel_id: s.hotel_id || "",
     listing: s.listing, a_completer: s.a_completer, portail: "non", gmail_id: s.gmail_id
   };
@@ -2206,13 +2352,17 @@ function importGmailStays_() {
       if (threads.length < 100) break;
     }
   }
-  var sp = importSplit_(dedupeStays_(parsed));
-  return { messages: messages, stays: sp.zeno, others: sp.others, skipped: sp.skipped, unknown: sp.unknown };
+  var unique = dedupeStays_(parsed);
+  var overlaps = importOverlaps_(unique);
+  var sp = importSplit_(unique);
+  return { messages: messages, stays: sp.zeno, others: sp.others, skipped: sp.skipped, unknown: sp.unknown, overlaps: overlaps };
 }
 
 function importLogLine_(s) {
-  return [s.bien || IMPORT_ZENO, s.source, s.booking_id, s.statut, s.date_arrivee + " → " + (s.date_depart || "?"),
-    s.listing, s.nom || "(sans nom)", (s.adultes === "" ? "?" : s.adultes) + "A/" + (s.enfants === "" ? "?" : s.enfants) + "E",
+  var guests = s.adultes === "" && s.enfants === "" && s.voyageurs !== "" && s.voyageurs != null ? s.voyageurs + " voy."
+    : (s.adultes === "" ? "?" : s.adultes) + "A/" + (s.enfants === "" ? "?" : s.enfants) + "E";
+  return [s.bien || IMPORT_ZENO, s.source, s.booking_id, s.statut, (s.date_arrivee || "?") + " → " + (s.date_depart || "?"),
+    s.listing, s.nom || "(sans nom)", guests,
     s.total === "" ? "" : Number(s.total).toFixed(2) + " " + s.devise,
     s.airbnb_gain === "" ? "" : "gain " + Number(s.airbnb_gain).toFixed(2)]
     .concat(s.a_completer ? [s.a_completer] : []).join(" · ");
@@ -2236,7 +2386,11 @@ function importReservationsDryRun() {
   counts.skipped = res.skipped;
   counts.byBien = importCountsByBien_(res.stays, res.others);
   counts.unknown = res.unknown;
+  counts.overlaps = res.overlaps;
   Logger.log("Dry run : " + JSON.stringify(counts));
+  for (var o = 0; o < res.overlaps.length; o++) {
+    Logger.log("Chevauchement " + res.overlaps[o].bien + " : " + res.overlaps[o].a + " / " + res.overlaps[o].b + " — codes différents, deux réservations gardées");
+  }
   for (var i = 0; i < res.stays.length; i++) Logger.log(importLogLine_(res.stays[i]));
   for (i = 0; i < res.others.length; i++) Logger.log(importOtherLogLine_(res.others[i]));
   return { ok: true, dryRun: true, counts: counts, skipped: res.skipped, unknown: res.unknown, stays: res.stays, others: res.others };
@@ -2247,7 +2401,7 @@ function importValues_(s) {
   return {
     booking_id: s.booking_id, nom: s.nom, telephone: s.telephone,
     date_arrivee: s.date_arrivee, date_depart: s.date_depart, source: s.source,
-    listing: s.listing, statut: s.statut, adultes: s.adultes, enfants: s.enfants, notes: s.notes,
+    listing: s.listing, statut: s.statut, adultes: s.adultes, enfants: s.enfants, voyageurs: s.voyageurs, notes: s.notes,
     total_voyageur: s.total, devise: s.devise,
     airbnb_frais_chambre: s.airbnb_frais_chambre, airbnb_reduction: s.airbnb_reduction,
     airbnb_frais_service: s.airbnb_frais_service, airbnb_gain: s.airbnb_gain,
@@ -2269,9 +2423,12 @@ function importEnsureHeaders_(sheet, headers) {
   return map;
 }
 
-// Adds new rows (by booking_id) and updates an existing one only when its
-// statut changed (cancel / change) or to fill empty cells. keep: columns
-// never overwritten once filled. fresh(row, map): defaults for new rows.
+// Idempotent upsert keyed on booking_id (the confirmation code) in this tab:
+// an existing row is found and updated, never appended a second time, so a
+// re-run adds nothing. Ids are compared trimmed, as text (a Booking id typed
+// as a number still matches). Updates happen only when the statut changed
+// (cancel / change) or to fill empty cells. keep: columns never overwritten
+// once filled. fresh(row, map): defaults for new rows.
 // Returns { added, updated }.
 function importUpsert_(sheet, map, list, valuesOf, keep, fresh) {
   var width = sheet.getLastColumn();
@@ -2282,18 +2439,21 @@ function importUpsert_(sheet, map, list, valuesOf, keep, fresh) {
   var used = 0; // rows holding data; checkbox-only rows (all FALSE) are free
   var i;
   for (i = 0; i < existing.length; i++) {
-    if (existing[i][idCol] !== "") rowOf[String(existing[i][idCol])] = i;
+    var key = String(existing[i][idCol] == null ? "" : existing[i][idCol]).trim();
+    if (key !== "" && !rowOf.hasOwnProperty(key)) rowOf[key] = i;
     for (var x = 0; x < width; x++) {
       if (existing[i][x] !== "" && existing[i][x] !== false) { used = i + 1; break; }
     }
   }
   var added = [];
+  var addedIds = {};
   var updated = 0;
   for (i = 0; i < list.length; i++) {
     var values = valuesOf(list[i]);
     var keys = Object.keys(values);
-    var id = String(values.booking_id);
+    var id = String(values.booking_id == null ? "" : values.booking_id).trim();
     var k;
+    if (id === "" || addedIds.hasOwnProperty(id)) continue; // no id, or twice in one run
     if (rowOf.hasOwnProperty(id)) {
       var idx = rowOf[id];
       var row = existing[idx].slice();
@@ -2318,6 +2478,7 @@ function importUpsert_(sheet, map, list, valuesOf, keep, fresh) {
     for (k = 0; k < width; k++) row2.push("");
     for (k = 0; k < keys.length; k++) if (map[keys[k]] != null) row2[map[keys[k]]] = values[keys[k]];
     if (fresh) fresh(row2, map);
+    addedIds[id] = 1;
     added.push(row2);
   }
   if (added.length) {

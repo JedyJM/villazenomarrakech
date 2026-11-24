@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content">
+<title>Nouvelle réservation | Villa Zen’O</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f6f1ea">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body data-page="nouveau" data-tab="sejours">
+<header class="site-header">
+<div class="wrap header-inner"><a class="logo" href="sejours.html">Villa Zen’O<small>Administration</small></a></div>
+</header>
+<main class="page wrap">
+<a class="back" href="sejours.html">‹ Séjours</a>
+<h1>Nouvelle réservation</h1>
+<form class="stack" data-stay-form novalidate>
+<p class="form-error" data-error></p>
+<section class="block">
+<label class="field"><span>Nom</span><input name="nom" autocomplete="name" required></label>
+<label class="field"><span>Téléphone WhatsApp</span><input name="telephone" type="tel" autocomplete="tel" required></label>
+</section>
+<section class="block">
+<div class="dates">
+<label class="field"><span>Arrivée</span><span class="date-fr"><input name="arrival" type="date" lang="fr" required><span class="date-face" data-date-face></span></span></label>
+<label class="field"><span>Départ</span><span class="date-fr"><input name="departure" type="date" lang="fr" required><span class="date-face" data-date-face></span></span></label>
+</div>
+<div class="seg seg-sources" role="group" aria-label="Source" data-sources></div>
+<label class="field" data-agency hidden><span>Nom de l’agence</span><input name="agency" autocomplete="organization"></label>
+</section>
+<section class="block">
+<div class="step-row"><span>Adultes</span><span class="stepper"><button type="button" data-step="adults" data-dir="-1" aria-label="Moins d’adultes">−</button><output data-adults>2</output><button type="button" data-step="adults" data-dir="1" aria-label="Plus d’adultes">+</button></span></div>
+<div class="step-row"><span>Enfants</span><span class="stepper"><button type="button" data-step="children" data-dir="-1" aria-label="Moins d’enfants">−</button><output data-children>0</output><button type="button" data-step="children" data-dir="1" aria-label="Plus d’enfants">+</button></span></div>
+<div data-ages></div>
+<p class="note">Moins de 12 ans&nbsp;: repas à 50&nbsp;%. Moins de 4 ans&nbsp;: repas offert.</p>
+</section>
+<section class="block" data-price></section>
+<section class="block">
+<p class="kicker">Chauffage réservé</p>
+<div class="heat-row"><span class="lbl">Piscine</span><span class="stepper"><button type="button" data-step="poolDays" data-dir="-1" aria-label="Moins de jours de piscine">−</button><output data-pool-days>0</output><button type="button" data-step="poolDays" data-dir="1" aria-label="Plus de jours de piscine">+</button></span><input name="poolDays" type="hidden" value="0"><span class="heat-end"><span class="heat-tarif" data-pool-tarif><input name="poolRate" inputmode="decimal" aria-label="Tarif piscine en euros par jour"><span class="unit">€ / j</span></span><span class="offert-chip" data-pool-flag hidden>Offert</span></span></div>
+<div class="heat-row"><span class="lbl">Jacuzzi</span><span class="stepper"><button type="button" data-step="jacuzziDays" data-dir="-1" aria-label="Moins de jours de jacuzzi">−</button><output data-jacuzzi-days>0</output><button type="button" data-step="jacuzziDays" data-dir="1" aria-label="Plus de jours de jacuzzi">+</button></span><input name="jacuzziDays" type="hidden" value="0"><span class="heat-end"><span class="heat-tarif" data-jacuzzi-tarif><input name="jacuzziRate" inputmode="decimal" aria-label="Tarif jacuzzi en euros par jour"><span class="unit">€ / j</span></span><span class="offert-chip" data-jacuzzi-flag hidden>Offert</span></span></div>
+</section>
+<section class="block">
+<label class="field"><span>Notes</span><textarea name="notes"></textarea></label>
+</section>
+<button type="submit" class="primary" data-save>Enregistrer le séjour</button>
+</form>
+</main>
+<script src="js/calc.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/stays.js"></script>
+</body>
+</html>

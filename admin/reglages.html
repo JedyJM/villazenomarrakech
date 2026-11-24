@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content">
+<title>Réglages | Villa Zen’O</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f6f1ea">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="page-reglages" data-page="reglages" data-tab="reglages">
+<header class="site-header">
+<div class="wrap header-inner"><a class="logo" href="aujourdhui.html">Villa Zen’O<small>Administration</small></a></div>
+</header>
+<main class="page wrap" data-reglages>
+<h1>Réglages</h1>
+<p class="reg-intro">Notifications pour Mehdi. Tout ce qui est ci-dessous, hors WhatsApp, peut se faire gratuitement avec Apps Script.</p>
+<section class="block reg-card">
+<div class="reg-row">
+<div class="reg-copy">
+<p class="reg-title">E-mail à chaque nouvelle demande</p>
+<div class="reg-body">
+<p class="reg-text">Envoyé tout de suite à</p>
+<p class="mail-line"><span class="mail-box"><input class="mail-inline" type="email" inputmode="email" autocomplete="email" spellcheck="false" data-email value="mehdimoumni@hotmail.com" aria-label="Adresse e-mail"></span><button type="button" class="mail-pen" tabindex="-1" aria-label="Modifier l’adresse"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button></p>
+<p class="reg-text">dès qu’une demande est enregistrée. Gratuit.</p>
+</div>
+</div>
+<button type="button" class="reg-switch is-on" data-key="notif_email_on" role="switch" aria-pressed="true" aria-label="E-mail à chaque nouvelle demande"><span></span></button>
+</div>
+<div class="reg-row">
+<div class="reg-copy">
+<p class="reg-title">Récapitulatif quotidien à 8&nbsp;h</p>
+<p class="reg-text">Chaque matin&nbsp;: alertes en cours, services du jour, arrivées et départs. Optionnel.</p>
+</div>
+<button type="button" class="reg-switch is-on" data-key="recap_8h_on" role="switch" aria-pressed="true" aria-label="Récapitulatif quotidien à 8 heures"><span></span></button>
+</div>
+<div class="reg-row">
+<div class="reg-copy">
+<p class="reg-title">WhatsApp ou notification sur le téléphone</p>
+<div class="reg-body">
+<p class="reg-text">Pour prévenir Mehdi automatiquement sur WhatsApp, il faut l’API WhatsApp Business, payante. Plus tard, si vous le souhaitez.</p>
+<p class="later">Plus tard</p>
+</div>
+</div>
+<button type="button" class="reg-switch" role="switch" aria-pressed="false" disabled aria-disabled="true" aria-label="WhatsApp, plus tard"><span></span></button>
+</div>
+</section>
+<section class="block reg-card">
+<div class="reg-row">
+<div class="reg-copy">
+<p class="reg-title">Jeu de test</p>
+<p class="reg-text">Affiche aussi les lignes marquées origine = test dans Stats et Séjours. Désactivé par défaut&nbsp;: seules les données réelles comptent.</p>
+</div>
+<button type="button" class="reg-switch" data-jeu-test role="switch" aria-pressed="false" aria-label="Jeu de test"><span></span></button>
+</div>
+</section>
+<section class="block reg-card reg-access">
+<p class="kicker">Accès</p>
+<p class="reg-title">Connexion avec le compte Google</p>
+<p class="reg-text">Seuls Mehdi et Jedy peuvent ouvrir cette page, avec leur compte Google. Pas de mot de passe supplémentaire. Le Google Sheet reste le carnet (réservations, demandes), pas l’écran de travail du jour.</p>
+<button type="button" class="ghost signout" data-signout>Se déconnecter</button>
+</section>
+<p class="stat-note reg-foot">Aucun message n’est envoyé tout seul aux invités ni au personnel depuis cet écran. Relancer un membre du staff ouvre son WhatsApp.</p>
+</main>
+<script src="js/shell.js"></script>
+<script src="js/reglages.js"></script>
+</body>
+</html>

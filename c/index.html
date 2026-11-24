@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Confirmation</title>
+<script>
+(function () {
+  var apps = "https://script.google.com/macros/s/AKfycbwrmyFtKdhIovJAh2A-DjYfIYNwGWz7s-r_yKz8TDj29J1OcbnBPA7tIBV1qRJbtFcwlw/exec";
+  var query = new URLSearchParams(location.search);
+  var id = query.get("r") || "";
+  var token = query.get("k") || "";
+  if (!id || !token) return;
+  location.replace(apps + "?action=confirm&id=" + encodeURIComponent(id) + "&t=" + encodeURIComponent(token));
+})();
+</script>
+</head>
+<body style="margin:0;background:#f6f1ea;color:#1c1916;font-family:Georgia,'Times New Roman',serif">
+<p id="missing" hidden style="text-align:center;padding:3rem 1rem">Ce lien n’est pas valable.</p>
+<script>
+(function () {
+  var query = new URLSearchParams(location.search);
+  if (query.get("r") && query.get("k")) return;
+  document.getElementById("missing").hidden = false;
+})();
+</script>
+</body>
+</html>

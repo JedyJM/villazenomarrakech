@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mes demandes | Villa Zen’O</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f6f1ea">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/portal.css">
+</head>
+<body class="page-request page-demandes">
+<a class="skip-link" href="#contenu">Aller au contenu</a>
+<header class="site-header">
+<div class="wrap header-inner">
+<a class="logo" href="./">Villa Zen’O<small>Marrakech Palmeraie</small></a>
+<div class="lang-switch" aria-label="Langue"><a href="demandes.html" hreflang="fr" lang="fr" aria-current="page">FR</a><a href="en/" hreflang="en" lang="en">EN</a></div>
+</div>
+</header>
+<main id="contenu" class="request" data-demand-page>
+<div class="wrap demand-stack">
+<div class="demand-head">
+<h1>Mes demandes</h1>
+<div class="demand-meta">
+<p class="demand-dates" data-stay-dates></p>
+<p class="demand-sum" data-demand-sum></p>
+</div>
+</div>
+<div class="demand-empty" data-demand-empty hidden><span class="demand-empty-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="5" cy="7" r="1.2"/><circle cx="5" cy="12" r="1.2"/><circle cx="5" cy="17" r="1.2"/><path d="M9 7h10M9 12h10M9 17h10"/></svg></span><p>Vous n’avez encore envoyé aucune demande.</p></div>
+<ul class="demand-list" data-demand-list hidden></ul>
+<a class="demand-recap" href="recap.html">Récapitulatif de séjour</a>
+</div>
+</main>
+<script src="js/guest-shell.js" data-home="./"></script>
+<script src="../js/config.js"></script>
+<script src="js/portal.js"></script>
+<script src="js/requests.js"></script>
+<script src="js/stay-board.js"></script>
+<script>
+(function () {
+  var link = document.querySelector(".demand-recap");
+  if (!link) return;
+  var query = window.location.search || "";
+  if (query) link.href = "recap.html" + query;
+})();
+</script>
+</body>
+</html>

@@ -1182,11 +1182,15 @@ function waToken_() {
   return PropertiesService.getScriptProperties().getProperty("WHATSAPP_TOKEN") || "";
 }
 
-// Makes a value safe for a template body parameter (no newlines/tabs,
-// no runs of spaces, max 900 chars, never empty).
+// Separator between top-level fields of a template parameter (U+2B25).
+// Meta forbids newlines in body parameters.
+var WA_SEP = " \u2B25 ";
+
+// Makes a value safe for a template body parameter (newline -> WA_SEP,
+// no tabs, no runs of spaces, max 900 chars, never empty).
 function waClean_(value) {
   var text = String(value == null ? "" : value)
-    .replace(/\r?\n/g, " · ")
+    .replace(/\s*\r?\n\s*/g, WA_SEP)
     .replace(/\t/g, " ")
     .replace(/ {2,}/g, " ")
     .replace(/^\s+|\s+$/g, "")
@@ -1366,32 +1370,102 @@ function waHoraire_(details, todayIso) {
   return out.join(" ");
 }
 
-// Arabic details without any price, meal shown once.
+// Persons breakdown labels and age suffixes for the compact persons field.
+var WA_PEOPLE_KEYS = {
+  "personnes": "total",
+  "adultes": "adults",
+  "enfants": "children",
+  "enfants 12 ans et plus": "plus_12",
+  "enfants 4 a 11 ans": "de_4_a_11",
+  "enfants moins de 4 ans": "moins_4"
+};
+var WA_AGE_AR = {
+  plus_12: "12 سنة فأكثر",
+  de_4_a_11: "4-11 سنة",
+  moins_4: "أقل من 4 سنوات"
+};
+
+// First whole number in a value, or null when there is none.
+function waCount_(value) {
+  if (value == null || value === "") return null;
+  var m = String(value).match(/\d+/);
+  return m ? Number(m[0]) : null;
+}
+
+// "1 كبير" / "2 كبار"; "1 طفل 4-11 سنة" / "2 أطفال 4-11 سنة".
+function waPeopleGroup_(n, kind) {
+  if (kind === "adults") return n + " " + (n === 1 ? "كبير" : "كبار");
+  var word = n === 1 ? "طفل" : "أطفال";
+  return n + " " + word + (WA_AGE_AR[kind] ? " " + WA_AGE_AR[kind] : "");
+}
+
+// Compact persons field: "أشخاص : 4 (2 كبار، 1 طفل 4-11 سنة، 1 طفل أقل من 4 سنوات)".
+// Structured details win over resume counts (found). "" when nothing known.
+function waPeopleAr_(details, found) {
+  var ages = details.children_ages && typeof details.children_ages === "object" ? details.children_ages : null;
+  function pick(structured, fromResume) {
+    var n = waCount_(structured);
+    return n == null ? (fromResume == null ? null : fromResume) : n;
+  }
+  var adults = pick(details.adults, found.adults);
+  var children = pick(details.children, found.children);
+  var counts = {
+    plus_12: pick(ages ? ages.plus_12 : null, found.plus_12),
+    de_4_a_11: pick(ages ? ages.de_4_a_11 : null, found.de_4_a_11),
+    moins_4: pick(ages ? ages.moins_4 : null, found.moins_4)
+  };
+  var groups = [];
+  var sum = 0;
+  if (adults) { groups.push(waPeopleGroup_(adults, "adults")); sum += adults; }
+  var aged = 0;
+  var order = ["plus_12", "de_4_a_11", "moins_4"];
+  for (var i = 0; i < order.length; i++) {
+    var n = counts[order[i]];
+    if (n) { groups.push(waPeopleGroup_(n, order[i])); aged += n; }
+  }
+  // Children without an age bracket.
+  if (children && children > aged) groups.push(waPeopleGroup_(children - aged, "children"));
+  sum += Math.max(children || 0, aged);
+  var total = pick(details.people, found.total);
+  if (!total) total = sum || found.hidden || null;
+  if (!total) return "";
+  var text = WA_LABELS_AR.personnes + " : " + total;
+  return groups.length ? text + " (" + groups.join("، ") + ")" : text;
+}
+
+// Arabic details without any price, on one line, fields joined by WA_SEP:
+// meal, persons (compact), eggs, salads, dishes, other fields, notes last.
 function waDetails_(data, details) {
   var meal = WA_SOUS_TYPE_AR[waTrim_(data.sous_type)] || "";
-  var parts = [];
-  var people = "";
-  var hasPeople = false;
+  var eggs = [];
+  var salads = [];
+  var dishes = [];
+  var other = [];
+  var notes = [];
+  var found = {};
   var lines = String(details.resume || "").split("\n");
   for (var i = 0; i < lines.length; i++) {
     var line = waTrim_(lines[i]);
     if (!line) continue;
     var lm = line.match(/^([^:]*[^\s:\d][^:]*?)\s*:\s*(.*)$/);
     if (!lm) {
-      line = waValueAr_(waStripMoney_(line));
-      if (line) parts.push(line);
+      line = waPartsAr_(line);
+      if (line) other.push(line);
       continue;
     }
     var key = waKey_(lm[1]);
     var value = waTrim_(lm[2]);
     if (key === "date" || key === "heure" || key === "nom") continue;
-    if (key === "repas" && meal) continue;
+    if (key === "repas") {
+      if (!meal) meal = WA_VALUES_AR[waKey_(value)] || waPartsAr_(value);
+      continue;
+    }
     var first = key.split(" ")[0];
     var label = waTrim_(lm[1]);
     if (WA_MONEY_LABELS[first] && (key === first || waHasMoney_(value))) {
       // Keep a head count hidden in "Total : 4 personnes · 80 €".
       var pm = value.match(/(\d+)\s*personnes?\b/i);
-      if (pm) people = pm[1];
+      if (pm) found.hidden = Number(pm[1]);
       continue;
     }
     if (WA_MONEY_LABELS[first]) {
@@ -1399,21 +1473,34 @@ function waDetails_(data, details) {
       label = waTrim_(label.replace(/^\S+\s*/, ""));
       key = waKey_(label);
     }
-    if (key === "personnes") hasPeople = true;
+    if (WA_PEOPLE_KEYS[key] && waCount_(value) != null) {
+      found[WA_PEOPLE_KEYS[key]] = waCount_(value);
+      continue;
+    }
     if (key === "oeufs") {
       value = waEggsAr_(waStripMoney_(value).replace(/ · /g, ", "));
-    } else if (WA_FREE_TEXT[key]) {
-      // Guest text kept as written, isolated so it reads well inside Arabic.
-      value = waIsolate_(value);
-    } else {
-      value = waPartsAr_(value);
-      if (!value) continue;
+      // Lunch / dinner: no eggs field when there is no egg.
+      if (value === WA_NO_EGGS_AR && meal && meal !== WA_SOUS_TYPE_AR.breakfast) continue;
+      eggs.push(WA_LABELS_AR.oeufs + " : " + value);
+      continue;
     }
-    parts.push((WA_LABELS_AR[key] || WA_MENU_AR[key] || label) + " : " + value);
+    if (WA_FREE_TEXT[key]) {
+      // Guest text kept as written, isolated so it reads well inside Arabic.
+      notes.push(WA_LABELS_AR[key] + " : " + waIsolate_(value));
+      continue;
+    }
+    value = waPartsAr_(value);
+    if (!value) continue;
+    var field = (WA_LABELS_AR[key] || WA_MENU_AR[key] || label) + " : " + value;
+    if (key === "salades") salads.push(field);
+    else if (WA_MENU_AR[key]) dishes.push(field);
+    else other.push(field);
   }
-  if (people && !hasPeople) parts.push(WA_LABELS_AR.personnes + " : " + people);
-  if (meal) parts.unshift(meal);
-  return parts.join(" · ");
+  var parts = [];
+  if (meal) parts.push(meal);
+  var people = waPeopleAr_(details, found);
+  if (people) parts.push(people);
+  return parts.concat(eggs, salads, dishes, other, notes).join(WA_SEP);
 }
 
 // True when nom_client is missing or the portal placeholder.

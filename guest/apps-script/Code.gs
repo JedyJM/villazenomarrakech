@@ -1671,3 +1671,406 @@ function newStayId_(sheet, col) {
   }
   return "stay" + String(Date.now()).slice(-6);
 }
+
+// ---------------------------------------------------------------------------
+// Gmail → stays importer (2026 Airbnb and Booking.com emails).
+// The parse helpers are pure (no GmailApp, no Sheet) so a local harness can
+// run them. importReservationsDryRun() only reads Gmail. Only
+// importReservationsFromGmail() writes, to the "Réservations" tab.
+// Needs the Gmail read scope (gmail.readonly) on the next republish.
+// The inbox mixes several listings (Villa Zen'O, M avenue, Villa la tour):
+// every stay keeps its listing name, nothing is filtered out by listing.
+// ---------------------------------------------------------------------------
+
+var IMPORT_AFTER = "2026/01/01";
+var IMPORT_QUERIES = [
+  "from:automated@airbnb.com after:" + IMPORT_AFTER
+    + " (subject:\"Réservation confirmée\" OR subject:annulée OR subject:annulation OR subject:modifiée"
+    + " OR subject:modification OR subject:cancelled OR subject:canceled OR subject:changed)",
+  "from:noreply@booking.com after:" + IMPORT_AFTER
+    + " (subject:\"nouvelle réservation\" OR subject:annulation OR subject:annulée OR subject:modification"
+    + " OR subject:cancellation OR subject:cancelled)"
+];
+var IMPORT_HEADERS = [
+  "booking_id", "nom", "telephone", "date_arrivee", "date_depart", "source", "listing", "statut",
+  "adultes", "enfants", "notes", "total_voyageur", "devise",
+  "airbnb_frais_chambre", "airbnb_reduction", "airbnb_frais_service", "airbnb_gain",
+  "booking_montant", "booking_net", "gmail_id"
+];
+// Kept as typed by staff once filled: an update never overwrites them.
+var IMPORT_KEEP = { nom: 1, telephone: 1, notes: 1 };
+var IMPORT_MONTHS = {
+  janv: 1, janvier: 1, jan: 1, fevr: 2, fevrier: 2, fev: 2, feb: 2, mars: 3, mar: 3,
+  avr: 4, avril: 4, apr: 4, mai: 5, may: 5, juin: 6, jun: 6, juil: 7, juillet: 7, jul: 7,
+  aout: 8, aug: 8, sept: 9, septembre: 9, sep: 9, oct: 10, octobre: 10, nov: 11, novembre: 11,
+  dec: 12, decembre: 12
+};
+
+function impFold_(s) {
+  return String(s || "").toLowerCase()
+    .replace(/[àâä]/g, "a").replace(/[éèêë]/g, "e")
+    .replace(/[îï]/g, "i").replace(/[ôö]/g, "o").replace(/[ûüù]/g, "u")
+    .replace(/ç/g, "c");
+}
+
+function impMonth_(word) {
+  var key = impFold_(word).replace(/[^a-z]/g, "");
+  return IMPORT_MONTHS[key] || 0;
+}
+
+function impPad_(n) { return n < 10 ? "0" + n : String(n); }
+
+function impIso_(y, m, d) { return y + "-" + impPad_(m) + "-" + impPad_(d); }
+
+// "1 875,10 €" (spaces may be no-break) → 1875.1. "" when absent.
+function impAmount_(text) {
+  var s = String(text || "").replace(/[\s   ]/g, "").replace(/[^\d,.\-]/g, "");
+  if (!s) return "";
+  if (s.indexOf(",") >= 0) s = s.replace(/\./g, "").replace(",", ".");
+  var n = Number(s);
+  return isNaN(n) ? "" : Math.round(n * 100) / 100;
+}
+
+// Amount at the end of the line that starts with a label, "" if absent.
+// "Frais de chambre pour 4 nuits   2 206,00 €" → 2206 (not the 4).
+function impLineAmount_(body, labelRe) {
+  var line = body.match(new RegExp("(?:^|\\n)[ \\t]*" + labelRe + "[^\\n]*", "i"));
+  if (!line) return "";
+  var m = line[0].match(/(-?\d[\d \u00a0\u202f\u2009.,]*\d|-?\d)[ \t\u00a0]*(?:\u20ac|[A-Z]{3}|\$)?[ \t\u00a0]*$/);
+  return m ? impAmount_(m[1]) : "";
+}
+
+// Year for a day/month with no year (Airbnb). A confirmation is normally for
+// a future stay, but can arrive a little after the arrival (late or
+// back-dated confirmation). Rule: the earliest of year-1 / year / year+1 that
+// is no more than 60 days before the email date. E.g. email 2026-11-03 +
+// "23 déc." → 2026-12-23; email 2026-12-20 + "5 janv." → 2027-01-05;
+// email 2026-03-10 + "20 févr." → 2026-02-20 (past, late confirmation).
+function impInferDate_(month, day, emailDate) {
+  var base = emailDate instanceof Date ? emailDate : new Date(emailDate);
+  var floor = Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate()) - 60 * 86400000;
+  var y0 = base.getUTCFullYear();
+  for (var y = y0 - 1; y <= y0 + 1; y++) {
+    if (Date.UTC(y, month - 1, day) >= floor) return impIso_(y, month, day);
+  }
+  return impIso_(y0 + 1, month, day);
+}
+
+// Departure year: the arrival year, or the next one when the stay crosses New Year.
+function impDepartDate_(month, day, arrivalIso) {
+  if (!arrivalIso) return "";
+  var y = Number(arrivalIso.slice(0, 4));
+  var iso = impIso_(y, month, day);
+  return iso < arrivalIso ? impIso_(y + 1, month, day) : iso;
+}
+
+function impStatut_(subject) {
+  var s = impFold_(subject);
+  if (/annul|cancel/.test(s)) return "annulée";
+  if (/modifi|changed|change de|dates/.test(s)) return "modifiée";
+  return "confirmée";
+}
+
+// Phone only when explicitly labelled; never ids, codes or URL numbers.
+function impPhone_(body) {
+  var m = body.match(/(?:^|\n)[ \t]*(?:téléphone|telephone|tél\.?|phone)[ \t]*:?[ \t]*(\+\d[\d  .\-]{7,18}\d)[ \t]*(?:\n|$)/i);
+  return m ? m[1].replace(/[^\d+]/g, "") : "";
+}
+
+function impEmptyStay_(source, msg) {
+  return {
+    booking_id: "", source: source, nom: "", telephone: "", adultes: "", enfants: "", notes: "",
+    date_arrivee: "", date_depart: "", listing: "", statut: impStatut_(msg.subject),
+    total: "", devise: "", airbnb_frais_chambre: "", airbnb_reduction: "", airbnb_frais_service: "",
+    airbnb_gain: "", booking_montant: "", booking_net: "",
+    gmail_id: msg.id || "", email_date: ""
+  };
+}
+
+function impParseAirbnb_(msg) {
+  var subject = String(msg.subject || "");
+  var body = String(msg.body || "").replace(/\r/g, "");
+  var stay = impEmptyStay_("Airbnb", msg);
+  var date = msg.date instanceof Date ? msg.date : new Date(msg.date);
+  stay.email_date = isNaN(date.getTime()) ? "" : date.toISOString();
+
+  var code = body.match(/CODE DE CONFIRMATION\s*\n\s*([A-Z0-9]{8,12})\b/)
+    || body.match(/\/reservations\/details\/(HM[A-Z0-9]{6,10})\b/)
+    || subject.match(/\b(HM[A-Z0-9]{6,10})\b/)
+    || body.match(/\b(HM[A-Z0-9]{8})\b/);
+  if (!code) return null;
+  stay.booking_id = code[1];
+
+  var name = subject.match(/confirmée\s*:\s*(.+?)\s+arrive le\b/i);
+  if (name) stay.nom = name[1].replace(/\s+/g, " ").trim();
+  if (!stay.nom) {
+    var link = body.match(/\/reservations\/details\/[A-Z0-9]+\?\S*[ \t]{2,}([^\n\[]+)/);
+    if (link) stay.nom = link[1].trim();
+  }
+
+  var listing = body.match(/\n[ \t]*([^\n]+?)[ \t]*\n\s*(?:Logement entier|Chambre privée|Entire home)/i);
+  if (listing && !/^https?:/.test(listing[1].trim())) stay.listing = listing[1].trim();
+
+  if (stay.email_date) {
+    var dates = body.match(/Arrivée[ \t]+Départ[^\n]*\n\s*[a-zéû.]*\.?[ \t]*(\d{1,2})[ \t]+([^\s\d]+)[ \t]+[a-zéû.]*\.?[ \t]*(\d{1,2})[ \t]+([^\s\d]+)/i);
+    if (dates && impMonth_(dates[2])) {
+      stay.date_arrivee = impInferDate_(impMonth_(dates[2]), Number(dates[1]), date);
+      if (impMonth_(dates[4])) stay.date_depart = impDepartDate_(impMonth_(dates[4]), Number(dates[3]), stay.date_arrivee);
+    } else {
+      var arr = subject.match(/arrive le\s+(\d{1,2})\s+([^\s\d]+)/i);
+      if (arr && impMonth_(arr[2])) stay.date_arrivee = impInferDate_(impMonth_(arr[2]), Number(arr[1]), date);
+    }
+  }
+
+  var guests = body.match(/VOYAGEURS\s*\n\s*([^\n]+)/);
+  if (guests) {
+    var g = guests[1];
+    var a = g.match(/(\d+)\s*adulte/i);
+    var c = g.match(/(\d+)\s*enfant/i);
+    var b = g.match(/(\d+)\s*bébé/i);
+    if (a) stay.adultes = Number(a[1]);
+    if (a || c) stay.enfants = c ? Number(c[1]) : 0;
+    if (b) stay.notes = b[1] + (Number(b[1]) > 1 ? " bébés" : " bébé");
+  }
+
+  var total = body.match(/TOTAL \(([A-Z]{3})\)[ \t]+(-?\d[\d    .,]*)/);
+  if (total) { stay.devise = total[1]; stay.total = impAmount_(total[2]); }
+
+  // Host payout block: room fee, reductions/adjustments (stored positive),
+  // host service fee (stored positive) and payout, as the admin form expects.
+  var payout = body.split(/VERSEMENT DE L'HÔTE|VERSEMENT DE L’HÔTE/)[1] || "";
+  stay.airbnb_frais_chambre = impLineAmount_(payout, "Frais de chambre");
+  stay.airbnb_gain = impLineAmount_(body, "VOUS GAGNEZ");
+  var fee = impLineAmount_(payout, "Frais de service hôte");
+  if (fee !== "") stay.airbnb_frais_service = Math.abs(fee);
+  var lines = payout.split(/VOUS GAGNEZ/)[0].split("\n");
+  var reduction = 0;
+  var hasReduction = false;
+  for (var i = 0; i < lines.length; i++) {
+    if (/Frais de service|Frais de chambre/i.test(lines[i])) continue;
+    var neg = lines[i].match(/[ \t](-\d[\d    .,]*)\s*\S*\s*$/);
+    if (neg) { reduction += Math.abs(impAmount_(neg[1])); hasReduction = true; }
+  }
+  if (hasReduction) stay.airbnb_reduction = Math.round(reduction * 100) / 100;
+
+  stay.telephone = impPhone_(body);
+  return stay;
+}
+
+function impParseBooking_(msg) {
+  var subject = String(msg.subject || "");
+  var body = String(msg.body || "").replace(/\r/g, "");
+  var stay = impEmptyStay_("Booking.com", msg);
+  var date = msg.date instanceof Date ? msg.date : new Date(msg.date);
+  stay.email_date = isNaN(date.getTime()) ? "" : date.toISOString();
+
+  var head = subject.match(/\((\d{8,12}),\s*[^\d,]*?(\d{1,2})\s+([^\s\d]+)\s+(\d{4})\)/);
+  var code = head ? head[1] : "";
+  if (!code) {
+    var c = body.match(/Booking confirmation\s*[—\-]+\s*(\d{8,12})/) || body.match(/res_id=(\d{8,12})/);
+    if (c) code = c[1];
+  }
+  if (!code) return null;
+  stay.booking_id = code;
+  if (head && impMonth_(head[3])) stay.date_arrivee = impIso_(Number(head[4]), impMonth_(head[3]), Number(head[2]));
+
+  // Property name: first text line after the security banner.
+  var parts = body.split(/avant de vous connecter\.?/);
+  if (parts.length > 1) {
+    var rest = parts[1].split("\n");
+    for (var i = 0; i < rest.length; i++) {
+      var line = rest[i].replace(/[\t ]/g, " ").trim();
+      if (!line || /^https?:|^\[/.test(line)) continue;
+      if (/Booking confirmation/i.test(line)) break;
+      stay.listing = line.replace(/^Booking\.com\s+/, "").trim();
+      break;
+    }
+  }
+  // The stub has no guest name, phone, checkout, guests or amounts: left "".
+  return stay;
+}
+
+// Pure: { from, subject, date, body, id } → stay object or null.
+function parseReservationEmail_(msg) {
+  if (!msg) return null;
+  var from = String(msg.from || "").toLowerCase();
+  var subject = impFold_(msg.subject);
+  if (from.indexOf("automated@airbnb.com") >= 0) {
+    if (!/reservation confirmee|annul|cancel|modifi|changed/.test(subject)) return null;
+    return impParseAirbnb_(msg);
+  }
+  if (/(^|[<\s"])noreply@booking\.com/.test(from)) {
+    if (!/nouvelle reservation|annul|cancel|modifi/.test(subject)) return null;
+    if (/facture|invoice|connexion|sign.?in|mot de passe|password/.test(subject)) return null;
+    return impParseBooking_(msg);
+  }
+  return null;
+}
+
+// Pure: one stay per booking_id. The latest email wins field by field;
+// older emails only fill fields the latest one lacks (a cancellation email
+// usually has no dates or amounts).
+function dedupeStays_(stays) {
+  var sorted = stays.filter(function (s) { return s && s.booking_id; }).sort(function (a, b) {
+    return a.email_date < b.email_date ? 1 : (a.email_date > b.email_date ? -1 : 0);
+  });
+  var byId = {};
+  var order = [];
+  for (var i = 0; i < sorted.length; i++) {
+    var s = sorted[i];
+    var cur = byId[s.booking_id];
+    if (!cur) { byId[s.booking_id] = s; order.push(s.booking_id); continue; }
+    for (var k in s) if (s.hasOwnProperty(k) && cur[k] === "" && s[k] !== "") cur[k] = s[k];
+  }
+  return order.map(function (id) { return byId[id]; }).sort(function (a, b) {
+    return a.date_arrivee < b.date_arrivee ? -1 : (a.date_arrivee > b.date_arrivee ? 1 : 0);
+  });
+}
+
+// Pure: counts by source, arrival month and statut.
+function importCounts_(stays, messages) {
+  var counts = { messages: messages, stays: stays.length, bySource: {}, byMonth: {}, byStatut: {} };
+  for (var i = 0; i < stays.length; i++) {
+    var s = stays[i];
+    var month = s.date_arrivee ? s.date_arrivee.slice(0, 7) : "?";
+    counts.bySource[s.source] = (counts.bySource[s.source] || 0) + 1;
+    counts.byMonth[month] = (counts.byMonth[month] || 0) + 1;
+    counts.byStatut[s.statut] = (counts.byStatut[s.statut] || 0) + 1;
+  }
+  return counts;
+}
+
+// Reads Gmail only. Returns { messages, stays }.
+function importGmailStays_() {
+  var parsed = [];
+  var messages = 0;
+  for (var q = 0; q < IMPORT_QUERIES.length; q++) {
+    for (var start = 0; start < 500; start += 100) {
+      var threads = GmailApp.search(IMPORT_QUERIES[q], start, 100);
+      for (var t = 0; t < threads.length; t++) {
+        var msgs = threads[t].getMessages();
+        for (var m = 0; m < msgs.length; m++) {
+          messages += 1;
+          var stay = parseReservationEmail_({
+            id: msgs[m].getId(),
+            from: msgs[m].getFrom(),
+            subject: msgs[m].getSubject(),
+            date: msgs[m].getDate(),
+            body: msgs[m].getPlainBody()
+          });
+          if (stay) parsed.push(stay);
+        }
+      }
+      if (threads.length < 100) break;
+    }
+  }
+  return { messages: messages, stays: dedupeStays_(parsed) };
+}
+
+function importLogLine_(s) {
+  return [s.source, s.booking_id, s.statut, s.date_arrivee + " → " + (s.date_depart || "?"),
+    s.listing, s.nom || "(sans nom)", (s.adultes === "" ? "?" : s.adultes) + "A/" + (s.enfants === "" ? "?" : s.enfants) + "E",
+    s.total === "" ? "" : Number(s.total).toFixed(2) + " " + s.devise,
+    s.airbnb_gain === "" ? "" : "gain " + Number(s.airbnb_gain).toFixed(2)].join(" \u00b7 ");
+}
+
+// Run from the editor. Reads Gmail, writes nothing, never opens the Sheet.
+// Logs counts and rows without phone numbers.
+function importReservationsDryRun() {
+  var res = importGmailStays_();
+  var counts = importCounts_(res.stays, res.messages);
+  Logger.log("Dry run : " + JSON.stringify(counts));
+  for (var i = 0; i < res.stays.length; i++) Logger.log(importLogLine_(res.stays[i]));
+  return { ok: true, dryRun: true, counts: counts, stays: res.stays };
+}
+
+// Sheet row values for a stay, by header name.
+function importValues_(s) {
+  return {
+    booking_id: s.booking_id, nom: s.nom, telephone: s.telephone,
+    date_arrivee: s.date_arrivee, date_depart: s.date_depart, source: s.source,
+    listing: s.listing, statut: s.statut, adultes: s.adultes, enfants: s.enfants, notes: s.notes,
+    total_voyageur: s.total, devise: s.devise,
+    airbnb_frais_chambre: s.airbnb_frais_chambre, airbnb_reduction: s.airbnb_reduction,
+    airbnb_frais_service: s.airbnb_frais_service, airbnb_gain: s.airbnb_gain,
+    booking_montant: s.booking_montant, booking_net: s.booking_net, gmail_id: s.gmail_id
+  };
+}
+
+// WRITES. Run by hand only, no trigger. Creates the "Réservations" tab and
+// its headers if missing (the English Bookings tab is not touched), adds new
+// stays, and updates an existing booking_id only when its statut changed
+// (cancel / change) or to fill empty cells. Staff-typed nom, telephone and
+// notes are never overwritten.
+function importReservationsFromGmail() {
+  var res = importGmailStays_();
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName("Réservations") || ss.insertSheet("Réservations");
+  var map = sheet.getLastColumn() ? headerMap_(sheet) : {};
+  var col = sheet.getLastColumn();
+  var i;
+  for (i = 0; i < IMPORT_HEADERS.length; i++) {
+    if (map[IMPORT_HEADERS[i]] != null) continue;
+    col += 1;
+    sheet.getRange(1, col).setValue(IMPORT_HEADERS[i]).setFontWeight("bold");
+    map[IMPORT_HEADERS[i]] = col - 1;
+  }
+  var book = reservationsSheet_(); // adds the remaining admin columns
+  map = headerMap_(book.sheet);
+  var width = book.sheet.getLastColumn();
+  var idCol = map.booking_id;
+  var last = sheet.getLastRow();
+  var existing = last < 2 ? [] : sheet.getRange(2, 1, last - 1, width).getValues();
+  var rowOf = {};
+  var used = 0; // rows holding data; checkbox-only rows (all FALSE) are free
+  for (i = 0; i < existing.length; i++) {
+    if (existing[i][idCol] !== "") rowOf[String(existing[i][idCol])] = i;
+    for (var x = 0; x < width; x++) {
+      if (existing[i][x] !== "" && existing[i][x] !== false) { used = i + 1; break; }
+    }
+  }
+
+  var added = [];
+  var updated = 0;
+  for (i = 0; i < res.stays.length; i++) {
+    var s = res.stays[i];
+    var values = importValues_(s);
+    var keys = Object.keys(values);
+    var k;
+    if (rowOf.hasOwnProperty(s.booking_id)) {
+      var idx = rowOf[s.booking_id];
+      var row = existing[idx].slice();
+      var changed = map.statut != null && String(row[map.statut]) !== s.statut;
+      var dirty = false;
+      for (k = 0; k < keys.length; k++) {
+        var c = map[keys[k]];
+        var v = values[keys[k]];
+        if (c == null || v === "" || v == null) continue;
+        var empty = row[c] === "" || row[c] == null;
+        if (empty || (changed && !IMPORT_KEEP[keys[k]])) {
+          if (String(row[c]) !== String(v)) { row[c] = v; dirty = true; }
+        }
+      }
+      if (dirty) {
+        sheet.getRange(idx + 2, 1, 1, width).setValues([row]);
+        updated += 1;
+      }
+      continue;
+    }
+    var fresh = [];
+    for (k = 0; k < width; k++) fresh.push("");
+    for (k = 0; k < keys.length; k++) if (map[keys[k]] != null) fresh[map[keys[k]]] = values[keys[k]];
+    if (map.offert_petit_dejeuner != null) fresh[map.offert_petit_dejeuner] = false;
+    added.push(fresh);
+  }
+  if (added.length) {
+    var need = used + 1 + added.length - sheet.getMaxRows();
+    if (need > 0) sheet.insertRowsAfter(sheet.getMaxRows(), need);
+    sheet.getRange(used + 2, 1, added.length, width).setValues(added);
+  }
+  var counts = importCounts_(res.stays, res.messages);
+  counts.added = added.length;
+  counts.updated = updated;
+  Logger.log("Import : " + JSON.stringify(counts));
+  return { ok: true, counts: counts };
+}

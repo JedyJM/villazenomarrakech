@@ -8,6 +8,9 @@
   var GOOGLE_CLIENT_ID = "971461193352-3kafun281dtmvorv1tpp2j7n9l2g8klf.apps.googleusercontent.com";
   var GIS_SRC = "https://accounts.google.com/gsi/client";
   var SESSION_KEY = "vz.admin";
+  // « Jeu de test » switch (Réglages). Off by default: rows with
+  // origine "test" never reach Stats or Séjours unless it is turned on.
+  var TEST_DATA_KEY = "vz.admin.jeu_test";
   var EMAIL_KEY = "vz.admin.email";
   var MSG_DENIED = "Ce compte Google n’est pas autorisé à ouvrir l’administration.";
   var MSG_INVALID = "La connexion Google n’a pas pu être vérifiée. Réessayez.";
@@ -252,8 +255,26 @@
     bindSignOut();
   }
 
+  function testData() {
+    try { return localStorage.getItem(TEST_DATA_KEY) === "1"; } catch (e) { return false; }
+  }
+  function setTestData(on) {
+    try { if (on) localStorage.setItem(TEST_DATA_KEY, "1"); else localStorage.removeItem(TEST_DATA_KEY); } catch (e) {}
+  }
+  function isTestRow(row) {
+    return String((row && row.origine) || "").trim().toLowerCase() === "test";
+  }
+  function realOnly(list) {
+    var all = list || [];
+    return testData() ? all.slice() : all.filter(function (row) { return !isTestRow(row); });
+  }
+
   window.AdminShell = {
     TEST_MODE: TEST_MODE,
+    testData: testData,
+    setTestData: setTestData,
+    isTestRow: isTestRow,
+    realOnly: realOnly,
     SCRIPT_URL: SCRIPT_URL,
     GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID,
     session: session,

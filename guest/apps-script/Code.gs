@@ -14,8 +14,11 @@ var STAY_HEADERS = [
   "booking_montant", "booking_commission", "booking_frais_bancaires", "booking_net",
   "direct_tarif", "acompte_montant", "acompte_date", "acompte_mode", "reste_a_payer",
   "offert_petit_dejeuner",
-  "encaisse_total_eur", "encaisse_mode", "encaisse_le", "offerts", "bien"
+  "encaisse_total_eur", "encaisse_mode", "encaisse_le", "offerts", "bien",
+  "origine", "lien_actif", "lien_expire_le"
 ];
+// Column origine: "gmail" (importer), "admin" (admin page), "test" (admin
+// TEST_MODE). Test rows never reach Stats; Séjours only with « Jeu de test ».
 var DEMANDES_HEADERS = [
   "id",
   "date_creation",
@@ -221,8 +224,43 @@ function ensureDemandes_(sheet) {
   return map;
 }
 
+// Guest of a stay, read in the "Réservations" tab by reservation code
+// (booking_id = Airbnb / Booking confirmation code or admin id). Returns
+// { prenom, nom } ("" when unknown, not Zen'O, or an origine=test row).
+// prenom: first word of the nom column (or a prenom column if present).
+function getGuestFromStay(stayId) {
+  var none = { prenom: "", nom: "" };
+  var code = String(stayId == null ? "" : stayId).trim();
+  if (!code) return none;
+  var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName("R\u00e9servations");
+  if (!sheet || sheet.getLastRow() < 2) return none;
+  var map = headerMap_(sheet);
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  return guestFromRows_(values, map, code);
+}
+
+// Pure: see getGuestFromStay. values = data rows, map = 0-based headers.
+function guestFromRows_(values, map, code) {
+  var none = { prenom: "", nom: "" };
+  var idCol = firstCol_(map, ["booking_id", "id_reservation", "reservation_id", "id"]);
+  if (idCol == null) return none;
+  for (var r = 0; r < values.length; r++) {
+    if (String(values[r][idCol] == null ? "" : values[r][idCol]).trim() !== code) continue;
+    if (!rowIsZeno_(values[r], map) || rowIsTest_(values[r], map)) return none;
+    var nom = cellText_(values[r], map, ["nom", "guest_name", "guestname", "name"]).trim();
+    var prenom = cellText_(values[r], map, ["prenom", "first_name", "firstname"]).trim() || nom.split(/\s+/)[0] || "";
+    return { prenom: prenom, nom: nom };
+  }
+  return none;
+}
+
+// True for rows written by the test mode (column origine = "test").
+function rowIsTest_(row, map) {
+  return map.origine != null && String(row[map.origine] || "").trim().toLowerCase() === "test";
+}
+
 function stayRecord_(stay) {
-  var empty = { arrival: "", departure: "", lien_actif: true, lien_expire_le: "", pool: null, jacuzzi: null, source: "", adults: 0, children: 0 };
+  var empty = { arrival: "", departure: "", lien_actif: true, lien_expire_le: "", pool: null, jacuzzi: null, source: "", adults: 0, children: 0, prenom: "" };
   if (!stay) return empty;
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName("R\u00e9servations");
@@ -242,13 +280,14 @@ function stayRecord_(stay) {
     return {
       arrival: cellDate_(values[r], map, ["date_arrivee", "arrivee", "check_in", "arrival"]),
       departure: cellDate_(values[r], map, ["date_depart", "depart", "check_out", "departure"]),
-      lien_actif: actifCol == null ? true : offertValue_(values[r][actifCol]),
+      lien_actif: actifCol == null ? true : lienActif_(values[r][actifCol]),
       lien_expire_le: cellDate_(values[r], map, ["lien_expire_le"]),
       pool: heat_(values[r], map, "chauffage_piscine"),
       jacuzzi: heat_(values[r], map, "chauffage_jacuzzi"),
       source: cellText_(values[r], map, ["source"]),
       adults: cellNumber_(values[r], map, ["adultes", "adults", "nb_adultes"]),
-      children: cellNumber_(values[r], map, ["enfants", "children", "nb_enfants"])
+      children: cellNumber_(values[r], map, ["enfants", "children", "nb_enfants"]),
+      prenom: guestFromRows_([values[r]], map, String(stay).trim()).prenom
     };
   }
   return empty;
@@ -303,6 +342,13 @@ function heat_(row, map, prefix) {
     rate: Number(row[rateCol]) || 0,
     offert: offertCol == null ? false : offertValue_(row[offertCol])
   };
+}
+
+// lien_actif cell: empty = active (rows from before the column existed);
+// only an explicit false / non / 0 disables the guest link.
+function lienActif_(value) {
+  if (value === "" || value == null) return true;
+  return offertValue_(value);
 }
 
 function offertValue_(value) {
@@ -485,12 +531,13 @@ function adminEmail_(token) {
 
 function adminGet_(params) {
   if (!adminAllowed_(params)) return jsonOut({ ok: false, error: "forbidden" });
-  if (params.action === "stay") return jsonOut({ ok: true, stay: adminStay_(params.id || "") });
+  var withTest = ADMIN_TEST_MODE && String(params.test || "") === "1";
+  if (params.action === "stay") return jsonOut({ ok: true, stay: adminStay_(params.id || "", withTest) });
   if (params.action === "demandes") return adminDemandes_(params);
   if (params.action === "depenses") return jsonOut({ ok: true, depenses: adminDepenses_(params.year || "") });
   if (params.action === "get-reglages") return jsonOut({ ok: true, reglages: readReglages_() });
   if (params.action === "stays-stats") return jsonOut({ ok: true, stays: adminStatsStays_() });
-  return jsonOut({ ok: true, stays: adminStays_(params.year || "") });
+  return jsonOut({ ok: true, stays: adminStays_(params.year || "", withTest) });
 }
 
 function adminPost_(data) {
@@ -499,7 +546,7 @@ function adminPost_(data) {
     return jsonOut(check.email ? { ok: true, email: check.email } : { ok: false, error: check.error || "forbidden" });
   }
   if (!adminAllowed_(data)) return jsonOut({ ok: false, error: "forbidden" });
-  if (data.action === "save-stay") return saveStay_(data.stay || data);
+  if (data.action === "save-stay") return saveStay_(data.stay || data, ADMIN_TEST_MODE && String(data.test || "") === "1" ? "test" : "admin");
   if (data.action === "stay-link") return stayLink_(data);
   if (data.action === "set-demande") return setDemande_(data);
   if (data.action === "save-depense") return saveDepense_(data);
@@ -602,7 +649,9 @@ function headerMap_(sheet) {
   return map;
 }
 
-function adminStays_(year) {
+// includeTest: keep origine=test rows (admin TEST_MODE only, so the
+// front-end « Jeu de test » switch can show them). Stats never get them.
+function adminStays_(year, includeTest) {
   var book = reservationsSheet_();
   if (!book) return [];
   var sheet = book.sheet;
@@ -613,14 +662,15 @@ function adminStays_(year) {
   for (var i = 0; i < values.length; i++) {
     var stay = stayFromRow_(values[i], map);
     if (!stay.id || !stay.portal) continue;
+    if (stay.origine === "test" && !includeTest) continue;
     if (year && String(stay.arrival).slice(0, 4) !== String(year)) continue;
     items.push(stay);
   }
   return items;
 }
 
-function adminStay_(id) {
-  var items = adminStays_("");
+function adminStay_(id, includeTest) {
+  var items = adminStays_("", includeTest);
   for (var i = 0; i < items.length; i++) if (items[i].id === String(id)) return items[i];
   return null;
 }
@@ -647,6 +697,7 @@ function otherStatsFromRow_(row, map) {
   function cents(name) { return col(name) === "" ? null : Math.round((Number(col(name)) || 0) * 100); }
   var bien = String(col("bien") || "");
   if (!bien || bienIsZeno_(bien)) return null; // Zen'O lives in Réservations only
+  if (rowIsTest_(row, map)) return null; // stats: real data only
   var arrival = cellDate_(row, map, ["date_arrivee"]);
   if (!arrival && !col("booking_id")) return null;
   return {
@@ -661,7 +712,8 @@ function otherStatsFromRow_(row, map) {
     frais: cents("frais"),
     net: cents("net"),
     devise: String(col("devise") || ""),
-    a_completer: String(col("a_completer") || "")
+    a_completer: String(col("a_completer") || ""),
+    origine: String(col("origine") || "").trim().toLowerCase()
   };
 }
 
@@ -674,6 +726,7 @@ function stayFromRow_(row, map) {
     id: idCol == null ? "" : String(row[idCol] || ""),
     bien: IMPORT_ZENO,
     portal: rowIsZeno_(row, map),
+    origine: String(col("origine") || "").trim().toLowerCase(),
     statut: String(col("statut") || ""),
     nom: String(col("nom") || ""),
     telephone: String(col("telephone") || ""),
@@ -707,12 +760,13 @@ function stayFromRow_(row, map) {
     encaisse_mode: String(col("encaisse_mode") || ""),
     encaisse_le: cellDate_(row, map, ["encaisse_le"]),
     offerts: String(col("offerts") || "").split(",").filter(function (part) { return part !== ""; }),
-    lien_actif: map.lien_actif == null ? true : offertValue_(row[map.lien_actif]),
+    lien_actif: map.lien_actif == null ? true : lienActif_(row[map.lien_actif]),
     lien_expire_le: cellDate_(row, map, ["lien_expire_le"])
   };
 }
 
-function saveStay_(stay) {
+// origine: written on new rows only ("admin" or "test").
+function saveStay_(stay, origine) {
   var book = reservationsSheet_();
   if (!book) return jsonOut({ ok: false, error: "sheet" });
   var sheet = book.sheet;
@@ -727,11 +781,13 @@ function saveStay_(stay) {
   var id = String(stay.booking_id || stay.id || newStayId_(sheet, map[idKey]));
   var row = findRowInColumn_(sheet, map[idKey], id);
   if (row && map.bien && !bienIsZeno_(sheet.getRange(row, map.bien).getValue())) return jsonOut({ ok: false, error: "bien" });
+  var fresh = !row;
   if (!row) {
     sheet.appendRow([""]);
     row = sheet.getLastRow();
   }
   var values = stayValues_(stay, id);
+  if (fresh) values.origine = origine || "admin";
   var aliases = {
     booking_id: ["booking_id", "id_reservation", "reservation_id", "id"],
     date_arrivee: ["date_arrivee", "arrivee", "check_in", "arrival"],
@@ -1789,7 +1845,8 @@ var IMPORT_HEADERS = [
   "booking_id", "nom", "telephone", "date_arrivee", "date_depart", "source", "listing", "statut",
   "adultes", "enfants", "voyageurs", "notes", "total_voyageur", "devise",
   "airbnb_frais_chambre", "airbnb_reduction", "airbnb_frais_service", "airbnb_gain",
-  "booking_montant", "booking_net", "gmail_id", "a_completer", "bien"
+  "booking_montant", "booking_net", "gmail_id", "a_completer", "bien",
+  "origine", "lien_actif", "lien_expire_le"
 ];
 var IMPORT_ZENO = "Villa Zen'O";
 var IMPORT_M_AVENUE = "M avenue";
@@ -1812,10 +1869,10 @@ var IMPORT_OTHER_TAB = "R\u00e9servations autres biens";
 // in the Sheet ("à compléter").
 var IMPORT_OTHER_HEADERS = [
   "booking_id", "bien", "source", "statut", "date_arrivee", "date_depart", "nuits", "voyageurs",
-  "brut", "frais", "net", "devise", "hotel_id", "listing", "a_completer", "portail", "gmail_id"
+  "brut", "frais", "net", "devise", "hotel_id", "listing", "a_completer", "portail", "gmail_id", "origine"
 ];
 // Kept as typed by staff once filled: an update never overwrites them.
-var IMPORT_KEEP = { nom: 1, telephone: 1, notes: 1 };
+var IMPORT_KEEP = { nom: 1, telephone: 1, notes: 1, origine: 1 };
 // Set on new rows only: staff clear it once done, an update never refills it.
 var IMPORT_NEW_ONLY = { a_completer: 1 };
 var IMPORT_MONTHS = {
@@ -2294,7 +2351,7 @@ function importOtherRow_(s) {
     voyageurs: s.adultes === "" && s.enfants === "" ? (s.voyageurs === "" || s.voyageurs == null ? "" : Number(s.voyageurs))
       : (Number(s.adultes) || 0) + (Number(s.enfants) || 0),
     brut: brut, frais: frais, net: net, devise: s.devise, hotel_id: s.hotel_id || "",
-    listing: s.listing, a_completer: s.a_completer, portail: "non", gmail_id: s.gmail_id
+    listing: s.listing, a_completer: s.a_completer, portail: "non", gmail_id: s.gmail_id, origine: "gmail"
   };
 }
 
@@ -2433,7 +2490,7 @@ function importValues_(s) {
     airbnb_frais_chambre: s.airbnb_frais_chambre, airbnb_reduction: s.airbnb_reduction,
     airbnb_frais_service: s.airbnb_frais_service, airbnb_gain: s.airbnb_gain,
     booking_montant: s.booking_montant, booking_net: s.booking_net, gmail_id: s.gmail_id,
-    a_completer: s.a_completer, bien: IMPORT_ZENO
+    a_completer: s.a_completer, bien: IMPORT_ZENO, origine: "gmail"
   };
 }
 
@@ -2516,6 +2573,20 @@ function importUpsert_(sheet, map, list, valuesOf, keep, fresh) {
   return { added: added.length, updated: updated };
 }
 
+// Pure: defaults of a new Zen'O row (0-based map). origine "gmail", guest
+// link active until departure + 3 days (same rule as the admin page).
+function importFreshZeno_(row, map) {
+  if (map.offert_petit_dejeuner != null) row[map.offert_petit_dejeuner] = false;
+  if (map.origine != null) row[map.origine] = "gmail";
+  if (map.lien_actif != null) row[map.lien_actif] = true;
+  var dep = map.date_depart != null ? String(row[map.date_depart] || "") : "";
+  if (map.lien_expire_le != null && /^\d{4}-\d{2}-\d{2}$/.test(dep)) {
+    var p = dep.split("-");
+    var d = new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + 3));
+    row[map.lien_expire_le] = d.getUTCFullYear() + "-" + impPad_(d.getUTCMonth() + 1) + "-" + impPad_(d.getUTCDate());
+  }
+}
+
 // WRITES. Run by hand only, no trigger.
 // Villa Zen'O → "Réservations" (created with its headers if missing; the
 // English Bookings tab is not touched). Staff-typed nom, telephone and notes
@@ -2537,9 +2608,7 @@ function importReservationsFromGmail() {
   var sheet = ss.getSheetByName("Réservations") || ss.insertSheet("Réservations");
   importEnsureHeaders_(sheet, IMPORT_HEADERS);
   var book = reservationsSheet_(); // adds the remaining admin columns
-  var zen = importUpsert_(book.sheet, headerMap_(book.sheet), res.stays, importValues_, IMPORT_KEEP, function (row, map) {
-    if (map.offert_petit_dejeuner != null) row[map.offert_petit_dejeuner] = false;
-  });
+  var zen = importUpsert_(book.sheet, headerMap_(book.sheet), res.stays, importValues_, IMPORT_KEEP, importFreshZeno_);
 
   var other = { added: 0, updated: 0 };
   if (res.others.length) {

@@ -101,6 +101,20 @@
           paint();
         }).catch(function () {});
     }
+    // « Jeu de test »: local to this browser, off by default.
+    var jeu = root.querySelector("[data-jeu-test]");
+    function paintJeu() {
+      var on = !!(shell.testData && shell.testData());
+      jeu.classList.toggle("is-on", on);
+      jeu.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    if (jeu) {
+      paintJeu();
+      jeu.addEventListener("click", function () {
+        if (shell.setTestData) shell.setTestData(!shell.testData());
+        paintJeu();
+      });
+    }
     root.addEventListener("click", function (event) {
       var button = event.target.closest("[data-key]");
       if (!button || button.disabled) return;

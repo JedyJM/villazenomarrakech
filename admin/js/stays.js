@@ -1,4 +1,4 @@
-/* Séjours: list, new stay, fiche, confirmation email. French. TEST_MODE uses the example stays. */
+/* Séjours: list, new stay, fiche, confirmation email. French. Real Sheet stays only (action=stays). */
 (function () {
   "use strict";
 
@@ -15,101 +15,20 @@
   function readJson(key) {
     try { return JSON.parse(sessionStorage.getItem(key) || ""); } catch (e) { return null; }
   }
-  function examples() {
-    return [
-      {
-        id: "cmartin26a",
-        nom: "Camille Martin",
-        telephone: "+33 6 12 00 00 01",
-        arrival: "2026-12-12",
-        departure: "2026-12-19",
-        source: "Airbnb",
-        adults: 2,
-        children: 2,
-        ages: [8, 3],
-        notes: "",
-        room: 220600,
-        reduction: 33090,
-        hostFee: 34877,
-        poolDays: 7, poolRate: 6000, poolOffert: false,
-        jacuzziDays: 7, jacuzziRate: 3500, jacuzziOffert: false,
-        charges: [
-          { id: "petit_dejeuner", kind: "breakfast", label: "Petit-déjeuner", cents: 3000 },
-          { id: "diner", kind: "dinner", label: "Dîner", cents: 8000 }
-        ],
-        providers: { names: ["transfert", "quad", "massage"], cents: 11500 },
-        lien_actif: true
-      },
-      {
-        id: "jroche26bk",
-        nom: "Julien Roche",
-        telephone: "+33 6 12 00 00 02",
-        arrival: "2026-11-20",
-        departure: "2026-11-27",
-        source: "Booking",
-        adults: 3,
-        children: 2,
-        ages: [10, 3],
-        notes: "",
-        total: 672770,
-        commission: 166005,
-        bank: 13280,
-        poolDays: 0, poolRate: 0, poolOffert: false,
-        jacuzziDays: 0, jacuzziRate: 0, jacuzziOffert: false,
-        charges: [
-          { id: "petit_dejeuner", kind: "breakfast", label: "Petit-déjeuner", cents: 4000 },
-          { id: "diner", kind: "dinner", label: "Dîner", cents: 6000 }
-        ],
-        providers: { names: ["transfert"], cents: 3500 },
-        lien_actif: true
-      },
-      {
-        id: "imoreau26d",
-        nom: "Inès Moreau",
-        telephone: "+33 6 12 00 00 03",
-        arrival: "2026-12-22",
-        departure: "2026-12-29",
-        source: "Direct",
-        adults: 2,
-        children: 0,
-        ages: [],
-        notes: "",
-        tarif: 320000,
-        deposit: 100000,
-        depositDate: "2026-12-10",
-        depositMode: "Virement",
-        breakfast: true,
-        poolDays: 7, poolRate: 0, poolOffert: true,
-        jacuzziDays: 0, jacuzziRate: 0, jacuzziOffert: false,
-        lien_actif: true
-      }
-    ];
+  // Stays from the Sheet (action=stays), null until loaded.
+  var remote = null;
+  // Real data only: origine "test" rows are hidden unless the « Jeu de
+  // test » switch (Réglages, off by default) is on.
+  function realOnly(list) {
+    return shell.realOnly ? shell.realOnly(list || []) : (list || []).filter(function (row) { return String((row && row.origine) || "").toLowerCase() !== "test"; });
   }
-
-  function finishExample() {
-    return {
-      id: "__fini",
-      nom: "Séjour terminé",
-      telephone: "+33 6 12 00 00 09",
-      arrival: "2026-10-01",
-      departure: "2026-10-08",
-      source: "Booking",
-      adults: 2,
-      children: 0,
-      ages: [],
-      notes: "",
-      total: 200000,
-      commission: 30000,
-      bank: 4000,
-      poolDays: 2, poolRate: 6000, poolOffert: false,
-      jacuzziDays: 0, jacuzziRate: 0, jacuzziOffert: false,
-      lien_actif: true,
-      hidden: true,
-      demandes: [
-        { label: "Déjeuner", detail: "4 pers.", status: "Terminée", amount: 8000 },
-        { label: "Ménage", detail: "Toute la maison", status: "Annulée", amount: 0 }
-      ]
-    };
+  function loadStays(done) {
+    if (remote || !shell.SCRIPT_URL || !window.fetch) { remote = remote || []; done(); return; }
+    var url = shell.SCRIPT_URL + "?action=stays&token=" + encodeURIComponent(shell.session()) + (shell.TEST_MODE ? "&test=1" : "");
+    window.fetch(url).then(function (res) { return res.json(); }).then(function (data) {
+      remote = (data && data.ok && data.stays) || [];
+      done();
+    }).catch(function () { remote = []; done(); });
   }
 
   /* Booking sources (new stay form, lists, stay card). kind picks the price
@@ -158,14 +77,16 @@
   }
 
   function allStays() {
-    var base = shell.TEST_MODE ? examples() : [];
     var created = readJson(STORE) || [];
     var patches = readJson(PATCH) || {};
-    var merged = base.concat(created).map(function (stay) {
+    var seen = {};
+    created.forEach(function (stay) { seen[stay.id] = true; });
+    var base = (remote || []).filter(function (stay) { return stay.id && !seen[stay.id] && stay.portal !== false; });
+    return realOnly(base.concat(created)).filter(function (stay) {
+      return !/annul|cancel/i.test(String(stay.statut || ""));
+    }).map(function (stay) {
       return withDerived(Object.assign({}, stay, patches[stay.id] || {}));
     });
-    if (shell.TEST_MODE) merged.push(withDerived(finishExample()));
-    return merged;
   }
 
   function findStay(id) {
@@ -179,14 +100,14 @@
     created = created.filter(function (item) { return item.id !== stay.id; });
     created.push(stay);
     try { sessionStorage.setItem(STORE, JSON.stringify(created)); } catch (e) {}
-    postScript({ action: "save-stay", test: "1", stay: sheetStay(stay) });
+    postScript({ action: "save-stay", test: shell.TEST_MODE ? "1" : "", token: shell.session(), stay: sheetStay(stay) });
   }
 
   function patchStay(id, fields, op) {
     var patches = readJson(PATCH) || {};
     patches[id] = Object.assign({}, patches[id] || {}, fields);
     try { sessionStorage.setItem(PATCH, JSON.stringify(patches)); } catch (e) {}
-    postScript({ action: "stay-link", test: "1", id: id, op: op });
+    postScript({ action: "stay-link", test: shell.TEST_MODE ? "1" : "", token: shell.session(), id: id, op: op });
   }
 
   function sheetStay(stay) {
@@ -316,8 +237,9 @@
         if (order[sa] !== order[sb]) return order[sa] - order[sb];
         return String(a.arrival).localeCompare(String(b.arrival));
       });
+      var any = allStays().length > 0;
       empty.hidden = rows.length > 0;
-      empty.textContent = "Aucun séjour en " + selected + ".";
+      empty.textContent = remote === null ? "Chargement des séjours…" : (any ? "Aucun séjour en " + selected + "." : "Aucune donnée réelle");
       list.hidden = !rows.length;
       list.innerHTML = rows.map(function (stay) {
         var status = calc.statusOf(stay.arrival, stay.departure, calc.todayIso());
@@ -331,6 +253,7 @@
     }
     year.addEventListener("change", paint);
     paint();
+    loadStays(paint);
   }
 
   function blank() {
@@ -345,22 +268,10 @@
     };
   }
 
-  function fromExample(key) {
-    var map = { airbnb: "cmartin26a", booking: "jroche26bk", direct: "imoreau26d" };
-    var stay = findStay(map[key]);
-    if (!stay) return blank();
-    var copy = Object.assign(blank(), stay);
-    delete copy.id;
-    return copy;
-  }
-
   function bootForm() {
     var form = document.querySelector("[data-stay-form]");
     if (!form) return;
     var model = blank();
-    var exemple = "";
-    try { exemple = new URLSearchParams(window.location.search).get("exemple") || ""; } catch (e) {}
-    if (exemple) model = fromExample(exemple);
     var agesBox = form.querySelector("[data-ages]");
     var price = form.querySelector("[data-price]");
     var save = form.querySelector("[data-save]");
@@ -867,11 +778,11 @@
     var page = document.body.getAttribute("data-page");
     if (page === "liste") bootList();
     if (page === "nouveau") bootForm();
-    if (page === "fiche") bootFiche();
-    if (page === "email") bootEmail();
+    if (page === "fiche") loadStays(bootFiche);
+    if (page === "email") loadStays(bootEmail);
   }
 
-  window.AdminStays = { find: findStay, sheet: sheetStay, post: postScript };
+  window.AdminStays = { find: findStay, load: loadStays, sheet: sheetStay, post: postScript };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

@@ -1,4 +1,4 @@
-/* Admin Stats. French. Test figures match the approved screen. */
+/* Admin Stats. French. Real Sheet data only (no sample figures). */
 (function () {
   "use strict";
 
@@ -36,7 +36,7 @@
   var SOURCES = ["Airbnb", "Booking", "Direct", "Agences"];
   var SOURCE_LABELS = { Airbnb: "Airbnb", Booking: "Booking.com", Direct: "Direct", Agences: "Agences" };
   // statsStays: action=stays-stats (all properties), null until loaded.
-  var state = { view: "sejours", year: 2026, month: "2026-12", sMonth: "", bien: "Tous", remoteStays: [], remoteDemandes: [], statsStays: null };
+  var state = { view: "sejours", year: 2026, month: "2026-12", sMonth: "", bien: "Tous", remoteStays: [], remoteDemandes: [], statsStays: null, loading: 2 };
 
   function esc(value) {
     return String(value == null ? "" : value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -130,79 +130,10 @@
     try { return JSON.parse(localStorage.getItem(STORE) || "{\"items\":[],\"gone\":[]}"); } catch (e) { return { items: [], gone: [] }; }
   }
 
-  function planStays(year, plan) {
-    var list = [];
-    var cursor = year + "-01-08";
-    var n = 0;
-    plan.forEach(function (row) {
-      var i;
-      for (i = 0; i < row[1]; i++) {
-        var arrival = cursor;
-        var departure = isoShift(arrival, 7);
-        list.push({
-          id: "s" + year + n,
-          source: row[0],
-          arrival: arrival,
-          departure: departure,
-          brut: row[2],
-          frais: row[3],
-          net: row[4],
-          bien: ZENO,
-          confirmed: true
-        });
-        cursor = isoShift(cursor, 18);
-        n += 1;
-      }
-    });
-    return list;
-  }
-  function sampleStays(year) {
-    if (year === 2026) {
-      return planStays(2026, [
-        ["Airbnb", 8, 525000, 75000, 450000],
-        ["Booking", 4, 525000, 100000, 425000],
-        ["Direct", 3, 400000, 0, 400000]
-      ]);
-    }
-    if (year === 2025) {
-      return planStays(2025, [
-        ["Airbnb", 4, 480000, 70000, 410000],
-        ["Booking", 2, 500000, 90000, 410000],
-        ["Direct", 2, 380000, 0, 380000]
-      ]);
-    }
-    return [];
-  }
   function zeros() {
     return { repas: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], chauffage: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], massages: 0, transferts: 0, quad: 0, dromadaire: 0 };
   }
-  function serviceYear(year) {
-    if (shell.TEST_MODE) return sampleServices(year);
-    return servicesFromSheet(year);
-  }
-  function sampleServices(year) {
-    if (year === 2026) {
-      return {
-        repas: [180, 100, 140, 160, 200, 220, 240, 260, 220, 200, 240, 240],
-        chauffage: [200, 180, 120, 40, 0, 0, 0, 0, 0, 60, 280, 320],
-        massages: 960,
-        transferts: 1400,
-        quad: 240,
-        dromadaire: 120
-      };
-    }
-    if (year === 2025) {
-      return {
-        repas: [80, 60, 70, 80, 90, 100, 110, 120, 90, 80, 70, 80],
-        chauffage: [120, 100, 60, 20, 0, 0, 0, 0, 0, 30, 140, 160],
-        massages: 480,
-        transferts: 700,
-        quad: 160,
-        dromadaire: 80
-      };
-    }
-    return zeros();
-  }
+  function serviceYear(year) { return servicesFromSheet(year); }
   function euroCents(item) {
     var dh = Number(item.total);
     if (!isFinite(dh) || !dh) return 0;
@@ -253,51 +184,36 @@
     });
     return book;
   }
+  // Demandes of the year (by service date), from the Sheet only.
+  var TYPE_LABELS = [["restauration", "Restauration"], ["menage", "Ménage"], ["transfert", "Transfert"], ["activites", "Activités"], ["massage", "Massages"], ["piscine", "Piscine"]];
   function demandStats(year) {
-    if (year === 2026) {
-      return { total: 48, delayHours: 3, types: [["Restauration", 18], ["Ménage", 9], ["Transfert", 8], ["Activités", 6], ["Massages", 4], ["Piscine", 3]] };
-    }
-    if (year === 2025) {
-      return { total: 30, delayHours: 4, types: [["Restauration", 12], ["Ménage", 6], ["Transfert", 5], ["Activités", 3], ["Massages", 2], ["Piscine", 2]] };
-    }
-    return { total: 0, delayHours: null, types: [["Restauration", 0], ["Ménage", 0], ["Transfert", 0], ["Activités", 0], ["Massages", 0], ["Piscine", 0]] };
-  }
-  function sampleExpenses() {
-    var photo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEgAAABgCAYAAAC+EjQcAAAAwElEQVR42u3dsQnAIBQEUCfKAtnIYTJFRslGdjba2gghiMXPK26Bhweejek6jybzJAgvgVotMgQQIECAAAH6GdCKewUgQIAAAQIEyD0IUCCg585hA2gHkIoBAgQIECBAgAABEkCAAAHyHuS5Q8UAAQIECBAgQIAAAQIECJA1b82rGCBAgAAJIECAAAECBAiQNe8EqRggQIAAAQIECBAgQIAAWfPWvIoBEkCAAAECBAgQIECAAAECBAhQHCDxO9SndJhydoh0h0qcAAAAAElFTkSuQmCC";
-    function row(id, date, cat, detail, who, eur, facture, name) {
-      return {
-        id: id, date: date, categorie: cat, detail: detail || "", fournisseur: who || "",
-        montant_eur: eur, montant_dh: eur * RATE, devise_saisie: "eur",
-        facture_url: facture ? photo : "", facture_nom: facture ? (name || "facture.jpg") : "", cree_le: date
-      };
-    }
-    var list = [
-      row("d1", "2026-12-02", "salaires", "", "Fouzia", 800, true, "salaire-fouzia.jpg"),
-      row("d2", "2026-12-02", "salaires", "", "Nadera", 400, true, "salaire-nadera.jpg"),
-      row("d3", "2026-12-05", "citerne", "", "", 180, false),
-      row("d4", "2026-12-08", "jardinier", "", "Hassan", 120, true, "jardinier.jpg"),
-      row("d5", "2026-12-11", "courses", "", "Atacadao", 85, false),
-      row("d6", "2026-12-14", "ordures", "", "", 36, false),
-      row("d7", "2026-12-15", "reparations", "plombier", "Karim", 50, true, "plombier.jpg")
-    ];
-    var salaries = [2525, 2525, 2525, 2525, 2525, 2525, 2525, 2525, 2525, 2525, 2519];
-    salaries.forEach(function (eur, index) {
-      var month = index + 1;
-      list.push(row("y" + month, "2026-" + pad(month) + "-28", "salaires", "", "", eur, false));
+    var counts = {};
+    var total = 0;
+    TYPE_LABELS.forEach(function (t) { counts[t[0]] = 0; });
+    realOnly(state.remoteDemandes).forEach(function (item) {
+      if (String(item.date || item.created || "").slice(0, 4) !== String(year)) return;
+      if (item.status === "Annulée") return;
+      total += 1;
+      var service = String(item.service || "").toLowerCase();
+      TYPE_LABELS.forEach(function (t) { if (service.indexOf(t[0]) === 0) counts[t[0]] += 1; });
     });
-    return list;
+    return { total: total, delayHours: null, types: TYPE_LABELS.map(function (t) { return [t[1], counts[t[0]]]; }) };
+  }
+  // Real data only: rows with origine "test" are dropped unless the
+  // « Jeu de test » switch (Réglages, off by default) is on.
+  function realOnly(list) {
+    return shell.realOnly ? shell.realOnly(list || []) : (list || []).filter(function (row) { return String((row && row.origine) || "").toLowerCase() !== "test"; });
   }
 
-  // All stays for Stats, every year. Remote stats feed when loaded (also in
-  // TEST_MODE), else Zen'O stays from action=stays, else the samples.
+  // All stays for Stats, every year: the stats feed (action=stays-stats),
+  // else Zen'O stays from action=stays. Never sample data.
   function allStays() {
-    if (state.statsStays && state.statsStays.length) return state.statsStays;
-    if (!shell.TEST_MODE && state.remoteStays && state.remoteStays.length) return state.remoteStays;
-    return shell.TEST_MODE ? sampleStays(2026).concat(sampleStays(2025)) : (state.remoteStays || []);
+    var list = state.statsStays && state.statsStays.length ? state.statsStays : (state.remoteStays || []);
+    return realOnly(list);
   }
   function stays() { return allStays(); }
   function mergedExpenses() {
-    var base = shell.TEST_MODE ? sampleExpenses() : (state.remoteExpenses || []);
+    var base = realOnly(state.remoteExpenses);
     var extra = readExtra();
     var gone = {};
     var map = {};
@@ -463,8 +379,14 @@
       return '<button type="button" data-bien="' + esc(item[0]) + '" aria-pressed="' + (on ? "true" : "false") + '">' + esc(item[1]) + "</button>";
     }).join("") + "</div>";
   }
+  // Shown instead of a panel while nothing real has come back.
+  function emptyHtml() {
+    if (state.loading) return '<p class="empty" data-no-data>Chargement des données…</p>';
+    return '<p class="empty" data-no-data>Aucune donnée réelle</p>';
+  }
   function sejoursHtml() {
     var list = stays();
+    if (!list.length) return emptyHtml();
     var sel = selection(state.bien);
     var period = periodOf(state.year, state.sMonth);
     var roll = rollup(list, period, sel);
@@ -490,6 +412,7 @@
     return { repas: repas, heat: heat, massages: book.massages || 0, transferts: book.transferts || 0, quad: book.quad || 0, dromadaire: book.dromadaire || 0, activites: activites, total: total };
   }
   function servicesHtml() {
+    if (!stays().length && !realOnly(state.remoteDemandes).length) return emptyHtml();
     var book = serviceYear(state.year);
     var sums = serviceSums(book);
     var repas = sums.repas;
@@ -528,6 +451,7 @@
   }
   function depensesHtml() {
     var all = expenses();
+    if (!all.length && !stays().length) return emptyHtml();
     var monthItems = all.filter(function (item) { return String(item.date).slice(0, 7) === state.month; });
     monthItems.sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
     var monthEur = monthItems.reduce(function (sum, item) { return sum + Math.round(item.montant_eur * 100); }, 0);
@@ -642,31 +566,40 @@
     });
     paint();
     loadStatsStays();
-    if (!shell.TEST_MODE && shell.SCRIPT_URL && window.fetch) {
+    if (shell.SCRIPT_URL && window.fetch) {
       var token = encodeURIComponent(shell.session());
-      var base = shell.SCRIPT_URL + "?token=" + token;
+      var base = shell.SCRIPT_URL + "?token=" + token + (shell.TEST_MODE ? "&test=1" : "");
+      var json = function (res) { return res.json(); };
+      var none = function () { return {}; };
       Promise.all([
-        window.fetch(base + "&action=stays&year=" + state.year).then(function (res) { return res.json(); }),
-        window.fetch(base + "&action=demandes").then(function (res) { return res.json(); }),
-        window.fetch(base + "&action=depenses&year=" + state.year).then(function (res) { return res.json(); })
+        window.fetch(base + "&action=stays&year=" + state.year).then(json).catch(none),
+        window.fetch(base + "&action=demandes").then(json).catch(none),
+        window.fetch(base + "&action=depenses&year=" + state.year).then(json).catch(none)
       ]).then(function (pair) {
-        state.remoteStays = (pair[0].stays || []).map(apiStay);
+        state.remoteStays = ((pair[0] && pair[0].stays) || []).map(apiStay);
         state.remoteDemandes = (pair[1] && pair[1].items) || [];
         state.remoteExpenses = (pair[2] && pair[2].depenses) || [];
-        paint();
-      }).catch(function () {});
+        settle();
+      });
+    } else {
+      state.loading = 0;
+      paint();
     }
   }
+  // Two loads (stats feed + stays/demandes/dépenses); paint once each lands.
+  function settle() {
+    state.loading = Math.max(0, state.loading - 1);
+    paint();
+  }
   // All properties (action=stays-stats), also in TEST_MODE so the preview
-  // shows imported data. Samples stay the fallback when nothing comes back.
+  // shows imported data. Nothing back: « Aucune donnée réelle ».
   function loadStatsStays() {
     if (!shell.SCRIPT_URL || !window.fetch) return;
     var url = shell.SCRIPT_URL + "?action=stays-stats&token=" + encodeURIComponent(shell.session()) + (shell.TEST_MODE ? "&test=1" : "");
     window.fetch(url).then(function (res) { return res.json(); }).then(function (data) {
-      if (!data || !data.ok || !data.stays || !data.stays.length) return;
-      state.statsStays = data.stays.map(apiStay);
-      paint();
-    }).catch(function () {});
+      if (data && data.ok && data.stays) state.statsStays = data.stays.map(apiStay);
+      settle();
+    }).catch(settle);
   }
   function apiStay(stay) {
     var source = sourceKey(stay.source);
@@ -693,7 +626,7 @@
       source: source, arrival: stay.arrival, departure: stay.departure, brut: brut, frais: frais, net: net,
       bien: stay.portal === false ? String(stay.bien || "Autre") : ZENO, devise: stay.devise ? curOf(stay) : "", statut: stay.statut || "", a_completer: stay.a_completer || "", confirmed: true,
       poolDays: stay.poolDays || 0, poolRate: stay.poolRate || 0, jacuzziDays: stay.jacuzziDays || 0, jacuzziRate: stay.jacuzziRate || 0,
-      encaisse_le: stay.encaisse_le || "", offerts: stay.offerts || ""
+      encaisse_le: stay.encaisse_le || "", offerts: stay.offerts || "", origine: String(stay.origine || "")
     };
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

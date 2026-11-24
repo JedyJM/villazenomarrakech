@@ -1,4 +1,4 @@
-/* Encaissement d’un séjour. Français. Le mode test lit les séjours d’exemple. */
+/* Encaissement d’un séjour. Français. Séjours réels du Sheet uniquement. */
 (function () {
   "use strict";
 
@@ -260,7 +260,7 @@
     if (!root || document.body.classList.contains("is-locked") || !calc) return;
     var id = query("sejour") || query("id");
     if (shell.TEST_MODE && window.AdminStays) {
-      start(window.AdminStays.find(id));
+      window.AdminStays.load(function () { start(window.AdminStays.find(id)); });
       return;
     }
     if (!shell.SCRIPT_URL || !window.fetch) {

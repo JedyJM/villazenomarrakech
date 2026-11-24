@@ -1,4 +1,4 @@
-/* Admin Aujourd'hui. French. Test day is 16 December 2026. */
+/* Admin Aujourd'hui. French. Real data only (AdminSample is empty). */
 (function () {
   "use strict";
 
@@ -62,7 +62,7 @@
     if (!current) {
       stay.classList.add("is-empty");
       stay.removeAttribute("href");
-      stay.innerHTML = '<p class="kicker">Séjour en cours</p><p class="stay-empty">Aucun séjour en cours</p><p class="stay-next">Prochaine arrivée · ' + esc(next.name) + " · " + esc(dayText(next.arrival)) + "</p>";
+      stay.innerHTML = '<p class="kicker">Séjour en cours</p><p class="stay-empty">Aucun séjour en cours</p>' + (next ? '<p class="stay-next">Prochaine arrivée · ' + esc(next.name) + " · " + esc(dayText(next.arrival)) + "</p>" : "");
     } else {
       var night = daysBetween(new Date(current.arrival), new Date(day)) + 1;
       var width = Math.round(night / current.nights * 100);
@@ -84,8 +84,13 @@
       depart.removeAttribute("href");
       depart.innerHTML = '<p class="kicker">Départ</p><strong>Aucun</strong><span>Pas de départ prévu</span>';
     }
-    arrive.href = "sejour.html?id=" + encodeURIComponent(next.id);
-    arrive.innerHTML = '<p class="kicker">Arrivée</p><strong>' + esc(next.name) + '</strong><span>' + esc(dayText(next.arrival)) + " · " + esc(next.source) + " · " + next.nights + "\u00A0j</span>";
+    if (next) {
+      arrive.href = "sejour.html?id=" + encodeURIComponent(next.id);
+      arrive.innerHTML = '<p class="kicker">Arrivée</p><strong>' + esc(next.name) + '</strong><span>' + esc(dayText(next.arrival)) + " · " + esc(next.source) + " · " + next.nights + "\u00A0j</span>";
+    } else {
+      arrive.removeAttribute("href");
+      arrive.innerHTML = '<p class="kicker">Arrivée</p><strong>Aucune</strong><span>Pas d’arrivée prévue</span>';
+    }
 
     var alerts = items.filter(function (item) {
       return item.status === "Envoyée" && isoDay(item.when) >= todayKey;

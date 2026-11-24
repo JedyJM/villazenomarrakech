@@ -484,9 +484,19 @@ function escapeHtml_(value) {
     .replace(/"/g, "&quot;");
 }
 
+// Session from the token itself, not from the test=1 flag (the preview
+// still sends test=1 after a real Google login).
+// "google": valid admin-auth id token. "test": ADMIN_TEST_MODE and test=1,
+// no valid Google token (e.g. token=test). "" : forbidden.
+function adminSession_(params) {
+  var token = String(params.token || params.id_token || "");
+  if (token && token !== "test" && adminEmail_(token) !== "") return "google";
+  if (ADMIN_TEST_MODE && String(params.test || "") === "1") return "test";
+  return "";
+}
+
 function adminAllowed_(params) {
-  if (ADMIN_TEST_MODE && String(params.test || "") === "1") return true;
-  return adminEmail_(params.token || params.id_token || "") !== "";
+  return adminSession_(params) !== "";
 }
 
 // Script Property ADMIN_EMAILS (comma-separated, case-insensitive), else ADMIN_ALLOWLIST.
@@ -530,14 +540,16 @@ function adminEmail_(token) {
 }
 
 function adminGet_(params) {
-  if (!adminAllowed_(params)) return jsonOut({ ok: false, error: "forbidden" });
-  var withTest = ADMIN_TEST_MODE && String(params.test || "") === "1";
-  if (params.action === "stay") return jsonOut({ ok: true, stay: adminStay_(params.id || "", withTest) });
-  if (params.action === "demandes") return adminDemandes_(params);
-  if (params.action === "depenses") return jsonOut({ ok: true, depenses: adminDepenses_(params.year || "") });
-  if (params.action === "get-reglages") return jsonOut({ ok: true, reglages: readReglages_() });
-  if (params.action === "stays-stats") return jsonOut({ ok: true, stays: adminStatsStays_() });
-  return jsonOut({ ok: true, stays: adminStays_(params.year || "", withTest) });
+  var session = adminSession_(params);
+  if (!session) return jsonOut({ ok: false, error: "forbidden" });
+  var onlyTest = session === "test";
+  var withTest = session === "google" && ADMIN_TEST_MODE && String(params.test || "") === "1";
+  if (params.action === "stay") return jsonOut({ ok: true, stay: adminStay_(params.id || "", withTest, onlyTest) });
+  if (params.action === "demandes") return adminDemandes_(params, onlyTest);
+  if (params.action === "depenses") return jsonOut({ ok: true, depenses: onlyTest ? [] : adminDepenses_(params.year || "") });
+  if (params.action === "get-reglages") return jsonOut({ ok: true, reglages: onlyTest ? { notif_email_on: false, notif_email_to: "", recap_8h_on: false } : readReglages_() });
+  if (params.action === "stays-stats") return jsonOut({ ok: true, stays: onlyTest ? [] : adminStatsStays_() });
+  return jsonOut({ ok: true, stays: adminStays_(params.year || "", withTest, onlyTest) });
 }
 
 function adminPost_(data) {
@@ -545,22 +557,26 @@ function adminPost_(data) {
     var check = adminCheck_(data.id_token || data.token || "");
     return jsonOut(check.email ? { ok: true, email: check.email } : { ok: false, error: check.error || "forbidden" });
   }
-  if (!adminAllowed_(data)) return jsonOut({ ok: false, error: "forbidden" });
-  if (data.action === "save-stay") return saveStay_(data.stay || data, ADMIN_TEST_MODE && String(data.test || "") === "1" ? "test" : "admin");
-  if (data.action === "stay-link") return stayLink_(data);
-  if (data.action === "set-demande") return setDemande_(data);
+  var session = adminSession_(data);
+  if (!session) return jsonOut({ ok: false, error: "forbidden" });
+  var onlyTest = session === "test";
+  if (data.action === "save-stay") return saveStay_(data.stay || data, onlyTest || (ADMIN_TEST_MODE && String(data.test || "") === "1") ? "test" : "admin", onlyTest);
+  if (data.action === "stay-link") return stayLink_(data, onlyTest);
+  if (data.action === "set-demande") return setDemande_(data, onlyTest);
+  if (onlyTest) return jsonOut({ ok: false, error: "forbidden" });
   if (data.action === "save-depense") return saveDepense_(data);
   if (data.action === "delete-depense") return deleteDepense_(data);
   if (data.action === "save-reglages") return saveReglages_(data.reglages || data);
   return jsonOut({ ok: false });
 }
 
-function adminDemandes_(params) {
+function adminDemandes_(params, onlyTest) {
   var sheet = getDemandesSheet_();
   var map = ensureDemandes_(sheet);
   var last = sheet.getLastRow();
   var items = [];
   var confirmer = 0;
+  var testIds = onlyTest ? testStayIdSet_() : null;
   if (last >= 2) {
     var values = sheet.getRange(2, 1, last - 1, sheet.getLastColumn()).getValues();
     var today = Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd");
@@ -589,6 +605,7 @@ function adminDemandes_(params) {
         token: String(details.token || ""),
         stay: String(details.booking_id || "")
       };
+      if (onlyTest && !testIds[item.stay]) continue;
       if (status === "Envoy\u00e9e" && when && when >= today) confirmer += 1;
       var filter = String(params.filter || "toutes");
       if (filter === "confirmer" && !(status === "Envoy\u00e9e" && when && when >= today)) continue;
@@ -599,11 +616,16 @@ function adminDemandes_(params) {
   return jsonOut({ ok: true, items: items, confirmer: confirmer });
 }
 
-function setDemande_(data) {
+function setDemande_(data, onlyTest) {
   var sheet = getDemandesSheet_();
   var map = ensureDemandes_(sheet);
   var row = findRow_(sheet, String(data.id || ""));
   if (!row) return jsonOut({ ok: false });
+  if (onlyTest) {
+    var details = {};
+    try { details = JSON.parse(String(sheet.getRange(row, 6).getValue() || "{}")); } catch (err) { details = {}; }
+    if (!testStayIdSet_()[String(details.booking_id || "")]) return jsonOut({ ok: false, error: "forbidden" });
+  }
   if (data.statut && map.statut) {
     var status = canonStatus_(data.statut);
     sheet.getRange(row, map.statut).setValue(status);
@@ -649,9 +671,10 @@ function headerMap_(sheet) {
   return map;
 }
 
-// includeTest: keep origine=test rows (admin TEST_MODE only, so the
-// front-end « Jeu de test » switch can show them). Stats never get them.
-function adminStays_(year, includeTest) {
+// includeTest: also keep origine=test rows (Google admin + test=1).
+// onlyTest: return ONLY origine=test rows (test token, never real guests).
+// Stats (adminStatsStays_) never include origine=test.
+function adminStays_(year, includeTest, onlyTest) {
   var book = reservationsSheet_();
   if (!book) return [];
   var sheet = book.sheet;
@@ -662,17 +685,26 @@ function adminStays_(year, includeTest) {
   for (var i = 0; i < values.length; i++) {
     var stay = stayFromRow_(values[i], map);
     if (!stay.id || !stay.portal) continue;
-    if (stay.origine === "test" && !includeTest) continue;
+    if (onlyTest) {
+      if (stay.origine !== "test") continue;
+    } else if (stay.origine === "test" && !includeTest) continue;
     if (year && String(stay.arrival).slice(0, 4) !== String(year)) continue;
     items.push(stay);
   }
   return items;
 }
 
-function adminStay_(id, includeTest) {
-  var items = adminStays_("", includeTest);
+function adminStay_(id, includeTest, onlyTest) {
+  var items = adminStays_("", includeTest, onlyTest);
   for (var i = 0; i < items.length; i++) if (items[i].id === String(id)) return items[i];
   return null;
+}
+
+function testStayIdSet_() {
+  var items = adminStays_("", false, true);
+  var ids = {};
+  for (var i = 0; i < items.length; i++) ids[items[i].id] = true;
+  return ids;
 }
 
 // Stats feed (action=stays-stats): Villa Zen'O stays (portal: true) plus
@@ -766,7 +798,7 @@ function stayFromRow_(row, map) {
 }
 
 // origine: written on new rows only ("admin" or "test").
-function saveStay_(stay, origine) {
+function saveStay_(stay, origine, onlyTest) {
   var book = reservationsSheet_();
   if (!book) return jsonOut({ ok: false, error: "sheet" });
   var sheet = book.sheet;
@@ -781,6 +813,9 @@ function saveStay_(stay, origine) {
   var id = String(stay.booking_id || stay.id || newStayId_(sheet, map[idKey]));
   var row = findRowInColumn_(sheet, map[idKey], id);
   if (row && map.bien && !bienIsZeno_(sheet.getRange(row, map.bien).getValue())) return jsonOut({ ok: false, error: "bien" });
+  if (onlyTest && row && (!map.origine || String(sheet.getRange(row, map.origine).getValue() || "").trim().toLowerCase() !== "test")) {
+    return jsonOut({ ok: false, error: "forbidden" });
+  }
   var fresh = !row;
   if (!row) {
     sheet.appendRow([""]);
@@ -847,7 +882,7 @@ function stayValues_(stay, id) {
   };
 }
 
-function stayLink_(data) {
+function stayLink_(data, onlyTest) {
   var book = reservationsSheet_();
   if (!book) return jsonOut({ ok: false, error: "sheet" });
   var map = book.map;
@@ -856,6 +891,9 @@ function stayLink_(data) {
   var row = findRowInColumn_(book.sheet, idCol, String(data.id || ""));
   if (!row) return jsonOut({ ok: false });
   if (map.bien && !bienIsZeno_(book.sheet.getRange(row, map.bien).getValue())) return jsonOut({ ok: false, error: "bien" });
+  if (onlyTest && (!map.origine || String(book.sheet.getRange(row, map.origine).getValue() || "").trim().toLowerCase() !== "test")) {
+    return jsonOut({ ok: false, error: "forbidden" });
+  }
   if (data.op === "deactivate" && map.lien_actif) {
     book.sheet.getRange(row, map.lien_actif).setValue(false);
     return jsonOut({ ok: true });

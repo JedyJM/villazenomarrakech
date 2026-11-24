@@ -164,7 +164,7 @@
     window.fetch(shell.SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "set-demande", test: "1", id: item.id, statut: item.status, offert: !!item.offert })
+      body: JSON.stringify({ action: "set-demande", test: shell.TEST_MODE ? "1" : "", token: shell.session(), id: item.id, statut: item.status, offert: !!item.offert })
     }).catch(function () {});
   }
   function rowHtml(item) {

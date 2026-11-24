@@ -197,7 +197,7 @@
       var stored = sessionStorage.getItem("vz.admin.confirmer");
       if (stored != null && stored !== "") return Number(stored) || 0;
     } catch (e) {}
-    return TEST_MODE ? 4 : 0;
+    return 0;
   }
 
   function paintNav() {

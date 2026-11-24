@@ -564,12 +564,23 @@
       paintDateFace();
     }
 
+    // The agency error is set on submit only; it goes away as soon as a
+    // name is typed or the source no longer asks for one.
+    var AGENCY_ERROR = "Indiquez le nom de l’agence.";
+    function clearAgencyError() {
+      if (error.textContent !== AGENCY_ERROR) return;
+      var input = form.querySelector("[name='agency']");
+      var info = sourceInfo(model.source);
+      if (!info || !info.askName || (input && input.value.trim())) error.textContent = "";
+    }
+
     form.addEventListener("click", function (event) {
       var source = event.target.closest("[data-source]");
       if (source) {
         readCommon();
         readPriceSafe();
         model.source = source.getAttribute("data-source");
+        clearAgencyError();
         paintSource();
         paintAges();
         paintPrice();
@@ -605,6 +616,7 @@
       }
     });
     form.addEventListener("input", function (event) {
+      if (event.target.name === "agency") clearAgencyError();
       if (event.target.name === "arrival" || event.target.name === "departure") {
         readCommon();
         readPriceSafe();
@@ -629,6 +641,7 @@
     });
     form.addEventListener("change", function (event) {
       var name = event.target.name;
+      if (name === "agency") clearAgencyError();
       if (name !== "poolOffert" && name !== "jacuzziOffert") return;
       readPriceSafe();
       var nights = calc.nights(model.arrival, model.departure);
@@ -649,7 +662,7 @@
       if (!model.nom) message = "Indiquez le nom.";
       else if (!model.telephone) message = "Indiquez le téléphone WhatsApp.";
       else if (!model.arrival || !model.departure || nights < 1) message = "Indiquez des dates d’arrivée et de départ.";
-      else if (sourceInfo(model.source) && sourceInfo(model.source).askName && !model.agency) message = "Indiquez le nom de l’agence.";
+      else if (sourceInfo(model.source) && sourceInfo(model.source).askName && !model.agency) message = AGENCY_ERROR;
       else if (sourceKind(model.source) === "airbnb" && !model.room) message = "Indiquez les frais de chambre.";
       else if (sourceKind(model.source) === "booking" && !model.total) message = "Indiquez le montant total.";
       else if (sourceKind(model.source) === "direct" && !model.tarif) message = "Indiquez le tarif total.";

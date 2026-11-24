@@ -1070,8 +1070,37 @@
       });
       return { adults: adults, children: children, kids: kids, missing: missing, total: adults + children };
     }
-    function eggChoice() {
-      return form.querySelector("[data-egg][aria-checked='true']");
+    // One stepper per egg style; at most one egg per guest in total.
+    var EGG_STYLES = ["dur", "brouille", "au_plat"];
+    function readEggs(total) {
+      var counts = {};
+      var sum = 0;
+      EGG_STYLES.forEach(function (code) {
+        var input = form.querySelector("[name='egg_" + code + "']");
+        counts[code] = Math.max(0, Math.floor(Number(input.value) || 0));
+        sum += counts[code];
+      });
+      // Fewer guests than eggs: remove eggs from the last style first
+      // (Au plat, then Brouillé, then Dur) so the result is predictable.
+      for (var i = EGG_STYLES.length - 1; i >= 0 && sum > total; i--) {
+        var cut = Math.min(counts[EGG_STYLES[i]], sum - total);
+        counts[EGG_STYLES[i]] -= cut;
+        sum -= cut;
+      }
+      var parts = [];
+      EGG_STYLES.forEach(function (code) {
+        var row = form.querySelector("[data-egg-row='" + code + "']");
+        var input = row.querySelector("input[type='hidden']");
+        input.value = String(counts[code]);
+        row.querySelector("[data-egg-count]").textContent = String(counts[code]);
+        row.querySelector("[data-egg='" + code + "'][data-dir='-1']").disabled = counts[code] <= 0;
+        row.querySelector("[data-egg='" + code + "'][data-dir='1']").disabled = sum >= total;
+        if (counts[code]) parts.push(counts[code] + " " + input.getAttribute("data-label"));
+      });
+      var hint = form.querySelector("[data-egg-hint]");
+      if (hint) hint.textContent = total ? "1 par convive · " + sum + "/" + total : "1 par convive";
+      // label: "2 Dur, 1 Brouillé, 1 Au plat" (non-zero styles only).
+      return { counts: counts, sum: sum, label: parts.join(", ") };
     }
     function paintPrices() {
       var kind = mealKind();
@@ -1123,6 +1152,7 @@
     function paintMeal() {
       var kind = mealKind();
       var people = readPeople();
+      var eggs = readEggs(people.total);
       var dishes = kind === "breakfast" ? [] : chosenDishes();
       var quote = mealQuote(kind, prices, dishes, people, supplementEuro());
       var verb = { breakfast: "petit-déjeuner", lunch: "déjeuner", dinner: "dîner" };
@@ -1135,6 +1165,7 @@
         line.textContent = text;
       }
       quote.people = people;
+      quote.eggs = eggs;
       quote.dishes = dishes;
       quote.bill = text;
       return quote;
@@ -1165,10 +1196,8 @@
       }
       var egg = event.target.closest("[data-egg]");
       if (egg) {
-        form.querySelectorAll("[data-egg]").forEach(function (button) {
-          button.setAttribute("aria-checked", button === egg ? "true" : "false");
-          button.setAttribute("aria-pressed", button === egg ? "true" : "false");
-        });
+        var eggInput = form.querySelector("[name='egg_" + egg.getAttribute("data-egg") + "']");
+        eggInput.value = String(Number(eggInput.value) + Number(egg.getAttribute("data-dir")));
         showError(error, "");
       }
       var kid = event.target.closest("[data-kid]");
@@ -1183,7 +1212,7 @@
         input.value = String(Number(input.value) + Number(step.getAttribute("data-dir") || step.getAttribute("data-dish-step")));
         showError(error, "");
       }
-      if (tab || salad || step || kid) paintMeal();
+      if (tab || salad || step || kid || egg) paintMeal();
     });
     form.querySelector("[name='time']").addEventListener("change", function () { paintMeal(); });
     var typingTimer = 0;
@@ -1213,7 +1242,7 @@
       var dishes = quote.dishes;
       var date = form.querySelector("[name='date']").value;
       var time = form.querySelector("[name='time']").value;
-      var egg = eggChoice();
+      var eggs = quote.eggs;
       if (!date || date < form.querySelector("[name='date']").min) {
         setInvalid(form, "date", true);
         showError(error, "Les repas se commandent pour le lendemain.");
@@ -1222,10 +1251,6 @@
       if (!time) {
         setInvalid(form, "time", true);
         showError(error, "Veuillez choisir une heure.");
-        return;
-      }
-      if (kind === "breakfast" && !egg) {
-        showError(error, "Veuillez choisir la cuisson des œufs.");
         return;
       }
       if (kind !== "breakfast" && !dishes.length) {
@@ -1246,7 +1271,8 @@
         return button.getAttribute("data-salad");
       });
       var allergies = form.querySelector("[name='allergies']").value.trim();
-      var eggLabel = egg ? egg.getAttribute("data-label") : "";
+      var breakfast = kind === "breakfast";
+      var eggLabel = breakfast ? eggs.label : "";
       var kidRows = [
         ["Enfants 12 ans et plus", people.kids.plus_12],
         ["Enfants 4 à 11 ans", people.kids.de_4_a_11],
@@ -1258,7 +1284,7 @@
         date: date,
         time: time,
         time_label: clockLabel(time),
-        eggs: egg ? egg.getAttribute("data-egg") : "",
+        eggs: breakfast ? { dur: eggs.counts.dur, brouille: eggs.counts.brouille, au_plat: eggs.counts.au_plat } : null,
         eggs_label: eggLabel,
         salads: salads,
         dishes: dishes,
@@ -1276,7 +1302,7 @@
         ["Date", formatDate(date)],
         ["Heure", fields.time_label]
       ];
-      if (eggLabel) rows.push(["Œufs", eggLabel]);
+      if (breakfast) rows.push(["Œufs", eggLabel || "Aucun œuf"]);
       rows.push(["Adultes", String(people.adults)]);
       kidRows.forEach(function (row) { rows.push([row[0], String(row[1])]); });
       if (salads.length) rows.push(["Salades", salads.join(", ")]);
@@ -1292,7 +1318,8 @@
         ["Date", formatDateFr(date)],
         ["Heure", fields.time_label]
       ];
-      if (eggLabel) staffRows.push(["Œufs", eggLabel]);
+      // "Œufs : aucun" is translated by Code.gs to "بدون بيض".
+      if (breakfast) staffRows.push(["Œufs", eggLabel || "aucun"]);
       staffRows.push(["Personnes", String(people.total)], ["Adultes", String(people.adults)]);
       kidRows.forEach(function (row) { staffRows.push([row[0], String(row[1])]); });
       if (salads.length) staffRows.push(["Salades", salads.join(", ")]);

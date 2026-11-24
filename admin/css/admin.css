@@ -153,7 +153,9 @@ a { color: inherit; }
   height: 36px; min-width: 0; border-radius: 10px; border: 1px solid rgba(28, 25, 22, 0.12);
   background: #fff; padding: 0 2px; line-height: 1; white-space: nowrap; font-size: 14px;
 }
-.seg-sources button { padding: 0 4px; font-size: 13px; line-height: 1.1; white-space: normal; text-wrap: balance; }
+/* Sources: 2 equal columns so every label, "Marrakech Best Of" included, stays on one line. */
+.seg-sources { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.seg-sources button { padding: 0 6px; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; }
 .seg button[aria-pressed="true"], .modes button[aria-pressed="true"] {
   background: var(--terracotta); border-color: var(--terracotta); color: #fffaf3; font-weight: 600;
 }
@@ -231,7 +233,7 @@ a { color: inherit; }
 .form-error:empty { display: none; }
 
 .who { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.who h1 { font-size: 1.35rem; min-width: 0; }
+.who h1 { font-size: 1.35rem; min-width: 0; overflow-wrap: anywhere; }
 .who .chips { flex: none; }
 form .primary { margin-top: 4px; }
 .meta-line { color: var(--muted); font-size: 13.5px; white-space: nowrap; }

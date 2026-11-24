@@ -1225,6 +1225,9 @@ var WA_VALUES_AR = {
   "au plat": "مقلي"
 };
 
+// Breakfast with no egg ("Œufs : aucun").
+var WA_NO_EGGS_AR = "بدون بيض";
+
 // Menu items (guest/restauration.html data-label / data-salad) to Arabic.
 // Keep in sync with the menu: an unknown dish is left as written.
 var WA_MENU_AR = {
@@ -1309,6 +1312,25 @@ function waPartsAr_(value) {
   return segs.join("، ");
 }
 
+// Egg counts per style: "2 Dur, 1 Brouillé, 1 Au plat" -> "2 مسلوق، 1 مخفوق، 1 مقلي".
+// Zero styles are dropped; "aucun" -> "بدون بيض". Old single style ("Au plat") still works.
+function waEggsAr_(value) {
+  var segs = String(value).split(/\s*,\s*/);
+  var out = [];
+  for (var i = 0; i < segs.length; i++) {
+    var seg = waTrim_(segs[i]);
+    if (!seg) continue;
+    var m = seg.match(/^(\d+)\s+(.+)$/);
+    if (!m) {
+      if (waKey_(seg) !== "aucun") out.push(WA_VALUES_AR[waKey_(seg)] || seg);
+      continue;
+    }
+    if (Number(m[1]) === 0) continue;
+    out.push(m[1] + " " + (WA_VALUES_AR[waKey_(m[2])] || m[2]));
+  }
+  return out.length ? out.join("، ") : WA_NO_EGGS_AR;
+}
+
 // "09:30", "9:30", "9 h 30", "9h", "9 h" -> "09:30". Empty if unknown.
 function waClock_(value) {
   var m = waTrim_(value).match(/^(\d{1,2})\s*(?::|h)\s*(\d{2})?/i);
@@ -1378,7 +1400,9 @@ function waDetails_(data, details) {
       key = waKey_(label);
     }
     if (key === "personnes") hasPeople = true;
-    if (WA_FREE_TEXT[key]) {
+    if (key === "oeufs") {
+      value = waEggsAr_(waStripMoney_(value).replace(/ · /g, ", "));
+    } else if (WA_FREE_TEXT[key]) {
       // Guest text kept as written, isolated so it reads well inside Arabic.
       value = waIsolate_(value);
     } else {

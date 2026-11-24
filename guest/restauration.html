@@ -67,11 +67,11 @@
 </ul>
 </section>
 <fieldset class="bf-eggs">
-<legend>Vos œufs</legend>
-<div class="meal-chips chips" role="radiogroup" aria-label="Cuisson des œufs">
-<button type="button" role="radio" data-egg="dur" data-label="Dur" aria-checked="false" aria-pressed="false">Dur</button>
-<button type="button" role="radio" data-egg="brouille" data-label="Brouillé" aria-checked="false" aria-pressed="false">Brouillé</button>
-<button type="button" role="radio" data-egg="au_plat" data-label="Au plat" aria-checked="false" aria-pressed="false">Au plat</button>
+<legend><span>Vos œufs</span><span class="bf-eggs-hint" data-egg-hint></span></legend>
+<div class="bf-egg-grid">
+<div class="bf-egg" data-egg-row="dur"><span class="bf-egg-name" id="egg-dur">Dur</span><span class="stepper" role="group" aria-labelledby="egg-dur"><button type="button" data-egg="dur" data-dir="-1" aria-label="Moins, Dur">−</button><span data-egg-count>0</span><button type="button" data-egg="dur" data-dir="1" aria-label="Plus, Dur">+</button></span><input type="hidden" name="egg_dur" value="0" data-label="Dur"></div>
+<div class="bf-egg" data-egg-row="brouille"><span class="bf-egg-name" id="egg-brouille">Brouillé</span><span class="stepper" role="group" aria-labelledby="egg-brouille"><button type="button" data-egg="brouille" data-dir="-1" aria-label="Moins, Brouillé">−</button><span data-egg-count>0</span><button type="button" data-egg="brouille" data-dir="1" aria-label="Plus, Brouillé">+</button></span><input type="hidden" name="egg_brouille" value="0" data-label="Brouillé"></div>
+<div class="bf-egg" data-egg-row="au_plat"><span class="bf-egg-name" id="egg-au_plat">Au plat</span><span class="stepper" role="group" aria-labelledby="egg-au_plat"><button type="button" data-egg="au_plat" data-dir="-1" aria-label="Moins, Au plat">−</button><span data-egg-count>0</span><button type="button" data-egg="au_plat" data-dir="1" aria-label="Plus, Au plat">+</button></span><input type="hidden" name="egg_au_plat" value="0" data-label="Au plat"></div>
 </div>
 </fieldset>
 </div>

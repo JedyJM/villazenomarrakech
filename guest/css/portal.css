@@ -890,7 +890,24 @@ html.is-kb-open body { padding-bottom: calc(var(--kb-space, 0px) + 24px) !import
 .meal-hours-split span { white-space: nowrap; }
 .bf-eggs { display: grid; gap: 6px; min-width: 0; margin: 2px 0 0; padding: 0; border: 0; }
 .bf-eggs legend { float: left; width: 100%; margin: 0 0 6px; padding: 0; color: var(--ink); font-size: 16px; font-weight: 500; line-height: 1.15; }
-.bf-eggs .meal-chips.chips button,
+.bf-eggs legend { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; white-space: nowrap; }
+.bf-eggs-hint { color: var(--muted); font-size: 12px; font-weight: 400; font-variant-numeric: tabular-nums; }
+/* One stepper per egg style, three equal columns. */
+.bf-egg-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.bf-egg {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 4px 9px;
+  background: #fff;
+  border: 1px solid rgba(28, 25, 22, 0.1);
+  border-radius: 12px;
+}
+.bf-egg-name { color: var(--ink); font-size: 14px; font-weight: 500; line-height: 1.1; white-space: nowrap; }
+.bf-egg .stepper { gap: 6px; }
+.bf-egg .stepper button { width: 32px; height: 32px; font-size: 1.15rem; }
+.bf-egg .stepper > span { min-width: 1rem; font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .kid-ages.meal-chips.chips button { height: 36px; font-size: 13px; }
 .meal-chips.chips button[role="radio"][aria-checked="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .meal-people { display: grid; gap: 2px; }

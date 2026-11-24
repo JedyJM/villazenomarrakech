@@ -588,6 +588,19 @@ body.page-stats h1, body.page-depense h1 { font-size: 1.35rem; }
 .photo-card input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 body.page-stats .block { padding: 8px 10px; gap: 4px; }
 body.page-stats .segment button, body.page-depense .segment button { height: 30px; font-size: 12px; }
+.segment.is-4 { grid-template-columns: repeat(4, 1fr); }
+body.page-stats .segment.is-4 button { height: 26px; font-size: 11px; background: #fbf7f1; }
+body.page-stats .segment.is-4 button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); }
+.stat-table { overflow-x: auto; }
+.stat-table table { width: 100%; border-collapse: collapse; font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.stat-table th, .stat-table td { padding: 3px 0 3px 6px; text-align: right; white-space: nowrap; }
+.stat-table th:first-child { padding-left: 0; }
+.stat-table thead th { color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+.stat-table tbody th { text-align: left; font-weight: 600; }
+.stat-table tbody tr { border-top: 1px solid rgba(28, 25, 22, 0.08); }
+.stat-table tr[data-smonth] { cursor: pointer; }
+.period-months { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.period-months .statut-choice { padding-left: 0; padding-right: 0; text-align: center; }
 
 body.page-reglages { padding-bottom: var(--nav); }
 body.page-reglages .page { gap: 6px; padding: 4px 0 8px; }

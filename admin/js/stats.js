@@ -29,7 +29,14 @@
     reparations: '<path d="M14.7 6.3a4 4 0 0 0-5.6 5.6L4 17l3 3 5.1-5.1a4 4 0 0 0 5.6-5.6l-2.2 2.2-2.2-2.2 2.4-2.4z"/>'
   };
   var VIEWS = [["sejours", "Séjours"], ["services", "Services"], ["depenses", "Dépenses"]];
-  var state = { view: "sejours", year: 2026, month: "2026-12", remoteStays: [], remoteDemandes: [] };
+  // Properties in Stats. One unit each. Services and Dépenses are Zen'O only.
+  var ZENO = "Villa Zen'O";
+  var BIENS = [ZENO, "M avenue", "Villa la tour"];
+  var BIEN_FILTERS = [["Tous", "Tous"], [ZENO, "Zen’O"], ["M avenue", "M avenue"], ["Villa la tour", "La tour"]];
+  var SOURCES = ["Airbnb", "Booking", "Direct", "Agences"];
+  var SOURCE_LABELS = { Airbnb: "Airbnb", Booking: "Booking.com", Direct: "Direct", Agences: "Agences" };
+  // statsStays: action=stays-stats (all properties), null until loaded.
+  var state = { view: "sejours", year: 2026, month: "2026-12", sMonth: "", bien: "Tous", remoteStays: [], remoteDemandes: [], statsStays: null };
 
   function esc(value) {
     return String(value == null ? "" : value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -109,6 +116,7 @@
           brut: row[2],
           frais: row[3],
           net: row[4],
+          bien: ZENO,
           confirmed: true
         });
         cursor = isoShift(cursor, 18);
@@ -249,7 +257,14 @@
     return list;
   }
 
-  function stays() { return shell.TEST_MODE ? sampleStays(state.year) : (state.remoteStays || []); }
+  // All stays for Stats, every year. Remote stats feed when loaded (also in
+  // TEST_MODE), else Zen'O stays from action=stays, else the samples.
+  function allStays() {
+    if (state.statsStays && state.statsStays.length) return state.statsStays;
+    if (!shell.TEST_MODE && state.remoteStays && state.remoteStays.length) return state.remoteStays;
+    return shell.TEST_MODE ? sampleStays(2026).concat(sampleStays(2025)) : (state.remoteStays || []);
+  }
+  function stays() { return allStays(); }
   function mergedExpenses() {
     var base = shell.TEST_MODE ? sampleExpenses() : (state.remoteExpenses || []);
     var extra = readExtra();
@@ -266,62 +281,146 @@
     return mergedExpenses().filter(function (item) { return String(item.date || "").slice(0, 4) === String(state.year); });
   }
 
-  function stayRollup(list) {
-    var today = todayIso();
-    var by = { Airbnb: emptySource(), Booking: emptySource(), Direct: emptySource() };
-    var nightsSum = 0;
-    var count = 0;
-    list.forEach(function (stay) {
-      if (stay.confirmed === false) return;
-      if (String(stay.departure) > today) return;
-      if (String(stay.arrival).slice(0, 4) !== String(state.year) && String(stay.departure).slice(0, 4) !== String(state.year)) return;
-      var n = nights(stay.arrival, stay.departure);
-      if (n < 1) return;
-      var key = sourceKey(stay.source);
-      by[key].count += 1;
-      by[key].nights += n;
-      by[key].brut += stay.brut;
-      by[key].frais += stay.frais;
-      by[key].net += stay.net;
-      nightsSum += n;
-      count += 1;
-    });
-    var brut = 0;
-    var frais = 0;
-    var net = 0;
-    ["Airbnb", "Booking", "Direct"].forEach(function (key) {
-      brut += by[key].brut;
-      frais += by[key].frais;
-      net += by[key].net;
-    });
-    var days = yearDays(state.year);
-    return { by: by, brut: brut, frais: frais, net: net, nights: nightsSum, count: count, days: days, rate: days ? Math.round(nightsSum / days * 100) : 0, avg: count ? Math.round(nightsSum / count) : 0 };
+  function bienOf(stay) { return stay.bien || ZENO; }
+  function cancelled(stay) {
+    return stay.confirmed === false || /annul|cancel/i.test(String(stay.statut || ""));
   }
-  // Agencies (Villanovo, Marrakech Best Of, Autre agence) use the direct tariff fields.
-  function sourceKey(source) {
-    return source === "Booking" || source === "Airbnb" ? source : "Direct";
+  function daysIn(year, month) { return new Date(Date.UTC(year, month, 0)).getUTCDate(); }
+  // Period: whole year, or one month ("2026-03"). end is exclusive.
+  function periodOf(year, month) {
+    if (month) {
+      var m = Number(month.slice(5, 7));
+      var y = Number(month.slice(0, 4));
+      return { start: month + "-01", end: m === 12 ? (y + 1) + "-01-01" : y + "-" + pad(m + 1) + "-01", days: daysIn(y, m) };
+    }
+    return { start: year + "-01-01", end: (year + 1) + "-01-01", days: yearDays(year) };
   }
+  function selection(bien) { return bien === "Tous" || !bien ? BIENS.slice() : [bien]; }
   function emptySource() { return { count: 0, nights: 0, brut: 0, frais: 0, net: 0 }; }
+  // Pure. KPIs of confirmed stays over a period, for the properties in sel.
+  // Nights are split across periods (a stay spanning two months counts its
+  // nights in each), amounts pro rata of those nights. Future nights in the
+  // period count; cancelled stays never. Stays without departure (Booking
+  // stubs) count as bookings / arrivals only.
+  function rollup(list, period, sel) {
+    var inSel = {};
+    sel.forEach(function (b) { inSel[b] = true; });
+    var by = {};
+    SOURCES.forEach(function (k) { by[k] = emptySource(); });
+    var r = { by: by, brut: 0, frais: 0, net: 0, nights: 0, count: 0, arrivals: 0, departures: 0, stayNights: 0, staysWithNights: 0, todo: 0, other: 0 };
+    list.forEach(function (stay) {
+      if (cancelled(stay)) return;
+      if (!inSel[bienOf(stay)]) { if (BIENS.indexOf(bienOf(stay)) < 0) r.other += 1; return; }
+      var a = String(stay.arrival || "");
+      var d = String(stay.departure || "");
+      if (!a) return;
+      var full = d ? nights(a, d) : 0;
+      if (full < 0) full = 0;
+      var from = a > period.start ? a : period.start;
+      var to = d && d < period.end ? d : period.end;
+      var part = full > 0 && from < to ? nights(from, to) : 0;
+      var arrives = a >= period.start && a < period.end;
+      var leaves = d && d >= period.start && d < period.end;
+      if (!part && !arrives) {
+        if (leaves) r.departures += 1;
+        return;
+      }
+      var share = full > 0 ? part / full : (arrives ? 1 : 0);
+      var brut = Math.round((Number(stay.brut) || 0) * share);
+      var frais = Math.round((Number(stay.frais) || 0) * share);
+      var net = Math.round((Number(stay.net) || 0) * share);
+      var key = sourceKey(stay.source);
+      r.count += 1;
+      if (arrives) r.arrivals += 1;
+      if (leaves) r.departures += 1;
+      if (full > 0) { r.stayNights += full; r.staysWithNights += 1; }
+      if (stay.a_completer) r.todo += 1;
+      r.nights += part;
+      r.brut += brut;
+      r.frais += frais;
+      r.net += net;
+      by[key].count += 1;
+      by[key].nights += part;
+      by[key].brut += brut;
+      by[key].frais += frais;
+      by[key].net += net;
+    });
+    r.units = sel.length;
+    r.days = period.days;
+    r.available = period.days * sel.length;
+    r.occupancy = r.available ? r.nights / r.available : 0;
+    r.rate = Math.round(r.occupancy * 100);
+    r.adr = r.nights ? Math.round(r.brut / r.nights) : 0;
+    r.revpar = r.available ? Math.round(r.brut / r.available) : 0;
+    r.avgStay = r.staysWithNights ? Math.round(r.stayNights / r.staysWithNights * 10) / 10 : 0;
+    r.avg = Math.round(r.avgStay);
+    return r;
+  }
+  // Zen'O year rollup for Services (panier) and Dépenses (marge).
+  function stayRollup(list) { return rollup(list, periodOf(state.year, ""), [ZENO]); }
+  function sourceKey(source) {
+    var s = String(source || "").toLowerCase();
+    if (s.indexOf("airbnb") >= 0) return "Airbnb";
+    if (s.indexOf("booking") >= 0) return "Booking";
+    if (!s || s === "direct") return "Direct";
+    return "Agences"; // Villanovo, Marrakech Best Of, Autre agence…
+  }
 
   function tile(kicker, value, sub, subClass) {
     return '<article class="stat-tile"><p class="kicker">' + esc(kicker) + '</p><strong>' + value + "</strong>" + (sub ? '<em class="' + (subClass || "") + '">' + sub + "</em>" : "") + "</article>";
   }
+  // Whole euros, for the dense tables.
+  function euros(cents) { return money(Math.round((Number(cents) || 0) / 100) * 100); }
+  function pct(roll) { return roll.rate + " %"; }
+  function plural(n, word) { return n + " " + word + (n > 1 ? "s" : ""); }
   function sourceCard(roll) {
-    return '<section class="block stat-source"><p class="kicker">Par source</p>' + ["Airbnb", "Booking", "Direct"].map(function (name) {
+    return '<section class="block stat-source"><p class="kicker">Par source</p>' + SOURCES.map(function (name) {
       var row = roll.by[name];
       var width = row.brut > 0 ? Math.round(row.frais / row.brut * 100) : 0;
-      var label = { Airbnb: "Airbnb", Booking: "Booking.com", Direct: "Direct et agences" }[name];
-      return '<div class="src"><p class="src-top"><span>' + esc(label) + '</span><em>' + row.count + " séjour" + (row.count > 1 ? "s" : "") + "</em></p>"
+      return '<div class="src"><p class="src-top"><span>' + esc(SOURCE_LABELS[name]) + '</span><em>' + esc(plural(row.count, "séjour") + " · " + plural(row.nights, "nuit")) + "</em></p>"
         + '<span class="src-bar" aria-hidden="true"><i style="width:' + width + '%"></i></span>'
         + '<p class="src-nums"><span><small>Brut</small>' + esc(money(row.brut)) + '</span><span><small>Frais</small>' + esc(money(row.frais)) + '</span><span><small>Net</small>' + esc(money(row.net)) + "</span></p></div>";
     }).join("") + "</section>";
   }
+  function bienCard(list, period) {
+    var rows = BIENS.map(function (bien) {
+      var r = rollup(list, period, [bien]);
+      return "<tr><th>" + esc(bien) + "</th><td>" + r.nights + "</td><td>" + esc(pct(r)) + "</td><td>" + esc(euros(r.adr)) + "</td><td>" + esc(euros(r.brut)) + "</td><td>" + esc(euros(r.net)) + "</td></tr>";
+    }).join("");
+    return '<section class="block stat-table"><p class="kicker">Par bien</p><table><thead><tr><th></th><th>Nuits</th><th>Occ.</th><th>ADR</th><th>Brut</th><th>Net</th></tr></thead><tbody>' + rows + "</tbody></table></section>";
+  }
+  function monthCard(list, sel) {
+    var rows = MONTHS.map(function (name, index) {
+      var id = state.year + "-" + pad(index + 1);
+      var r = rollup(list, periodOf(state.year, id), sel);
+      return '<tr data-smonth="' + id + '"><th>' + esc(name) + "</th><td>" + r.nights + "</td><td>" + esc(pct(r)) + "</td><td>" + esc(euros(r.adr)) + "</td><td>" + esc(euros(r.revpar)) + "</td><td>" + r.count + "</td><td>" + esc(euros(r.brut)) + "</td><td>" + esc(euros(r.net)) + "</td></tr>";
+    }).join("");
+    return '<section class="block stat-table"><p class="kicker">Par mois</p><table><thead><tr><th></th><th>Nuits</th><th>Occ.</th><th>ADR</th><th>RevPAR</th><th>Séj.</th><th>Brut</th><th>Net</th></tr></thead><tbody>' + rows + "</tbody></table></section>";
+  }
+  function bienSegment() {
+    return '<div class="segment is-4" role="group" aria-label="Bien">' + BIEN_FILTERS.map(function (item) {
+      var on = item[0] === state.bien;
+      return '<button type="button" data-bien="' + esc(item[0]) + '" aria-pressed="' + (on ? "true" : "false") + '">' + esc(item[1]) + "</button>";
+    }).join("") + "</div>";
+  }
   function sejoursHtml() {
-    var roll = stayRollup(stays());
-    return '<div class="stat-3">' + tile("Brut", esc(money(roll.brut))) + tile("Frais plateformes", esc(money(roll.frais))) + tile("Net", esc(money(roll.net))) + "</div>"
-      + '<div class="stat-2">' + tile("Taux d’occupation", esc(roll.rate + "\u00A0%"), esc(roll.nights + " nuits / " + roll.days)) + tile("Séjours", esc(String(roll.count)), esc("moy. " + roll.avg + " nuits")) + "</div>"
+    var list = stays();
+    var sel = selection(state.bien);
+    var period = periodOf(state.year, state.sMonth);
+    var roll = rollup(list, period, sel);
+    var avail = roll.nights + " nuits / " + roll.available + (roll.units > 1 ? " (" + roll.units + " biens)" : "");
+    var notes = [];
+    if (roll.todo) notes.push(plural(roll.todo, "séjour") + " Booking à compléter (montants ou départ manquants).");
+    if (roll.other && state.bien === "Tous") notes.push(plural(roll.other, "séjour") + " d’un bien inconnu non compté" + (roll.other > 1 ? "s" : "") + ".");
+    return bienSegment()
+      + '<div class="stat-3">' + tile("Brut", esc(money(roll.brut))) + tile("Frais plateformes", esc(money(roll.frais))) + tile("Net (versé)", esc(money(roll.net))) + "</div>"
+      + '<div class="stat-3">' + tile("Occupation", esc(pct(roll)), esc(avail), "is-detail") + tile("ADR", esc(money(roll.adr)), "brut / nuit") + tile("RevPAR", esc(money(roll.revpar)), "brut / nuit dispo.") + "</div>"
+      + '<div class="stat-3">' + tile("Séjours", esc(String(roll.count)), esc("moy. " + String(roll.avgStay).replace(".", ",") + " nuits")) + tile("Arrivées", esc(String(roll.arrivals))) + tile("Départs", esc(String(roll.departures))) + "</div>"
       + sourceCard(roll)
-      + '<p class="stat-note">Frais plateformes = frais de service hôte (Airbnb) et commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net.</p>';
+      + (sel.length > 1 ? bienCard(list, period) : "")
+      + (state.sMonth ? "" : monthCard(list, sel))
+      + (notes.length ? '<p class="stat-note">' + esc(notes.join(" ")) + "</p>" : "")
+      + '<p class="stat-note">Nuits réparties par mois, futures comprises ; séjours annulés exclus. Occupation = nuits / (jours × biens). ADR = brut / nuits, RevPAR = brut / nuits disponibles. Frais plateformes = frais de service hôte (Airbnb) et commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net.</p>';
   }
   function serviceSums(book) {
     var repas = book.repas.reduce(function (s, n) { return s + n; }, 0);
@@ -361,7 +460,7 @@
       + '<section class="block stat-chart"><p class="chart-legend"><span><i></i>Repas</span><span><i class="is-gold"></i>Chauffage</span></p><div class="chart">' + bars + "</div></section>"
       + '<div class="stat-3">' + tile("Panier moyen", esc(money(basket * 100)), "par séjour") + tile("Demandes / séjour", esc(perText), esc(demands.total + " au total")) + tile("Délai confirmation", demands.delayHours == null ? "—" : esc(demands.delayHours + "\u00A0h"), "moyenne") + "</div>"
       + '<section class="block"><p class="kicker">Demandes par type</p>' + types + "</section>"
-      + '<p class="stat-note">Le taux d’occupation se trouve dans l’onglet Séjours. Coûts\u00A0: onglet Dépenses.</p>';
+      + '<p class="stat-note">Services\u00A0: Villa Zen’O uniquement. Le taux d’occupation se trouve dans l’onglet Séjours. Coûts\u00A0: onglet Dépenses.</p>';
   }
   function expenseTitle(item) {
     var name = CATS[item.categorie] || item.categorie || "Dépense";
@@ -398,6 +497,10 @@
       return '<button type="button" class="period" data-open-period>' + esc(label) + '</button><a class="add-link" href="depense.html?mois=' + esc(state.month) + '">+ Ajouter</a>';
     }
     if (state.view === "services") return "";
+    if (state.sMonth) {
+      var m = MONTH_FULL[Number(state.sMonth.slice(5, 7)) - 1];
+      return '<button type="button" class="period" data-open-period>' + esc(m.charAt(0).toUpperCase() + m.slice(1) + " " + state.year) + "</button>";
+    }
     return '<button type="button" class="period" data-open-period>Année ' + state.year + "</button>";
   }
   function panel() {
@@ -423,9 +526,15 @@
         return '<button type="button" class="statut-choice' + (id === state.month ? " is-current" : "") + '" data-month="' + id + '">' + esc(name.charAt(0).toUpperCase() + name.slice(1)) + "</button>";
       }).join("");
     } else {
-      html = '<p class="kicker">Année</p>' + [2026, 2025, 2024].map(function (year) {
-        return '<button type="button" class="statut-choice' + (year === state.year ? " is-current" : "") + '" data-year="' + year + '">Année ' + year + "</button>";
+      html = '<p class="kicker">Année</p>' + [2027, 2026, 2025, 2024].map(function (year) {
+        return '<button type="button" class="statut-choice' + (year === state.year && !state.sMonth ? " is-current" : "") + '" data-year="' + year + '">Année ' + year + "</button>";
       }).join("");
+      if (state.view === "sejours") {
+        html += '<p class="kicker">Mois ' + state.year + '</p><div class="period-months">' + MONTHS.map(function (name, index) {
+          var id = state.year + "-" + pad(index + 1);
+          return '<button type="button" class="statut-choice' + (id === state.sMonth ? " is-current" : "") + '" data-smonth="' + id + '">' + esc(name) + "</button>";
+        }).join("") + "</div>";
+      }
     }
     html += '<button type="button" class="ghost" data-sheet-close>Fermer</button>';
     sheet.innerHTML = html;
@@ -447,23 +556,32 @@
     var root = document.querySelector("[data-stats]");
     if (!root || document.body.classList.contains("is-locked")) return;
     var asked = query("vue");
+    var askedBien = query("bien");
+    BIEN_FILTERS.forEach(function (item) { if (item[0] === askedBien) state.bien = askedBien; });
     if (asked === "services" || asked === "depenses" || asked === "sejours") state.view = asked;
     root.addEventListener("click", function (event) {
       var view = event.target.closest("[data-view]");
       if (view) { state.view = view.getAttribute("data-view"); paint(); return; }
+      var bien = event.target.closest("[data-bien]");
+      if (bien) { state.bien = bien.getAttribute("data-bien"); paint(); return; }
+      var row = event.target.closest("tr[data-smonth]");
+      if (row) { state.sMonth = row.getAttribute("data-smonth"); paint(); return; }
       if (event.target.closest("[data-open-period]")) { openPeriod(); return; }
       var facture = event.target.closest("[data-facture]");
       if (facture) { event.preventDefault(); showPhoto(facture.getAttribute("data-facture")); }
     });
     document.addEventListener("click", function (event) {
       var year = event.target.closest("[data-year]");
-      if (year) { state.year = Number(year.getAttribute("data-year")); state.month = state.year + "-12"; closeSheet(); paint(); return; }
+      if (year) { state.year = Number(year.getAttribute("data-year")); state.month = state.year + "-12"; state.sMonth = ""; closeSheet(); paint(); return; }
+      var smonth = event.target.closest(".period-months [data-smonth]");
+      if (smonth) { state.sMonth = smonth.getAttribute("data-smonth"); closeSheet(); paint(); return; }
       var month = event.target.closest("[data-month]");
       if (month) { state.month = month.getAttribute("data-month"); closeSheet(); paint(); return; }
       if (event.target.closest("[data-sheet-close]") || event.target.hasAttribute("data-sheet-back")) closeSheet();
       if (event.target.closest("[data-photo-close]") || event.target.hasAttribute("data-photo")) document.querySelector("[data-photo]").hidden = true;
     });
     paint();
+    loadStatsStays();
     if (!shell.TEST_MODE && shell.SCRIPT_URL && window.fetch) {
       var token = encodeURIComponent(shell.session());
       var base = shell.SCRIPT_URL + "?token=" + token;
@@ -479,12 +597,27 @@
       }).catch(function () {});
     }
   }
+  // All properties (action=stays-stats), also in TEST_MODE so the preview
+  // shows imported data. Samples stay the fallback when nothing comes back.
+  function loadStatsStays() {
+    if (!shell.SCRIPT_URL || !window.fetch) return;
+    var url = shell.SCRIPT_URL + "?action=stays-stats&token=" + encodeURIComponent(shell.session()) + (shell.TEST_MODE ? "&test=1" : "");
+    window.fetch(url).then(function (res) { return res.json(); }).then(function (data) {
+      if (!data || !data.ok || !data.stays || !data.stays.length) return;
+      state.statsStays = data.stays.map(apiStay);
+      paint();
+    }).catch(function () {});
+  }
   function apiStay(stay) {
     var source = sourceKey(stay.source);
     var brut = 0;
     var frais = 0;
     var net = 0;
-    if (source === "Airbnb") {
+    if (stay.portal === false) {
+      brut = stay.brut || 0;
+      frais = stay.frais || 0;
+      net = stay.net != null ? stay.net : brut - frais;
+    } else if (source === "Airbnb") {
       brut = (stay.room || 0) - (stay.reduction || 0);
       frais = stay.hostFee || 0;
       net = brut - frais;
@@ -497,7 +630,8 @@
       net = brut;
     }
     return {
-      source: source, arrival: stay.arrival, departure: stay.departure, brut: brut, frais: frais, net: net, confirmed: true,
+      source: source, arrival: stay.arrival, departure: stay.departure, brut: brut, frais: frais, net: net,
+      bien: stay.portal === false ? String(stay.bien || "Autre") : ZENO, statut: stay.statut || "", a_completer: stay.a_completer || "", confirmed: true,
       poolDays: stay.poolDays || 0, poolRate: stay.poolRate || 0, jacuzziDays: stay.jacuzziDays || 0, jacuzziRate: stay.jacuzziRate || 0,
       encaisse_le: stay.encaisse_le || "", offerts: stay.offerts || ""
     };
@@ -512,6 +646,11 @@
     readExtra: readExtra,
     saveExtra: function (bag) { try { localStorage.setItem(STORE, JSON.stringify(bag)); } catch (e) {} },
     money: money,
-    todayIso: todayIso
+    todayIso: todayIso,
+    rollup: rollup,
+    periodOf: periodOf,
+    selection: selection,
+    sourceKey: sourceKey,
+    apiStay: apiStay
   };
 })();

@@ -11,7 +11,7 @@ var STAY_HEADERS = [
   "booking_montant", "booking_commission", "booking_frais_bancaires", "booking_net",
   "direct_tarif", "acompte_montant", "acompte_date", "acompte_mode", "reste_a_payer",
   "offert_petit_dejeuner",
-  "encaisse_total_eur", "encaisse_mode", "encaisse_le", "offerts"
+  "encaisse_total_eur", "encaisse_mode", "encaisse_le", "offerts", "bien"
 ];
 var DEMANDES_HEADERS = [
   "id",
@@ -95,7 +95,7 @@ function doPost(e) {
 function doGet(e) {
   var params = (e && e.parameter) || {};
   if (params.action === "list") return listDemandes_(params.stay || "");
-  if (params.action === "stays" || params.action === "stay" || params.action === "demandes" || params.action === "depenses" || params.action === "get-reglages") return adminGet_(params);
+  if (params.action === "stays" || params.action === "stays-stats" || params.action === "stay" || params.action === "demandes" || params.action === "depenses" || params.action === "get-reglages") return adminGet_(params);
   if (params.action !== "confirm" || !params.id || !params.t) {
     return htmlPage_("Ce lien n\u2019est pas valable.");
   }
@@ -234,6 +234,7 @@ function stayRecord_(stay) {
   var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
   for (var r = 0; r < values.length; r++) {
     if (String(values[r][idCol]) !== String(stay)) continue;
+    if (!rowIsZeno_(values[r], map)) return empty;
     var actifCol = firstCol_(map, ["lien_actif"]);
     return {
       arrival: cellDate_(values[r], map, ["date_arrivee", "arrivee", "check_in", "arrival"]),
@@ -248,6 +249,18 @@ function stayRecord_(stay) {
     };
   }
   return empty;
+}
+
+// True when a bien value is Villa Zen'O (empty = legacy Zen'O row).
+function bienIsZeno_(value) {
+  var b = String(value == null ? "" : value).trim();
+  return b === "" || impIsZenoText_(b);
+}
+
+// Row guard for the Zen'O-only tabs (0-based header map): false when the
+// row's bien column names another property.
+function rowIsZeno_(row, map) {
+  return map.bien == null || bienIsZeno_(row[map.bien]);
 }
 
 function firstCol_(map, names) {
@@ -449,6 +462,7 @@ function adminGet_(params) {
   if (params.action === "demandes") return adminDemandes_(params);
   if (params.action === "depenses") return jsonOut({ ok: true, depenses: adminDepenses_(params.year || "") });
   if (params.action === "get-reglages") return jsonOut({ ok: true, reglages: readReglages_() });
+  if (params.action === "stays-stats") return jsonOut({ ok: true, stays: adminStatsStays_() });
   return jsonOut({ ok: true, stays: adminStays_(params.year || "") });
 }
 
@@ -571,7 +585,7 @@ function adminStays_(year) {
   var items = [];
   for (var i = 0; i < values.length; i++) {
     var stay = stayFromRow_(values[i], map);
-    if (!stay.id) continue;
+    if (!stay.id || !stay.portal) continue;
     if (year && String(stay.arrival).slice(0, 4) !== String(year)) continue;
     items.push(stay);
   }
@@ -584,6 +598,45 @@ function adminStay_(id) {
   return null;
 }
 
+// Stats feed (action=stays-stats): Villa Zen'O stays (portal: true) plus
+// the stats-only rows of "Réservations autres biens" (portal: false, no
+// id, no guest data). Amounts in cents: brut, frais, net. Never used by
+// Séjours, Demandes, Aujourd'hui or the portal.
+function adminStatsStays_() {
+  var items = adminStays_("");
+  var tab = SpreadsheetApp.openById(SHEET_ID).getSheetByName(IMPORT_OTHER_TAB);
+  if (!tab || tab.getLastRow() < 2) return items;
+  var map = headerMap_(tab);
+  var values = tab.getRange(2, 1, tab.getLastRow() - 1, tab.getLastColumn()).getValues();
+  for (var i = 0; i < values.length; i++) {
+    var item = otherStatsFromRow_(values[i], map);
+    if (item) items.push(item);
+  }
+  return items;
+}
+
+function otherStatsFromRow_(row, map) {
+  function col(name) { return map[name] == null ? "" : row[map[name]]; }
+  function cents(name) { return col(name) === "" ? null : Math.round((Number(col(name)) || 0) * 100); }
+  var bien = String(col("bien") || "");
+  if (!bien || bienIsZeno_(bien)) return null; // Zen'O lives in Réservations only
+  var arrival = cellDate_(row, map, ["date_arrivee"]);
+  if (!arrival && !col("booking_id")) return null;
+  return {
+    bien: bien,
+    portal: false,
+    source: String(col("source") || ""),
+    statut: String(col("statut") || ""),
+    arrival: arrival,
+    departure: cellDate_(row, map, ["date_depart"]),
+    guests: Number(col("voyageurs")) || 0,
+    brut: cents("brut"),
+    frais: cents("frais"),
+    net: cents("net"),
+    a_completer: String(col("a_completer") || "")
+  };
+}
+
 function stayFromRow_(row, map) {
   function col(name) { return map[name] == null ? "" : row[map[name]]; }
   function num(name) { return col(name) === "" ? 0 : Number(col(name)) || 0; }
@@ -591,6 +644,9 @@ function stayFromRow_(row, map) {
   var ages = String(col("ages_enfants") || "").split(",").filter(function (part) { return part !== ""; }).map(function (part) { return Number(part); });
   return {
     id: idCol == null ? "" : String(row[idCol] || ""),
+    bien: IMPORT_ZENO,
+    portal: rowIsZeno_(row, map),
+    statut: String(col("statut") || ""),
     nom: String(col("nom") || ""),
     telephone: String(col("telephone") || ""),
     arrival: cellDate_(row, map, ["date_arrivee", "arrivee", "check_in", "arrival"]),
@@ -641,6 +697,7 @@ function saveStay_(stay) {
   }
   var id = String(stay.booking_id || stay.id || newStayId_(sheet, map[idKey]));
   var row = findRowInColumn_(sheet, map[idKey], id);
+  if (row && map.bien && !bienIsZeno_(sheet.getRange(row, map.bien).getValue())) return jsonOut({ ok: false, error: "bien" });
   if (!row) {
     sheet.appendRow([""]);
     row = sheet.getLastRow();
@@ -665,6 +722,7 @@ function saveStay_(stay) {
 function stayValues_(stay, id) {
   return {
     booking_id: id,
+    bien: IMPORT_ZENO,
     nom: stay.nom || "",
     telephone: stay.telephone || "",
     date_arrivee: stay.date_arrivee || stay.arrival || "",
@@ -712,6 +770,7 @@ function stayLink_(data) {
   if (!idCol) return jsonOut({ ok: false });
   var row = findRowInColumn_(book.sheet, idCol, String(data.id || ""));
   if (!row) return jsonOut({ ok: false });
+  if (map.bien && !bienIsZeno_(book.sheet.getRange(row, map.bien).getValue())) return jsonOut({ ok: false, error: "bien" });
   if (data.op === "deactivate" && map.lien_actif) {
     book.sheet.getRange(row, map.lien_actif).setValue(false);
     return jsonOut({ ok: true });
@@ -1532,7 +1591,7 @@ function waTabStayNom_(sheet, stayId) {
   if (idCol == null || nameCol == null) return "";
   var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
   for (var i = 0; i < values.length; i++) {
-    if (waTrim_(values[i][idCol]) === stayId) return waTrim_(values[i][nameCol]);
+    if (waTrim_(values[i][idCol]) === stayId) return rowIsZeno_(values[i], map) ? waTrim_(values[i][nameCol]) : "";
   }
   return "";
 }
@@ -1676,12 +1735,16 @@ function newStayId_(sheet, col) {
 // Gmail → stays importer (2026 Airbnb and Booking.com emails).
 // The parse helpers are pure (no GmailApp, no Sheet) so a local harness can
 // run them. importReservationsDryRun() only reads Gmail. Only
-// importReservationsFromGmail() writes, to the "Réservations" tab.
+// importReservationsFromGmail() writes.
 // Needs the Gmail read scope (gmail.readonly) on the next republish.
-// The inbox mixes several listings (Villa Zen'O, M avenue, Villa la tour).
-// Never mix properties: both importer functions keep ONLY Villa Zen'O stays.
-// Other listings are counted (source / listing name) and dropped: none of
-// their guest data (name, phone, amounts, code) is returned or written.
+// The inbox mixes three properties (column "bien"): Villa Zen'O, M avenue,
+// Villa la tour. Never mix them:
+// - Villa Zen'O → tab "Réservations" (guest portal, admin service flows).
+// - Others → tab "Réservations autres biens", STATS ONLY: dates, nights,
+//   guest count, amounts, source, code (dedupe only). No guest name/phone,
+//   no portal link, never read by the portal, WhatsApp or admin services.
+// - Unknown Booking hotel_id / Airbnb listing → autres tab as
+//   "Autre (…)", never Zen'O.
 // ---------------------------------------------------------------------------
 
 var IMPORT_AFTER = "2026/01/01";
@@ -1697,12 +1760,31 @@ var IMPORT_HEADERS = [
   "booking_id", "nom", "telephone", "date_arrivee", "date_depart", "source", "listing", "statut",
   "adultes", "enfants", "notes", "total_voyageur", "devise",
   "airbnb_frais_chambre", "airbnb_reduction", "airbnb_frais_service", "airbnb_gain",
-  "booking_montant", "booking_net", "gmail_id", "a_completer"
+  "booking_montant", "booking_net", "gmail_id", "a_completer", "bien"
 ];
-// Booking.com hotel_id values that are Villa Zen'O. TODO: add the Zen'O
-// hotel_id once confirmed (11146148 is M avenue, NOT Zen'O). Until then a
-// Booking mail is kept only when its property name (subject/body) says Zen'O.
-var IMPORT_ZENO_BOOKING_HOTEL_IDS = [];
+var IMPORT_ZENO = "Villa Zen'O";
+var IMPORT_M_AVENUE = "M avenue";
+var IMPORT_LA_TOUR = "Villa la tour";
+// Booking.com hotel_id values that are Villa Zen'O:
+// 9328474 = "Villa Zen'O Palmeraie - Hot Pool 18m - Staff".
+var IMPORT_ZENO_BOOKING_HOTEL_IDS = ["9328474"];
+// Booking.com hotel_id → bien. 11146148 is M avenue, NOT Zen'O.
+// Any other hotel_id is never guessed: bien "Autre (<hotel_id>)".
+var IMPORT_BOOKING_HOTELS = {
+  "9328474": IMPORT_ZENO,
+  "11146148": IMPORT_M_AVENUE,
+  "11337111": IMPORT_LA_TOUR
+};
+// Stats-only tab for the other properties. Never read by the portal,
+// WhatsApp, reservationsSheet_ or the admin service pages.
+var IMPORT_OTHER_TAB = "R\u00e9servations autres biens";
+// Amounts in the stay currency: brut = guest price before platform fees,
+// frais = platform fees, net = payout. Empty on Booking stubs until filled
+// in the Sheet ("à compléter").
+var IMPORT_OTHER_HEADERS = [
+  "booking_id", "bien", "source", "statut", "date_arrivee", "date_depart", "nuits", "voyageurs",
+  "brut", "frais", "net", "devise", "hotel_id", "listing", "a_completer", "portail", "gmail_id"
+];
 // Kept as typed by staff once filled: an update never overwrites them.
 var IMPORT_KEEP = { nom: 1, telephone: 1, notes: 1 };
 // Set on new rows only: staff clear it once done, an update never refills it.
@@ -1728,19 +1810,43 @@ function impIsZenoText_(text) {
   return /\bzen[ \t\u00a0]*'?[ \t\u00a0]*o\b/.test(s) || /\bzeno\b/.test(s);
 }
 
-// Zen'O test for one parsed email. Airbnb: the listing name, or the
-// subject/body when the listing was not found (e.g. cancellation mail).
-// Booking: a known Zen'O hotel_id, else the property name in subject/body.
+// Zen'O test for one parsed email (see impBien_).
 function impIsZenoMsg_(stay, msg) {
-  var subject = String(msg.subject || "");
-  var body = String(msg.body || "");
+  return impBien_(stay, msg) === IMPORT_ZENO;
+}
+
+function impHotelId_(msg) {
+  var hid = String(msg.body || "").match(/hotel_id=(\d+)/);
+  return hid ? hid[1] : "";
+}
+
+// Bien named by a listing / property name, "" when unknown.
+function impBienFromText_(text) {
+  if (impIsZenoText_(text)) return IMPORT_ZENO;
+  var s = impFold_(text);
+  if (/\bm[ \t\u00a0]*avenue\b|hivernage|rooftop/.test(s)) return IMPORT_M_AVENUE;
+  if (/\bla[ \t\u00a0]+tour\b|vue[ \t\u00a0]+mer|panoramique/.test(s)) return IMPORT_LA_TOUR;
+  return "";
+}
+
+// Bien for one parsed email, "" when the email does not say (e.g. an
+// Airbnb cancellation without listing: filled from the confirmation by
+// dedupeStays_, else "Autre (inconnu)" in importSplit_).
+// Booking: the hotel_id decides (Zen'O list, then the map); an unknown
+// hotel_id is "Autre (<id>)", never guessed from the name. Without hotel_id,
+// the property name. Airbnb: the listing name, else subject/body.
+function impBien_(stay, msg) {
   if (stay.source === "Booking.com") {
-    var hid = body.match(/hotel_id=(\d+)/);
-    if (hid && IMPORT_ZENO_BOOKING_HOTEL_IDS.indexOf(hid[1]) >= 0) return true;
-    return impIsZenoText_(stay.listing) || impIsZenoText_(subject) || impIsZenoText_(body);
+    var hid = stay.hotel_id || impHotelId_(msg);
+    if (hid) {
+      if (IMPORT_ZENO_BOOKING_HOTEL_IDS.indexOf(hid) >= 0) return IMPORT_ZENO;
+      if (IMPORT_BOOKING_HOTELS.hasOwnProperty(hid)) return IMPORT_BOOKING_HOTELS[hid];
+      return "Autre (" + hid + ")";
+    }
+    return impBienFromText_(stay.listing) || impBienFromText_(msg.subject) || impBienFromText_(msg.body);
   }
-  if (stay.listing) return impIsZenoText_(stay.listing);
-  return impIsZenoText_(subject) || impIsZenoText_(body);
+  if (stay.listing) return impBienFromText_(stay.listing) || "Autre (Airbnb)";
+  return impBienFromText_(msg.subject) || impBienFromText_(msg.body);
 }
 
 function impMonth_(word) {
@@ -1813,7 +1919,7 @@ function impEmptyStay_(source, msg) {
     date_arrivee: "", date_depart: "", listing: "", statut: impStatut_(msg.subject),
     total: "", devise: "", airbnb_frais_chambre: "", airbnb_reduction: "", airbnb_frais_service: "",
     airbnb_gain: "", booking_montant: "", booking_net: "",
-    gmail_id: msg.id || "", email_date: "", a_completer: "", zeno: ""
+    gmail_id: msg.id || "", email_date: "", a_completer: "", zeno: "", bien: "", hotel_id: ""
   };
 }
 
@@ -1902,6 +2008,7 @@ function impParseBooking_(msg) {
   }
   if (!code) return null;
   stay.booking_id = code;
+  stay.hotel_id = impHotelId_(msg);
   if (head && impMonth_(head[3])) stay.date_arrivee = impIso_(Number(head[4]), impMonth_(head[3]), Number(head[2]));
 
   // Property name: first text line after the security banner.
@@ -1923,10 +2030,14 @@ function impParseBooking_(msg) {
 }
 
 // Pure: { from, subject, date, body, id } → stay object or null.
-// stay.zeno is true when this email names Villa Zen'O, "" otherwise.
+// stay.bien is the property ("" when the email does not say); stay.zeno is
+// true when it is Villa Zen'O, "" otherwise.
 function parseReservationEmail_(msg) {
   var stay = parseReservationEmailRaw_(msg);
-  if (stay) stay.zeno = impIsZenoMsg_(stay, msg) ? true : "";
+  if (stay) {
+    stay.bien = impBien_(stay, msg);
+    stay.zeno = stay.bien === IMPORT_ZENO ? true : "";
+  }
   return stay;
 }
 
@@ -1979,24 +2090,99 @@ function importCounts_(stays, messages) {
   return counts;
 }
 
-// Pure: splits deduped stays into Zen'O ones (kept) and a skipped count by
-// source and listing. Skipped stays are dropped: nothing of their guest
-// data leaves this function. Returns { stays, skipped }.
-function importFilterZeno_(stays) {
-  var kept = [];
-  var skipped = { total: 0, bySource: {}, byListing: {} };
+function impNights_(a, b) {
+  var pa = String(a).split("-");
+  var pb = String(b).split("-");
+  var n = Math.round((Date.UTC(+pb[0], +pb[1] - 1, +pb[2]) - Date.UTC(+pa[0], +pa[1] - 1, +pa[2])) / 86400000);
+  return isNaN(n) || n < 0 ? "" : n;
+}
+
+function impRound_(n) { return Math.round(n * 100) / 100; }
+
+// Pure: stats-only row for a stay of another property. Keeps only what the
+// stats need; never the guest name, phone or notes. booking_id is for
+// dedupe only (not a portal stay id, no lien_actif).
+function importOtherRow_(s) {
+  var brut = "";
+  var frais = "";
+  var net = "";
+  if (s.source === "Airbnb") {
+    brut = s.airbnb_frais_chambre !== "" ? impRound_(Number(s.airbnb_frais_chambre) - (Number(s.airbnb_reduction) || 0)) : s.total;
+    frais = s.airbnb_frais_service;
+    net = s.airbnb_gain !== "" ? s.airbnb_gain : (brut !== "" && frais !== "" ? impRound_(brut - frais) : "");
+  } else {
+    brut = s.booking_montant;
+    net = s.booking_net;
+    if (brut !== "" && net !== "") frais = impRound_(brut - net);
+  }
+  return {
+    booking_id: s.booking_id, bien: s.bien, source: s.source, statut: s.statut,
+    date_arrivee: s.date_arrivee, date_depart: s.date_depart,
+    nuits: s.date_arrivee && s.date_depart ? impNights_(s.date_arrivee, s.date_depart) : "",
+    voyageurs: s.adultes === "" && s.enfants === "" ? "" : (Number(s.adultes) || 0) + (Number(s.enfants) || 0),
+    brut: brut, frais: frais, net: net, devise: s.devise, hotel_id: s.hotel_id || "",
+    listing: s.listing, a_completer: s.a_completer, portail: "non", gmail_id: s.gmail_id
+  };
+}
+
+// Pure: splits deduped stays by bien. Villa Zen'O stays are kept whole
+// (portal tab). Others become stats-only rows (importOtherRow_). A stay
+// whose bien is still unknown becomes "Autre (inconnu)". skipped / unknown
+// hold counts and property ids/names only, never guest data.
+// Returns { zeno, others, skipped, unknown }.
+function importSplit_(stays) {
+  var zeno = [];
+  var others = [];
+  var skipped = { total: 0, bySource: {}, byBien: {}, byListing: {} };
+  var unknown = [];
+  var seen = {};
   for (var i = 0; i < stays.length; i++) {
     var s = stays[i];
-    if (s.zeno === true) { kept.push(s); continue; }
+    if (!s.bien) s.bien = "Autre (inconnu)";
+    s.zeno = s.bien === IMPORT_ZENO ? true : "";
+    if (s.zeno === true) { zeno.push(s); continue; }
     var listing = s.listing || "(listing inconnu)";
     skipped.total += 1;
     skipped.bySource[s.source] = (skipped.bySource[s.source] || 0) + 1;
+    skipped.byBien[s.bien] = (skipped.byBien[s.bien] || 0) + 1;
     skipped.byListing[listing] = (skipped.byListing[listing] || 0) + 1;
+    if (/^Autre/.test(s.bien)) {
+      var key = s.source + "|" + (s.hotel_id || "") + "|" + listing;
+      if (!seen[key]) { seen[key] = 1; unknown.push({ source: s.source, hotel_id: s.hotel_id || "", listing: listing }); }
+    }
+    others.push(importOtherRow_(s));
   }
-  return { stays: kept, skipped: skipped };
+  return { zeno: zeno, others: others, skipped: skipped, unknown: unknown };
 }
 
-// Reads Gmail only. Returns { messages, stays (Zen'O only), skipped }.
+// Pure: Zen'O stays (portal) and a count of the other properties, by
+// source / bien / listing, without guest data. Returns { stays, skipped }.
+function importFilterZeno_(stays) {
+  var sp = importSplit_(stays);
+  return { stays: sp.zeno, skipped: sp.skipped };
+}
+
+// Pure: importCounts_ per bien, over Zen'O stays and other-property rows.
+function importCountsByBien_(zeno, others) {
+  var groups = {};
+  var all = zeno.concat(others);
+  for (var i = 0; i < all.length; i++) {
+    var b = all[i].bien || "Autre (inconnu)";
+    (groups[b] = groups[b] || []).push(all[i]);
+  }
+  var out = {};
+  for (var k in groups) {
+    if (!groups.hasOwnProperty(k)) continue;
+    var c = importCounts_(groups[k], "");
+    delete c.messages;
+    c.portail = k === IMPORT_ZENO;
+    out[k] = c;
+  }
+  return out;
+}
+
+// Reads Gmail only. Returns { messages, stays (Zen'O), others (stats-only
+// rows), skipped, unknown }.
 function importGmailStays_() {
   var parsed = [];
   var messages = 0;
@@ -2020,31 +2206,43 @@ function importGmailStays_() {
       if (threads.length < 100) break;
     }
   }
-  var zen = importFilterZeno_(dedupeStays_(parsed));
-  return { messages: messages, stays: zen.stays, skipped: zen.skipped };
+  var sp = importSplit_(dedupeStays_(parsed));
+  return { messages: messages, stays: sp.zeno, others: sp.others, skipped: sp.skipped, unknown: sp.unknown };
 }
 
 function importLogLine_(s) {
-  return [s.source, s.booking_id, s.statut, s.date_arrivee + " → " + (s.date_depart || "?"),
+  return [s.bien || IMPORT_ZENO, s.source, s.booking_id, s.statut, s.date_arrivee + " → " + (s.date_depart || "?"),
     s.listing, s.nom || "(sans nom)", (s.adultes === "" ? "?" : s.adultes) + "A/" + (s.enfants === "" ? "?" : s.enfants) + "E",
     s.total === "" ? "" : Number(s.total).toFixed(2) + " " + s.devise,
     s.airbnb_gain === "" ? "" : "gain " + Number(s.airbnb_gain).toFixed(2)]
-    .concat(s.a_completer ? [s.a_completer] : []).join(" \u00b7 ");
+    .concat(s.a_completer ? [s.a_completer] : []).join(" · ");
+}
+
+// Other-property row for logs: no code, no guest data.
+function importOtherLogLine_(r) {
+  return [r.bien, r.source, r.statut, (r.date_arrivee || "?") + " → " + (r.date_depart || "?"),
+    (r.nuits === "" ? "?" : r.nuits) + " nuits", (r.voyageurs === "" ? "?" : r.voyageurs) + " voy.",
+    r.brut === "" ? "brut ?" : "brut " + Number(r.brut).toFixed(2) + " " + r.devise,
+    r.net === "" ? "net ?" : "net " + Number(r.net).toFixed(2)]
+    .concat(r.a_completer ? [r.a_completer] : []).join(" · ");
 }
 
 // Run from the editor. Reads Gmail, writes nothing, never opens the Sheet.
-// Logs counts and Zen'O rows without phone numbers; other listings only as
-// a skipped count per source / listing name.
+// Logs counts per bien, Zen'O rows without phone numbers, other-property
+// rows without code or guest data, and unknown hotel_id / listing names.
 function importReservationsDryRun() {
   var res = importGmailStays_();
   var counts = importCounts_(res.stays, res.messages);
   counts.skipped = res.skipped;
-  Logger.log("Dry run (Villa Zen'O only) : " + JSON.stringify(counts));
+  counts.byBien = importCountsByBien_(res.stays, res.others);
+  counts.unknown = res.unknown;
+  Logger.log("Dry run : " + JSON.stringify(counts));
   for (var i = 0; i < res.stays.length; i++) Logger.log(importLogLine_(res.stays[i]));
-  return { ok: true, dryRun: true, counts: counts, skipped: res.skipped, stays: res.stays };
+  for (i = 0; i < res.others.length; i++) Logger.log(importOtherLogLine_(res.others[i]));
+  return { ok: true, dryRun: true, counts: counts, skipped: res.skipped, unknown: res.unknown, stays: res.stays, others: res.others };
 }
 
-// Sheet row values for a stay, by header name.
+// Sheet row values for a Zen'O stay, by header name.
 function importValues_(s) {
   return {
     booking_id: s.booking_id, nom: s.nom, telephone: s.telephone,
@@ -2054,64 +2252,59 @@ function importValues_(s) {
     airbnb_frais_chambre: s.airbnb_frais_chambre, airbnb_reduction: s.airbnb_reduction,
     airbnb_frais_service: s.airbnb_frais_service, airbnb_gain: s.airbnb_gain,
     booking_montant: s.booking_montant, booking_net: s.booking_net, gmail_id: s.gmail_id,
-    a_completer: s.a_completer
+    a_completer: s.a_completer, bien: IMPORT_ZENO
   };
 }
 
-// WRITES. Run by hand only, no trigger. Creates the "Réservations" tab and
-// its headers if missing (the English Bookings tab is not touched), adds new
-// stays, and updates an existing booking_id only when its statut changed
-// (cancel / change) or to fill empty cells. Staff-typed nom, telephone and
-// notes are never overwritten.
-function importReservationsFromGmail() {
-  var res = importGmailStays_(); // Villa Zen'O stays only
-  for (var z = 0; z < res.stays.length; z++) {
-    if (res.stays[z].zeno !== true) throw new Error("Import: non Zen'O stay reached the write step");
-  }
-  var ss = SpreadsheetApp.openById(SHEET_ID);
-  var sheet = ss.getSheetByName("Réservations") || ss.insertSheet("Réservations");
+// Adds the missing headers at the end of row 1. Returns the 0-based map.
+function importEnsureHeaders_(sheet, headers) {
   var map = sheet.getLastColumn() ? headerMap_(sheet) : {};
   var col = sheet.getLastColumn();
-  var i;
-  for (i = 0; i < IMPORT_HEADERS.length; i++) {
-    if (map[IMPORT_HEADERS[i]] != null) continue;
+  for (var i = 0; i < headers.length; i++) {
+    if (map[headers[i]] != null) continue;
     col += 1;
-    sheet.getRange(1, col).setValue(IMPORT_HEADERS[i]).setFontWeight("bold");
-    map[IMPORT_HEADERS[i]] = col - 1;
+    sheet.getRange(1, col).setValue(headers[i]).setFontWeight("bold");
+    map[headers[i]] = col - 1;
   }
-  var book = reservationsSheet_(); // adds the remaining admin columns
-  map = headerMap_(book.sheet);
-  var width = book.sheet.getLastColumn();
+  return map;
+}
+
+// Adds new rows (by booking_id) and updates an existing one only when its
+// statut changed (cancel / change) or to fill empty cells. keep: columns
+// never overwritten once filled. fresh(row, map): defaults for new rows.
+// Returns { added, updated }.
+function importUpsert_(sheet, map, list, valuesOf, keep, fresh) {
+  var width = sheet.getLastColumn();
   var idCol = map.booking_id;
   var last = sheet.getLastRow();
   var existing = last < 2 ? [] : sheet.getRange(2, 1, last - 1, width).getValues();
   var rowOf = {};
   var used = 0; // rows holding data; checkbox-only rows (all FALSE) are free
+  var i;
   for (i = 0; i < existing.length; i++) {
     if (existing[i][idCol] !== "") rowOf[String(existing[i][idCol])] = i;
     for (var x = 0; x < width; x++) {
       if (existing[i][x] !== "" && existing[i][x] !== false) { used = i + 1; break; }
     }
   }
-
   var added = [];
   var updated = 0;
-  for (i = 0; i < res.stays.length; i++) {
-    var s = res.stays[i];
-    var values = importValues_(s);
+  for (i = 0; i < list.length; i++) {
+    var values = valuesOf(list[i]);
     var keys = Object.keys(values);
+    var id = String(values.booking_id);
     var k;
-    if (rowOf.hasOwnProperty(s.booking_id)) {
-      var idx = rowOf[s.booking_id];
+    if (rowOf.hasOwnProperty(id)) {
+      var idx = rowOf[id];
       var row = existing[idx].slice();
-      var changed = map.statut != null && String(row[map.statut]) !== s.statut;
+      var changed = map.statut != null && String(row[map.statut]) !== String(values.statut);
       var dirty = false;
       for (k = 0; k < keys.length; k++) {
         var c = map[keys[k]];
         var v = values[keys[k]];
         if (c == null || v === "" || v == null || IMPORT_NEW_ONLY[keys[k]]) continue;
         var empty = row[c] === "" || row[c] == null;
-        if (empty || (changed && !IMPORT_KEEP[keys[k]])) {
+        if (empty || (changed && !keep[keys[k]])) {
           if (String(row[c]) !== String(v)) { row[c] = v; dirty = true; }
         }
       }
@@ -2121,21 +2314,59 @@ function importReservationsFromGmail() {
       }
       continue;
     }
-    var fresh = [];
-    for (k = 0; k < width; k++) fresh.push("");
-    for (k = 0; k < keys.length; k++) if (map[keys[k]] != null) fresh[map[keys[k]]] = values[keys[k]];
-    if (map.offert_petit_dejeuner != null) fresh[map.offert_petit_dejeuner] = false;
-    added.push(fresh);
+    var row2 = [];
+    for (k = 0; k < width; k++) row2.push("");
+    for (k = 0; k < keys.length; k++) if (map[keys[k]] != null) row2[map[keys[k]]] = values[keys[k]];
+    if (fresh) fresh(row2, map);
+    added.push(row2);
   }
   if (added.length) {
     var need = used + 1 + added.length - sheet.getMaxRows();
     if (need > 0) sheet.insertRowsAfter(sheet.getMaxRows(), need);
     sheet.getRange(used + 2, 1, added.length, width).setValues(added);
   }
+  return { added: added.length, updated: updated };
+}
+
+// WRITES. Run by hand only, no trigger.
+// Villa Zen'O → "Réservations" (created with its headers if missing; the
+// English Bookings tab is not touched). Staff-typed nom, telephone and notes
+// are never overwritten.
+// Other properties → "Réservations autres biens", stats-only rows (no guest
+// name/phone, portail "non"). Amounts / checkout typed later in the Sheet on
+// Booking stubs are never overwritten by an empty import value.
+function importReservationsFromGmail() {
+  var res = importGmailStays_();
+  var i;
+  for (i = 0; i < res.stays.length; i++) {
+    if (res.stays[i].zeno !== true || res.stays[i].bien !== IMPORT_ZENO) throw new Error("Import: non Zen'O stay reached the Réservations tab");
+  }
+  for (i = 0; i < res.others.length; i++) {
+    var o = res.others[i];
+    if (o.bien === IMPORT_ZENO || o.hasOwnProperty("nom") || o.hasOwnProperty("telephone")) throw new Error("Import: bad row for the autres biens tab");
+  }
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName("Réservations") || ss.insertSheet("Réservations");
+  importEnsureHeaders_(sheet, IMPORT_HEADERS);
+  var book = reservationsSheet_(); // adds the remaining admin columns
+  var zen = importUpsert_(book.sheet, headerMap_(book.sheet), res.stays, importValues_, IMPORT_KEEP, function (row, map) {
+    if (map.offert_petit_dejeuner != null) row[map.offert_petit_dejeuner] = false;
+  });
+
+  var other = { added: 0, updated: 0 };
+  if (res.others.length) {
+    var tab = ss.getSheetByName(IMPORT_OTHER_TAB) || ss.insertSheet(IMPORT_OTHER_TAB);
+    var omap = importEnsureHeaders_(tab, IMPORT_OTHER_HEADERS);
+    other = importUpsert_(tab, omap, res.others, function (r) { return r; }, {}, null);
+  }
+
   var counts = importCounts_(res.stays, res.messages);
-  counts.added = added.length;
-  counts.updated = updated;
+  counts.added = zen.added;
+  counts.updated = zen.updated;
   counts.skipped = res.skipped;
-  Logger.log("Import (Villa Zen'O only) : " + JSON.stringify(counts));
+  counts.autres = { added: other.added, updated: other.updated };
+  counts.byBien = importCountsByBien_(res.stays, res.others);
+  counts.unknown = res.unknown;
+  Logger.log("Import : " + JSON.stringify(counts));
   return { ok: true, counts: counts };
 }

@@ -1678,8 +1678,10 @@ function newStayId_(sheet, col) {
 // run them. importReservationsDryRun() only reads Gmail. Only
 // importReservationsFromGmail() writes, to the "Réservations" tab.
 // Needs the Gmail read scope (gmail.readonly) on the next republish.
-// The inbox mixes several listings (Villa Zen'O, M avenue, Villa la tour):
-// every stay keeps its listing name, nothing is filtered out by listing.
+// The inbox mixes several listings (Villa Zen'O, M avenue, Villa la tour).
+// Never mix properties: both importer functions keep ONLY Villa Zen'O stays.
+// Other listings are counted (source / listing name) and dropped: none of
+// their guest data (name, phone, amounts, code) is returned or written.
 // ---------------------------------------------------------------------------
 
 var IMPORT_AFTER = "2026/01/01";
@@ -1695,10 +1697,16 @@ var IMPORT_HEADERS = [
   "booking_id", "nom", "telephone", "date_arrivee", "date_depart", "source", "listing", "statut",
   "adultes", "enfants", "notes", "total_voyageur", "devise",
   "airbnb_frais_chambre", "airbnb_reduction", "airbnb_frais_service", "airbnb_gain",
-  "booking_montant", "booking_net", "gmail_id"
+  "booking_montant", "booking_net", "gmail_id", "a_completer"
 ];
+// Booking.com hotel_id values that are Villa Zen'O. TODO: add the Zen'O
+// hotel_id once confirmed (11146148 is M avenue, NOT Zen'O). Until then a
+// Booking mail is kept only when its property name (subject/body) says Zen'O.
+var IMPORT_ZENO_BOOKING_HOTEL_IDS = [];
 // Kept as typed by staff once filled: an update never overwrites them.
 var IMPORT_KEEP = { nom: 1, telephone: 1, notes: 1 };
+// Set on new rows only: staff clear it once done, an update never refills it.
+var IMPORT_NEW_ONLY = { a_completer: 1 };
 var IMPORT_MONTHS = {
   janv: 1, janvier: 1, jan: 1, fevr: 2, fevrier: 2, fev: 2, feb: 2, mars: 3, mar: 3,
   avr: 4, avril: 4, apr: 4, mai: 5, may: 5, juin: 6, jun: 6, juil: 7, juillet: 7, jul: 7,
@@ -1711,6 +1719,28 @@ function impFold_(s) {
     .replace(/[àâä]/g, "a").replace(/[éèêë]/g, "e")
     .replace(/[îï]/g, "i").replace(/[ôö]/g, "o").replace(/[ûüù]/g, "u")
     .replace(/ç/g, "c");
+}
+
+// True when the text names Villa Zen'O: "Zen'O", "Zen’O", "Zen O", "ZenO",
+// "Zeno", any case or apostrophe ( ' ’ ‘ ʻ ` ´ ).
+function impIsZenoText_(text) {
+  var s = impFold_(text).replace(/[\u2019\u2018\u02bb\u02bc`\u00b4]/g, "'");
+  return /\bzen[ \t\u00a0]*'?[ \t\u00a0]*o\b/.test(s) || /\bzeno\b/.test(s);
+}
+
+// Zen'O test for one parsed email. Airbnb: the listing name, or the
+// subject/body when the listing was not found (e.g. cancellation mail).
+// Booking: a known Zen'O hotel_id, else the property name in subject/body.
+function impIsZenoMsg_(stay, msg) {
+  var subject = String(msg.subject || "");
+  var body = String(msg.body || "");
+  if (stay.source === "Booking.com") {
+    var hid = body.match(/hotel_id=(\d+)/);
+    if (hid && IMPORT_ZENO_BOOKING_HOTEL_IDS.indexOf(hid[1]) >= 0) return true;
+    return impIsZenoText_(stay.listing) || impIsZenoText_(subject) || impIsZenoText_(body);
+  }
+  if (stay.listing) return impIsZenoText_(stay.listing);
+  return impIsZenoText_(subject) || impIsZenoText_(body);
 }
 
 function impMonth_(word) {
@@ -1783,7 +1813,7 @@ function impEmptyStay_(source, msg) {
     date_arrivee: "", date_depart: "", listing: "", statut: impStatut_(msg.subject),
     total: "", devise: "", airbnb_frais_chambre: "", airbnb_reduction: "", airbnb_frais_service: "",
     airbnb_gain: "", booking_montant: "", booking_net: "",
-    gmail_id: msg.id || "", email_date: ""
+    gmail_id: msg.id || "", email_date: "", a_completer: "", zeno: ""
   };
 }
 
@@ -1886,12 +1916,21 @@ function impParseBooking_(msg) {
       break;
     }
   }
-  // The stub has no guest name, phone, checkout, guests or amounts: left "".
+  // The stub has no guest name, phone, checkout, guests or amounts: left "",
+  // flagged for staff to complete in admin.
+  stay.a_completer = "à compléter";
   return stay;
 }
 
 // Pure: { from, subject, date, body, id } → stay object or null.
+// stay.zeno is true when this email names Villa Zen'O, "" otherwise.
 function parseReservationEmail_(msg) {
+  var stay = parseReservationEmailRaw_(msg);
+  if (stay) stay.zeno = impIsZenoMsg_(stay, msg) ? true : "";
+  return stay;
+}
+
+function parseReservationEmailRaw_(msg) {
   if (!msg) return null;
   var from = String(msg.from || "").toLowerCase();
   var subject = impFold_(msg.subject);
@@ -1940,7 +1979,24 @@ function importCounts_(stays, messages) {
   return counts;
 }
 
-// Reads Gmail only. Returns { messages, stays }.
+// Pure: splits deduped stays into Zen'O ones (kept) and a skipped count by
+// source and listing. Skipped stays are dropped: nothing of their guest
+// data leaves this function. Returns { stays, skipped }.
+function importFilterZeno_(stays) {
+  var kept = [];
+  var skipped = { total: 0, bySource: {}, byListing: {} };
+  for (var i = 0; i < stays.length; i++) {
+    var s = stays[i];
+    if (s.zeno === true) { kept.push(s); continue; }
+    var listing = s.listing || "(listing inconnu)";
+    skipped.total += 1;
+    skipped.bySource[s.source] = (skipped.bySource[s.source] || 0) + 1;
+    skipped.byListing[listing] = (skipped.byListing[listing] || 0) + 1;
+  }
+  return { stays: kept, skipped: skipped };
+}
+
+// Reads Gmail only. Returns { messages, stays (Zen'O only), skipped }.
 function importGmailStays_() {
   var parsed = [];
   var messages = 0;
@@ -1964,24 +2020,28 @@ function importGmailStays_() {
       if (threads.length < 100) break;
     }
   }
-  return { messages: messages, stays: dedupeStays_(parsed) };
+  var zen = importFilterZeno_(dedupeStays_(parsed));
+  return { messages: messages, stays: zen.stays, skipped: zen.skipped };
 }
 
 function importLogLine_(s) {
   return [s.source, s.booking_id, s.statut, s.date_arrivee + " → " + (s.date_depart || "?"),
     s.listing, s.nom || "(sans nom)", (s.adultes === "" ? "?" : s.adultes) + "A/" + (s.enfants === "" ? "?" : s.enfants) + "E",
     s.total === "" ? "" : Number(s.total).toFixed(2) + " " + s.devise,
-    s.airbnb_gain === "" ? "" : "gain " + Number(s.airbnb_gain).toFixed(2)].join(" \u00b7 ");
+    s.airbnb_gain === "" ? "" : "gain " + Number(s.airbnb_gain).toFixed(2)]
+    .concat(s.a_completer ? [s.a_completer] : []).join(" \u00b7 ");
 }
 
 // Run from the editor. Reads Gmail, writes nothing, never opens the Sheet.
-// Logs counts and rows without phone numbers.
+// Logs counts and Zen'O rows without phone numbers; other listings only as
+// a skipped count per source / listing name.
 function importReservationsDryRun() {
   var res = importGmailStays_();
   var counts = importCounts_(res.stays, res.messages);
-  Logger.log("Dry run : " + JSON.stringify(counts));
+  counts.skipped = res.skipped;
+  Logger.log("Dry run (Villa Zen'O only) : " + JSON.stringify(counts));
   for (var i = 0; i < res.stays.length; i++) Logger.log(importLogLine_(res.stays[i]));
-  return { ok: true, dryRun: true, counts: counts, stays: res.stays };
+  return { ok: true, dryRun: true, counts: counts, skipped: res.skipped, stays: res.stays };
 }
 
 // Sheet row values for a stay, by header name.
@@ -1993,7 +2053,8 @@ function importValues_(s) {
     total_voyageur: s.total, devise: s.devise,
     airbnb_frais_chambre: s.airbnb_frais_chambre, airbnb_reduction: s.airbnb_reduction,
     airbnb_frais_service: s.airbnb_frais_service, airbnb_gain: s.airbnb_gain,
-    booking_montant: s.booking_montant, booking_net: s.booking_net, gmail_id: s.gmail_id
+    booking_montant: s.booking_montant, booking_net: s.booking_net, gmail_id: s.gmail_id,
+    a_completer: s.a_completer
   };
 }
 
@@ -2003,7 +2064,10 @@ function importValues_(s) {
 // (cancel / change) or to fill empty cells. Staff-typed nom, telephone and
 // notes are never overwritten.
 function importReservationsFromGmail() {
-  var res = importGmailStays_();
+  var res = importGmailStays_(); // Villa Zen'O stays only
+  for (var z = 0; z < res.stays.length; z++) {
+    if (res.stays[z].zeno !== true) throw new Error("Import: non Zen'O stay reached the write step");
+  }
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName("Réservations") || ss.insertSheet("Réservations");
   var map = sheet.getLastColumn() ? headerMap_(sheet) : {};
@@ -2045,7 +2109,7 @@ function importReservationsFromGmail() {
       for (k = 0; k < keys.length; k++) {
         var c = map[keys[k]];
         var v = values[keys[k]];
-        if (c == null || v === "" || v == null) continue;
+        if (c == null || v === "" || v == null || IMPORT_NEW_ONLY[keys[k]]) continue;
         var empty = row[c] === "" || row[c] == null;
         if (empty || (changed && !IMPORT_KEEP[keys[k]])) {
           if (String(row[c]) !== String(v)) { row[c] = v; dirty = true; }
@@ -2071,6 +2135,7 @@ function importReservationsFromGmail() {
   var counts = importCounts_(res.stays, res.messages);
   counts.added = added.length;
   counts.updated = updated;
-  Logger.log("Import : " + JSON.stringify(counts));
+  counts.skipped = res.skipped;
+  Logger.log("Import (Villa Zen'O only) : " + JSON.stringify(counts));
   return { ok: true, counts: counts };
 }

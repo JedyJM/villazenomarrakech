@@ -30,11 +30,8 @@
 <label class="field"><span>Arrivée</span><span class="date-fr"><input name="arrival" type="date" lang="fr" required><span class="date-face" data-date-face></span></span></label>
 <label class="field"><span>Départ</span><span class="date-fr"><input name="departure" type="date" lang="fr" required><span class="date-face" data-date-face></span></span></label>
 </div>
-<div class="seg" role="group" aria-label="Source">
-<button type="button" data-source="Airbnb" aria-pressed="true">Airbnb</button>
-<button type="button" data-source="Booking" aria-pressed="false">Booking</button>
-<button type="button" data-source="Direct" aria-pressed="false">Direct</button>
-</div>
+<div class="seg seg-sources" role="group" aria-label="Source" data-sources></div>
+<label class="field" data-agency hidden><span>Nom de l’agence</span><input name="agency" autocomplete="organization"></label>
 </section>
 <section class="block">
 <div class="step-row"><span>Adultes</span><span class="stepper"><button type="button" data-step="adults" data-dir="-1" aria-label="Moins d’adultes">−</button><output data-adults>2</output><button type="button" data-step="adults" data-dir="1" aria-label="Plus d’adultes">+</button></span></div>

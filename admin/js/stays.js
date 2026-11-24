@@ -112,18 +112,48 @@
     };
   }
 
+  /* Booking sources (new stay form, lists, stay card). kind picks the price
+     block: "airbnb", "booking", or "direct" (tarif, acompte, date, mode,
+     reste à payer). To add an agency, add one line here; askName asks for
+     the agency name (saved as agency / agence_nom). */
+  var SOURCES = [
+    { value: "Airbnb", label: "Airbnb", kind: "airbnb" },
+    { value: "Booking", label: "Booking.com", kind: "booking" },
+    { value: "Direct", label: "Direct", kind: "direct" },
+    { value: "Villanovo", label: "Villanovo", kind: "direct" },
+    { value: "Marrakech Best Of", label: "Marrakech Best Of", kind: "direct" },
+    { value: "Autre agence", label: "Autre agence", kind: "direct", askName: true }
+  ];
+
+  function sourceInfo(value) {
+    for (var i = 0; i < SOURCES.length; i++) if (SOURCES[i].value === value) return SOURCES[i];
+    return null;
+  }
+
+  function sourceKind(value) {
+    var info = sourceInfo(value);
+    return info ? info.kind : "direct";
+  }
+
+  function sourceLabel(stay) {
+    var info = sourceInfo(stay.source);
+    if (info && info.askName && stay.agency) return stay.agency;
+    return info ? info.label : String(stay.source || "");
+  }
+
   function withDerived(stay) {
     var copy = Object.assign({}, stay);
     copy.nights = calc.nights(copy.arrival, copy.departure);
     if (copy.poolOffert && copy.nights > 0) copy.poolDays = copy.nights;
     if (copy.jacuzziOffert && copy.nights > 0) copy.jacuzziDays = copy.nights;
     if (!copy.lien_expire_le) copy.lien_expire_le = calc.addDays(copy.departure, 3);
-    if (copy.source === "Airbnb") copy.gain = calc.airbnbGain(copy.room, copy.reduction, copy.hostFee);
-    if (copy.source === "Booking") {
+    var kind = sourceKind(copy.source);
+    if (kind === "airbnb") copy.gain = calc.airbnbGain(copy.room, copy.reduction, copy.hostFee);
+    if (kind === "booking") {
       copy.net = calc.bookingNet(copy.total, copy.commission, copy.bank);
       copy.tax = calc.bookingTax((copy.adults || 0) + (copy.children || 0), copy.nights);
     }
-    if (copy.source === "Direct") copy.due = calc.directDue(copy.tarif, copy.deposit);
+    if (kind === "direct") copy.due = calc.directDue(copy.tarif, copy.deposit);
     return copy;
   }
 
@@ -160,6 +190,7 @@
   }
 
   function sheetStay(stay) {
+    var kind = sourceKind(stay.source);
     return {
       booking_id: stay.id,
       nom: stay.nom,
@@ -167,25 +198,26 @@
       date_arrivee: stay.arrival,
       date_depart: stay.departure,
       source: stay.source,
+      agence_nom: sourceInfo(stay.source) && sourceInfo(stay.source).askName ? (stay.agency || "") : "",
       adultes: stay.adults,
       enfants: stay.children,
       ages_enfants: (stay.ages || []).join(","),
       notes: stay.notes || "",
       lien_actif: stay.lien_actif !== false,
       lien_expire_le: stay.lien_expire_le || calc.addDays(stay.departure, 3),
-      airbnb_frais_chambre: stay.source === "Airbnb" ? (stay.room || 0) / 100 : "",
-      airbnb_reduction: stay.source === "Airbnb" ? (stay.reduction || 0) / 100 : "",
-      airbnb_frais_service: stay.source === "Airbnb" ? (stay.hostFee || 0) / 100 : "",
-      airbnb_gain: stay.source === "Airbnb" ? (stay.gain || 0) / 100 : "",
-      booking_montant: stay.source === "Booking" ? (stay.total || 0) / 100 : "",
-      booking_commission: stay.source === "Booking" ? (stay.commission || 0) / 100 : "",
-      booking_frais_bancaires: stay.source === "Booking" ? (stay.bank || 0) / 100 : "",
-      booking_net: stay.source === "Booking" ? (stay.net || 0) / 100 : "",
-      direct_tarif: stay.source === "Direct" ? (stay.tarif || 0) / 100 : "",
-      acompte_montant: stay.source === "Direct" ? (stay.deposit || 0) / 100 : "",
+      airbnb_frais_chambre: kind === "airbnb" ? (stay.room || 0) / 100 : "",
+      airbnb_reduction: kind === "airbnb" ? (stay.reduction || 0) / 100 : "",
+      airbnb_frais_service: kind === "airbnb" ? (stay.hostFee || 0) / 100 : "",
+      airbnb_gain: kind === "airbnb" ? (stay.gain || 0) / 100 : "",
+      booking_montant: kind === "booking" ? (stay.total || 0) / 100 : "",
+      booking_commission: kind === "booking" ? (stay.commission || 0) / 100 : "",
+      booking_frais_bancaires: kind === "booking" ? (stay.bank || 0) / 100 : "",
+      booking_net: kind === "booking" ? (stay.net || 0) / 100 : "",
+      direct_tarif: kind === "direct" ? (stay.tarif || 0) / 100 : "",
+      acompte_montant: kind === "direct" ? (stay.deposit || 0) / 100 : "",
       acompte_date: stay.depositDate || "",
       acompte_mode: stay.depositMode || "",
-      reste_a_payer: stay.source === "Direct" ? (stay.due || 0) / 100 : "",
+      reste_a_payer: kind === "direct" ? (stay.due || 0) / 100 : "",
       offert_petit_dejeuner: !!stay.breakfast,
       chauffage_piscine_jours: stay.poolDays || 0,
       chauffage_piscine_tarif_eur: stay.poolRate ? stay.poolRate / 100 : 0,
@@ -293,7 +325,7 @@
           + '<span class="stay-top"><span class="stay-name">' + esc(stay.nom) + '</span>'
           + '<span class="chip ' + chipClass(status) + '">' + chipLabel(status) + '</span></span>'
           + '<span class="stay-sub"><span class="stay-meta">' + esc(calc.rangeLabel(stay.arrival, stay.departure) + " · " + peopleBits(stay)) + '</span>'
-          + '<span class="stay-source">' + esc(stay.source) + '</span></span>'
+          + '<span class="stay-source">' + esc(sourceLabel(stay)) + '</span></span>'
           + '<span class="chev" aria-hidden="true">›</span></a>';
       }).join("");
     }
@@ -303,7 +335,7 @@
 
   function blank() {
     return {
-      nom: "", telephone: "", arrival: "", departure: "", source: "Airbnb",
+      nom: "", telephone: "", arrival: "", departure: "", source: "Airbnb", agency: "",
       adults: 2, children: 0, ages: [], notes: "",
       room: 0, reduction: 0, hostFee: 0,
       total: 0, commission: 0, bank: 0,
@@ -333,6 +365,8 @@
     var price = form.querySelector("[data-price]");
     var save = form.querySelector("[data-save]");
     var error = form.querySelector("[data-error]");
+    var sourcesBox = form.querySelector("[data-sources]");
+    var agencyBox = form.querySelector("[data-agency]");
 
     function field(name) { return form.querySelector("[name='" + name + "']"); }
 
@@ -342,6 +376,7 @@
       model.arrival = field("arrival").value;
       model.departure = field("departure").value;
       model.notes = field("notes").value.trim();
+      if (field("agency")) model.agency = field("agency").value.trim();
       model.poolDays = Number(field("poolDays").value) || 0;
       model.poolRate = calc.cents(field("poolRate").value);
       model.jacuzziDays = Number(field("jacuzziDays").value) || 0;
@@ -353,11 +388,17 @@
     }
 
     function readPrice() {
-      if (model.source === "Airbnb") {
+      var kind = sourceKind(model.source);
+      // Offerts exist for every source.
+      ["breakfast", "poolOffert", "jacuzziOffert"].forEach(function (name) {
+        var box = price.querySelector("[name='" + name + "']");
+        if (box) model[name] = box.checked;
+      });
+      if (kind === "airbnb") {
         model.room = calc.cents(price.querySelector("[name='room']").value);
         model.reduction = calc.cents(price.querySelector("[name='reduction']").value);
         model.hostFee = calc.cents(price.querySelector("[name='hostFee']").value);
-      } else if (model.source === "Booking") {
+      } else if (kind === "booking") {
         model.total = calc.cents(price.querySelector("[name='total']").value);
         model.commission = calc.cents(price.querySelector("[name='commission']").value);
         model.bank = calc.cents(price.querySelector("[name='bank']").value);
@@ -365,9 +406,6 @@
         model.tarif = calc.cents(price.querySelector("[name='tarif']").value);
         model.deposit = calc.cents(price.querySelector("[name='deposit']").value);
         model.depositDate = price.querySelector("[name='depositDate']").value;
-        model.breakfast = price.querySelector("[name='breakfast']").checked;
-        model.poolOffert = price.querySelector("[name='poolOffert']").checked;
-        model.jacuzziOffert = price.querySelector("[name='jacuzziOffert']").checked;
         price.querySelectorAll("[data-mode]").forEach(function (button) {
           if (button.getAttribute("aria-pressed") === "true") model.depositMode = button.getAttribute("data-mode");
         });
@@ -406,7 +444,8 @@
       var nightLabel = nights > 0 ? String(nights) : "N";
       var nightWord = nights === 1 ? " nuit" : " nuits";
       var html = "";
-      if (model.source === "Airbnb") {
+      var kind = sourceKind(model.source);
+      if (kind === "airbnb") {
         var gain = calc.airbnbGain(model.room, model.reduction, model.hostFee);
         html = '<p class="kicker">Revenus Airbnb</p>'
           + amountInput("room", "Frais de chambre pour " + nightLabel + nightWord, model.room)
@@ -414,11 +453,11 @@
           + amountInput("hostFee", "Frais de service hôte (15,5 % + TVA)", model.hostFee, true)
           + '<p class="money-row"><span class="lbl">Vous gagnez</span><strong data-out>' + esc(calc.money(gain)) + '</strong></p>'
           + '<p class="hint">Recopiez ces montants depuis l’onglet Revenus d’Airbnb.</p>';
-      } else if (model.source === "Booking") {
+      } else if (kind === "booking") {
         var net = calc.bookingNet(model.total, model.commission, model.bank);
         var people = (model.adults || 0) + (model.children || 0);
         var tax = calc.bookingTax(people, nights);
-        html = '<p class="kicker">Détail du tarif Booking</p>'
+        html = '<p class="kicker">Détail du tarif Booking.com</p>'
           + amountInput("total", "Montant total de la réservation", model.total)
           + amountInput("commission", "Commission", model.commission, true)
           + amountInput("bank", "Frais bancaires (2 %)", model.bank, true)
@@ -426,7 +465,7 @@
           + '<p class="tax-note"><span>Taxe de séjour 2,50' + nbsp + '€ / pers. / nuit' + nbsp + ': demandée au client sur la facture finale</span><strong data-tax>' + esc(calc.money(tax)) + '</strong></p>';
       } else {
         var due = calc.directDue(model.tarif, model.deposit);
-        html = '<p class="kicker">Tarif direct</p>'
+        html = '<p class="kicker">' + (model.source === "Direct" ? "Tarif direct" : "Tarif " + esc(sourceLabel(model) === "Autre agence" ? "agence" : sourceLabel(model))) + '</p>'
           + amountInput("tarif", "Tarif total", model.tarif)
           + amountInput("deposit", "Acompte reçu", model.deposit)
           + '<label class="money-row"><span class="lbl">Date de l’acompte</span><span class="date-fr"><input type="date" lang="fr" name="depositDate" value="' + esc(model.depositDate) + '"><span class="date-face" data-date-face></span></span></label>'
@@ -436,14 +475,14 @@
             return '<button type="button" data-mode="' + mode + '" aria-pressed="' + (on ? "true" : "false") + '">' + mode + '</button>';
           }).join("")
           + '</div>'
-          + '<p class="money-row"><span class="lbl">Reste à payer</span><strong data-out>' + esc(calc.money(due)) + '</strong></p>'
-          + '<p class="kicker">Offerts</p>'
-          + '<div class="offers">'
-          + offerBox("breakfast", "Petit-déjeuner", model.breakfast)
-          + offerBox("poolOffert", "Chauffage piscine", model.poolOffert)
-          + offerBox("jacuzziOffert", "Chauffage jacuzzi", model.jacuzziOffert)
-          + '</div>';
+          + '<p class="money-row"><span class="lbl">Reste à payer</span><strong data-out>' + esc(calc.money(due)) + '</strong></p>';
       }
+      html += '<p class="kicker">Offerts</p>'
+        + '<div class="offers">'
+        + offerBox("breakfast", "Petit-déjeuner", model.breakfast)
+        + offerBox("poolOffert", "Chauffage piscine", model.poolOffert)
+        + offerBox("jacuzziOffert", "Chauffage jacuzzi", model.jacuzziOffert)
+        + '</div>';
       price.innerHTML = html;
       paintDateFace();
       save.textContent = model.source === "Direct" ? "Préparer l’e-mail de confirmation" : "Enregistrer le séjour";
@@ -479,6 +518,14 @@
     }
 
     function paintSource() {
+      if (sourcesBox && !sourcesBox.children.length) {
+        sourcesBox.innerHTML = SOURCES.map(function (item) {
+          return '<button type="button" data-source="' + esc(item.value) + '" aria-pressed="false">' + esc(item.label) + '</button>';
+        }).join("");
+      }
+      var info = sourceInfo(model.source);
+      if (agencyBox) agencyBox.hidden = !(info && info.askName);
+      if (field("agency")) field("agency").value = model.agency || "";
       form.querySelectorAll("[data-source]").forEach(function (button) {
         button.setAttribute("aria-pressed", button.getAttribute("data-source") === model.source ? "true" : "false");
       });
@@ -547,7 +594,7 @@
           model.jacuzziDays = model.jacuzziOffert && jacuzziNights > 0 ? jacuzziNights : Math.max(0, Math.min(30, model.jacuzziDays + dir));
         }
         paintSteps();
-        if (model.source === "Airbnb" || model.source === "Booking") paintPrice();
+        if (sourceKind(model.source) !== "direct") paintPrice();
         return;
       }
       var mode = event.target.closest("[data-mode]");
@@ -572,8 +619,9 @@
       readPriceSafe();
       var out = price.querySelector("[data-out]");
       var nights = calc.nights(model.arrival, model.departure);
-      if (model.source === "Airbnb" && out) out.textContent = calc.money(calc.airbnbGain(model.room, model.reduction, model.hostFee));
-      else if (model.source === "Booking") {
+      var kind = sourceKind(model.source);
+      if (kind === "airbnb" && out) out.textContent = calc.money(calc.airbnbGain(model.room, model.reduction, model.hostFee));
+      else if (kind === "booking") {
         if (out) out.textContent = calc.money(calc.bookingNet(model.total, model.commission, model.bank));
         var taxNode = price.querySelector("[data-tax]");
         if (taxNode) taxNode.textContent = calc.money(calc.bookingTax((model.adults || 0) + (model.children || 0), nights));
@@ -601,11 +649,12 @@
       if (!model.nom) message = "Indiquez le nom.";
       else if (!model.telephone) message = "Indiquez le téléphone WhatsApp.";
       else if (!model.arrival || !model.departure || nights < 1) message = "Indiquez des dates d’arrivée et de départ.";
-      else if (model.source === "Airbnb" && !model.room) message = "Indiquez les frais de chambre.";
-      else if (model.source === "Booking" && !model.total) message = "Indiquez le montant total.";
-      else if (model.source === "Direct" && !model.tarif) message = "Indiquez le tarif total.";
+      else if (sourceInfo(model.source) && sourceInfo(model.source).askName && !model.agency) message = "Indiquez le nom de l’agence.";
+      else if (sourceKind(model.source) === "airbnb" && !model.room) message = "Indiquez les frais de chambre.";
+      else if (sourceKind(model.source) === "booking" && !model.total) message = "Indiquez le montant total.";
+      else if (sourceKind(model.source) === "direct" && !model.tarif) message = "Indiquez le tarif total.";
       else if ((model.poolOffert || model.jacuzziOffert) && nights < 1) message = "Indiquez les dates pour le chauffage offert.";
-      if (!message && model.source === "Direct") syncOffers();
+      if (!message) syncOffers();
       error.textContent = message;
       if (message) return;
       var stay = withDerived(Object.assign({}, model, {
@@ -624,32 +673,39 @@
     return '<p class="money-row"><span class="lbl">' + label + '</span><strong>' + esc(calc.money(shown)) + '</strong></p>';
   }
 
+  function offersBlock(stay) {
+    var offers = offerNames(stay);
+    return offers.length ? '<p class="money-row"><span class="lbl">Offerts</span><strong>' + esc(offers.join(", ")) + '</strong></p>' : '';
+  }
+
   function priceBlock(stay) {
     var nights = stay.nights;
-    if (stay.source === "Airbnb") {
+    var kind = sourceKind(stay.source);
+    if (kind === "airbnb") {
       return '<section class="block"><p class="kicker">Revenus Airbnb</p>'
         + moneyRow("Frais de chambre pour " + nights + " nuits", stay.room)
         + moneyRow("Réduction", stay.reduction, true)
         + moneyRow("Frais de service hôte (15,5 % + TVA)", stay.hostFee, true)
         + moneyRow("Vous gagnez", stay.gain)
-        + '<p class="hint">Recopiez ces montants depuis l’onglet Revenus d’Airbnb.</p></section>';
+        + '<p class="hint">Recopiez ces montants depuis l’onglet Revenus d’Airbnb.</p>'
+        + offersBlock(stay) + '</section>';
     }
-    if (stay.source === "Booking") {
+    if (kind === "booking") {
       var people = (stay.adults || 0) + (stay.children || 0);
-      return '<section class="block"><p class="kicker">Détail du tarif Booking</p>'
+      return '<section class="block"><p class="kicker">Détail du tarif Booking.com</p>'
         + moneyRow("Montant total de la réservation", stay.total)
         + moneyRow("Commission", stay.commission, true)
         + moneyRow("Frais bancaires (2 %)", stay.bank, true)
         + moneyRow("Net", stay.net)
-        + '<p class="tax-note"><span>Taxe de séjour 2,50' + nbsp + '€ / pers. / nuit' + nbsp + ': demandée au client sur la facture finale</span><strong>' + esc(calc.money(stay.tax || calc.bookingTax(people, nights))) + '</strong></p></section>';
+        + '<p class="tax-note"><span>Taxe de séjour 2,50' + nbsp + '€ / pers. / nuit' + nbsp + ': demandée au client sur la facture finale</span><strong>' + esc(calc.money(stay.tax || calc.bookingTax(people, nights))) + '</strong></p>'
+        + offersBlock(stay) + '</section>';
     }
-    var offers = offerNames(stay);
-    return '<section class="block"><p class="kicker">Tarif direct</p>'
+    return '<section class="block"><p class="kicker">' + (stay.source === "Direct" ? "Tarif direct" : "Tarif " + esc(sourceLabel(stay))) + '</p>'
       + moneyRow("Tarif total", stay.tarif)
       + moneyRow("Acompte reçu", stay.deposit)
       + '<p class="money-row"><span class="lbl">Acompte</span><strong>' + esc(calc.dayText(stay.depositDate, true) + " · " + (stay.depositMode || "")) + '</strong></p>'
       + moneyRow("Reste à payer", stay.due)
-      + (offers.length ? '<p class="money-row"><span class="lbl">Offerts</span><strong>' + esc(offers.join(", ")) + '</strong></p>' : '')
+      + offersBlock(stay)
       + '</section>';
   }
 
@@ -674,13 +730,13 @@
     items.forEach(function (item) {
       if (item.status === "Terminée") due += item.amount || 0;
     });
-    if (stay.source === "Booking") due += stay.tax || 0;
+    if (sourceKind(stay.source) === "booking") due += stay.tax || 0;
     if (!stay.poolOffert && stay.poolDays) due += stay.poolDays * (stay.poolRate || 0);
     if (!stay.jacuzziOffert && stay.jacuzziDays) due += stay.jacuzziDays * (stay.jacuzziRate || 0);
     var list = items.map(function (item) {
       return '<p class="demand-line"><span>' + esc(item.label) + ' · ' + esc(item.status) + '</span><b>' + (item.amount ? esc(calc.money(item.amount)) : "") + '</b></p>';
     }).join("");
-    var taxLine = stay.source === "Booking"
+    var taxLine = sourceKind(stay.source) === "booking"
       ? '<p class="cash-line"><span>Taxe de séjour (2,50' + nbsp + '€ × pers. × nuits)</span><b>' + esc(calc.money(stay.tax || 0)) + '</b></p>'
       : "";
     return '<section class="block"><p class="kicker">Demandes</p>' + (list || '<p class="note">Aucune demande.</p>')
@@ -701,7 +757,7 @@
     var status = calc.statusOf(stay.arrival, stay.departure, calc.todayIso());
     var active = stay.lien_actif !== false;
     root.innerHTML = '<a class="back" href="sejours.html">‹ Séjours</a>'
-      + '<div class="who"><h1>' + esc(stay.nom) + '</h1><span class="chips"><span class="chip ' + chipClass(status) + '">' + chipLabel(status) + '</span><span class="chip is-source">' + esc(stay.source) + '</span></span></div>'
+      + '<div class="who"><h1>' + esc(stay.nom) + '</h1><span class="chips"><span class="chip ' + chipClass(status) + '">' + chipLabel(status) + '</span><span class="chip is-source">' + esc(sourceLabel(stay)) + '</span></span></div>'
       + '<p class="meta-line">' + esc(calc.dayText(stay.arrival, true) + " → " + calc.dayText(stay.departure, true)) + '</p>'
       + '<p class="meta-line">' + esc(composition(stay) + " · " + stay.nights + " nuits") + '</p>'
       + priceBlock(stay)

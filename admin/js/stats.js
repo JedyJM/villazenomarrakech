@@ -277,7 +277,7 @@
       if (String(stay.arrival).slice(0, 4) !== String(state.year) && String(stay.departure).slice(0, 4) !== String(state.year)) return;
       var n = nights(stay.arrival, stay.departure);
       if (n < 1) return;
-      var key = stay.source === "Booking" ? "Booking" : stay.source === "Direct" ? "Direct" : "Airbnb";
+      var key = sourceKey(stay.source);
       by[key].count += 1;
       by[key].nights += n;
       by[key].brut += stay.brut;
@@ -297,6 +297,10 @@
     var days = yearDays(state.year);
     return { by: by, brut: brut, frais: frais, net: net, nights: nightsSum, count: count, days: days, rate: days ? Math.round(nightsSum / days * 100) : 0, avg: count ? Math.round(nightsSum / count) : 0 };
   }
+  // Agencies (Villanovo, Marrakech Best Of, Autre agence) use the direct tariff fields.
+  function sourceKey(source) {
+    return source === "Booking" || source === "Airbnb" ? source : "Direct";
+  }
   function emptySource() { return { count: 0, nights: 0, brut: 0, frais: 0, net: 0 }; }
 
   function tile(kicker, value, sub, subClass) {
@@ -306,7 +310,8 @@
     return '<section class="block stat-source"><p class="kicker">Par source</p>' + ["Airbnb", "Booking", "Direct"].map(function (name) {
       var row = roll.by[name];
       var width = row.brut > 0 ? Math.round(row.frais / row.brut * 100) : 0;
-      return '<div class="src"><p class="src-top"><span>' + esc(name) + '</span><em>' + row.count + " séjour" + (row.count > 1 ? "s" : "") + "</em></p>"
+      var label = { Airbnb: "Airbnb", Booking: "Booking.com", Direct: "Direct et agences" }[name];
+      return '<div class="src"><p class="src-top"><span>' + esc(label) + '</span><em>' + row.count + " séjour" + (row.count > 1 ? "s" : "") + "</em></p>"
         + '<span class="src-bar" aria-hidden="true"><i style="width:' + width + '%"></i></span>'
         + '<p class="src-nums"><span><small>Brut</small>' + esc(money(row.brut)) + '</span><span><small>Frais</small>' + esc(money(row.frais)) + '</span><span><small>Net</small>' + esc(money(row.net)) + "</span></p></div>";
     }).join("") + "</section>";
@@ -475,7 +480,7 @@
     }
   }
   function apiStay(stay) {
-    var source = stay.source === "Booking" ? "Booking" : stay.source === "Direct" ? "Direct" : "Airbnb";
+    var source = sourceKey(stay.source);
     var brut = 0;
     var frais = 0;
     var net = 0;

@@ -860,6 +860,34 @@
     list.innerHTML = lines.map(function (line) { return "<li><span>" + line + "</span></li>"; }).join("");
   }
 
+  var MONEY_RE = /€|\b(eur|euros?|dhs?|mad)\b/i;
+  var MONEY_LABELS = /^(total|supplément|prix|tarif|montant)\b/i;
+
+  // Staff copy of the summary rows: money rows and money parts removed.
+  function priceFreeRows(rows) {
+    var out = [];
+    rows.forEach(function (row) {
+      if (MONEY_LABELS.test(row[0]) && (/^\S+$/.test(row[0]) || MONEY_RE.test(row[1]))) return;
+      var value = String(row[1]).split(/\s+·\s+/).filter(function (part) { return !MONEY_RE.test(part); }).join(" · ");
+      // "Total quads" -> "Quads": staff never read a money word.
+      var label = String(row[0]).replace(MONEY_LABELS, "").replace(/^\s+/, "");
+      label = label.charAt(0).toUpperCase() + label.slice(1);
+      if (value) out.push([label, value]);
+    });
+    return out;
+  }
+
+  /* Services that Apps Script already sends to staff by WhatsApp
+     (restauration, menage, piscine, activites): save, post to the Sheet and
+     show the confirmation. No guest WhatsApp window, so staff get one message.
+     staffRows (optional) is the price-free summary sent as details.resume. */
+  function sendAutoService(root, record, rows, staffRows, sousType, destinataire) {
+    record.token = newToken();
+    submitRequest(record);
+    postToSheet(sheetPayload(record, record.token, sousType, destinataire, staffRows || priceFreeRows(rows)));
+    showServiceReceived(root, rows);
+  }
+
   function dispatchService(root, record, rows, sousType, destinataire, number, viaVilla) {
     record.token = newToken();
     var message = withStaffConfirm(record.fields.message, record.id, record.token);
@@ -870,20 +898,72 @@
     showServiceReceived(root, rows);
   }
 
+  /* Child tariffs (Restauration). Brackets: under 4 free, 4 to 11 half price,
+     12 and over adult price.
+     Breakfast: price per person, so total = unit × (adults + 12+) + unit / 2 × (4–11).
+     Lunch / dinner: price per plate. Rule: plates are sorted from cheapest;
+     the first plates (one per child under 4) are free, the next ones (one per
+     child aged 4 to 11) are half price, all other plates are full price.
+     The early-breakfast table supplement is added on top. */
+  var KID_AGES = [
+    { code: "moins_4", label: "Moins de 4 ans", rate: 0 },
+    { code: "de_4_a_11", label: "4 à 11 ans", rate: 0.5 },
+    { code: "plus_12", label: "12 ans et +", rate: 1 }
+  ];
+
+  function mealQuote(kind, prices, dishes, people, supplement) {
+    var kids = people.kids || {};
+    var free = Number(kids.moins_4) || 0;
+    var half = Number(kids.de_4_a_11) || 0;
+    var plates = [];
+    if (kind === "breakfast") {
+      var full = (Number(people.adults) || 0) + (Number(kids.plus_12) || 0);
+      var i;
+      for (i = 0; i < free; i++) plates.push({ unit: prices.breakfast, label: "" });
+      for (i = 0; i < half; i++) plates.push({ unit: prices.breakfast, label: "" });
+      for (i = 0; i < full; i++) plates.push({ unit: prices.breakfast, label: "" });
+    } else {
+      var table = kind === "dinner" ? prices.dinner : prices.lunch;
+      dishes.forEach(function (item) {
+        for (var n = 0; n < item.count; n++) plates.push({ unit: Number(table[item.cat]) || 0, label: item.label });
+      });
+      plates.sort(function (a, b) { return a.unit - b.unit; });
+    }
+    var sums = {};
+    var groups = [];
+    var total = 0;
+    plates.forEach(function (plate, index) {
+      var rate = index < free ? 0 : (index < free + half ? 0.5 : 1);
+      var amount = Math.round(plate.unit * rate * 100) / 100;
+      total += amount;
+      if (plate.label) sums[plate.label] = (sums[plate.label] || 0) + amount;
+      var last = groups[groups.length - 1];
+      if (last && last.rate === rate && last.amount === amount) last.count++;
+      else groups.push({ rate: rate, amount: amount, count: 1 });
+    });
+    var extra = Number(supplement) || 0;
+    total = Math.round((total + extra) * 100) / 100;
+    return { total: total, sums: sums, groups: groups, supplement: extra, plates: plates.length };
+  }
+
+  function euroAmount(amount) {
+    var n = Math.round(Number(amount) * 100) / 100;
+    var shown = n % 1 === 0 ? String(n) : n.toFixed(2).replace(".", ",");
+    return shown + "\u00A0€";
+  }
+
   function bindMeals(root) {
     var form = root.querySelector("[data-meal-form]");
     if (!form || !window.MEAL_PRICES) return;
     var prices = window.MEAL_PRICES;
     var error = form.querySelector("[data-errors]");
-    var recap = document.querySelector("[data-meal-recap]");
     var names = { breakfast: "Petit-déjeuner", lunch: "Déjeuner", dinner: "Dîner" };
-    var spoken = { breakfast: "le petit-déjeuner", lunch: "le déjeuner", dinner: "le dîner" };
     var windows = { breakfast: [7 * 60, 11 * 60 + 30], lunch: [12 * 60, 15 * 60 + 30], dinner: [19 * 60, 21 * 60] };
     var maxCount = 16;
+    var maxKids = 10;
+    var kidAges = [];
 
-    function euro(amount) {
-      return amount + "\u00A0€";
-    }
+    var euro = euroAmount;
     function personWord(n) {
       return n + " personne" + (n > 1 ? "s" : "");
     }
@@ -944,23 +1024,64 @@
       dish.querySelector("[data-dish-step='1']").disabled = count >= maxCount;
       return count;
     }
-    function readBreakfast() {
-      var input = form.querySelector("[name='breakfast']");
-      var count = Math.max(0, Math.min(maxCount, Number(input.value) || 0));
+    function readPeopleCount(name, max) {
+      var input = form.querySelector("[name='" + name + "']");
+      var count = Math.max(0, Math.min(max, Number(input.value) || 0));
       input.value = String(count);
-      form.querySelector("[data-breakfast-count]").textContent = String(count);
-      form.querySelector("[data-meal-step='breakfast'][data-dir='-1']").disabled = count <= 0;
-      form.querySelector("[data-meal-step='breakfast'][data-dir='1']").disabled = count >= maxCount;
+      form.querySelector("[data-" + name + "-count]").textContent = String(count);
+      form.querySelector("[data-people-kind='" + name + "'][data-dir='-1']").disabled = count <= 0;
+      form.querySelector("[data-people-kind='" + name + "'][data-dir='1']").disabled = count >= max;
       return count;
+    }
+    // One row of age chips per child; existing choices are kept.
+    function paintKids(count) {
+      var list = form.querySelector("[data-kid-list]");
+      kidAges.length = Math.min(kidAges.length, count);
+      while (kidAges.length < count) kidAges.push("");
+      if (list.children.length !== count) {
+        var html = "";
+        for (var i = 0; i < count; i++) {
+          html += "<div class=\"kid-row\"><span class=\"kid-name\" id=\"kid-" + i + "\">Enfant " + (i + 1) + "</span>"
+            + "<div class=\"meal-chips chips kid-ages\" role=\"radiogroup\" aria-labelledby=\"kid-" + i + "\">";
+          KID_AGES.forEach(function (age) {
+            html += "<button type=\"button\" role=\"radio\" data-kid=\"" + i + "\" data-age=\"" + age.code + "\">" + age.label + "</button>";
+          });
+          html += "</div></div>";
+        }
+        list.innerHTML = html;
+      }
+      list.querySelectorAll("[data-kid]").forEach(function (button) {
+        var on = kidAges[Number(button.getAttribute("data-kid"))] === button.getAttribute("data-age");
+        button.setAttribute("aria-checked", on ? "true" : "false");
+        button.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+    }
+    function readPeople() {
+      var adults = readPeopleCount("adults", maxCount);
+      var children = readPeopleCount("children", maxKids);
+      paintKids(children);
+      var kids = { moins_4: 0, de_4_a_11: 0, plus_12: 0 };
+      var missing = 0;
+      kidAges.forEach(function (code) {
+        if (kids.hasOwnProperty(code)) kids[code]++;
+        else missing++;
+      });
+      return { adults: adults, children: children, kids: kids, missing: missing, total: adults + children };
+    }
+    function eggChoice() {
+      return form.querySelector("[data-egg][aria-checked='true']");
     }
     function paintPrices() {
       var kind = mealKind();
       var table = kind === "dinner" ? prices.dinner : prices.lunch;
-      var unit = form.querySelector("[data-breakfast-price]");
-      if (unit) unit.textContent = euro(prices.breakfast) + "\u00A0/\u00A0pers.";
+      var unit = form.querySelector("[data-unit-price]");
+      // Lunch and dinner prices are shown on each dish.
+      if (unit) {
+        unit.textContent = kind === "breakfast" ? euro(prices.breakfast) + "\u00A0/\u00A0pers." : "";
+        unit.hidden = kind !== "breakfast";
+      }
       form.querySelectorAll(".dish").forEach(function (dish) {
-        var price = table[dish.getAttribute("data-cat")];
-        dish.querySelector("[data-meal-price]").textContent = euro(price);
+        dish.querySelector("[data-meal-price]").textContent = euro(table[dish.getAttribute("data-cat")]);
       });
     }
     function showMeal(kind) {
@@ -978,36 +1099,43 @@
       paintMeal();
     }
     function chosenDishes() {
-      var kind = mealKind();
-      var table = kind === "dinner" ? prices.dinner : prices.lunch;
       var items = [];
       form.querySelectorAll(".dish").forEach(function (dish) {
         var count = readDish(dish);
         if (!count) return;
-        var price = table[dish.getAttribute("data-cat")];
-        items.push({ label: dish.getAttribute("data-label"), count: count, price: price, sum: count * price });
+        items.push({ label: dish.getAttribute("data-label"), cat: dish.getAttribute("data-cat"), count: count });
       });
       return items;
     }
+    // Guest-only price line, e.g. "2 × 10 € + 1 enfant × 5 € + 1 enfant offert".
+    function breakdownText(quote) {
+      var bits = quote.groups.map(function (group) {
+        var kid = group.count > 1 ? " enfants" : " enfant";
+        if (group.rate === 0) return group.count + kid + (group.count > 1 ? " offerts" : " offert");
+        if (group.rate < 1) return group.count + kid + " × " + euro(group.amount);
+        return group.count + " × " + euro(group.amount);
+      }).reverse();
+      if (quote.supplement) bits.push("supplément " + euro(quote.supplement));
+      return bits.join(" + ");
+    }
     function paintMeal() {
       var kind = mealKind();
-      var people = 0;
-      var total = 0;
-      if (kind === "breakfast") {
-        people = readBreakfast();
-        total = people * prices.breakfast;
-      } else {
-        chosenDishes().forEach(function (item) {
-          people += item.count;
-          total += item.sum;
-        });
-      }
-      var extra = supplementEuro();
-      if (extra) total += extra;
+      var people = readPeople();
+      var dishes = kind === "breakfast" ? [] : chosenDishes();
+      var quote = mealQuote(kind, prices, dishes, people, supplementEuro());
       var verb = { breakfast: "petit-déjeuner", lunch: "déjeuner", dinner: "dîner" };
       var send = form.querySelector("[data-send-label]");
-      if (send) send.textContent = "Réserver mon " + verb[kind] + " · " + euro(total);
-      return { people: people, total: total, supplement: extra };
+      if (send) send.textContent = "Réserver mon " + verb[kind] + " · " + euro(quote.total);
+      var line = form.querySelector("[data-meal-breakdown]");
+      var text = quote.plates ? breakdownText(quote) : "";
+      if (line) {
+        line.hidden = !text || !people.children;
+        line.textContent = text;
+      }
+      quote.people = people;
+      quote.dishes = dishes;
+      quote.bill = text;
+      return quote;
     }
     function tomorrowISO() {
       var d = new Date();
@@ -1033,14 +1161,27 @@
         var on = salad.getAttribute("aria-pressed") === "true";
         salad.setAttribute("aria-pressed", on ? "false" : "true");
       }
-      var step = event.target.closest("[data-meal-step], [data-dish-step]");
+      var egg = event.target.closest("[data-egg]");
+      if (egg) {
+        form.querySelectorAll("[data-egg]").forEach(function (button) {
+          button.setAttribute("aria-checked", button === egg ? "true" : "false");
+          button.setAttribute("aria-pressed", button === egg ? "true" : "false");
+        });
+        showError(error, "");
+      }
+      var kid = event.target.closest("[data-kid]");
+      if (kid) {
+        kidAges[Number(kid.getAttribute("data-kid"))] = kid.getAttribute("data-age");
+        showError(error, "");
+      }
+      var step = event.target.closest("[data-people-kind], [data-dish-step]");
       if (step) {
         var dish = step.closest(".dish");
-        var input = dish ? dish.querySelector("input[type='hidden']") : form.querySelector("[name='breakfast']");
+        var input = dish ? dish.querySelector("input[type='hidden']") : form.querySelector("[name='" + step.getAttribute("data-people-kind") + "']");
         input.value = String(Number(input.value) + Number(step.getAttribute("data-dir") || step.getAttribute("data-dish-step")));
         showError(error, "");
       }
-      if (tab || salad || step) paintMeal();
+      if (tab || salad || step || kid) paintMeal();
     });
     form.querySelector("[name='time']").addEventListener("change", function () { paintMeal(); });
     var typingTimer = 0;
@@ -1066,8 +1207,11 @@
       clearInvalid(form);
       var kind = mealKind();
       var quote = paintMeal();
+      var people = quote.people;
+      var dishes = quote.dishes;
       var date = form.querySelector("[name='date']").value;
       var time = form.querySelector("[name='time']").value;
+      var egg = eggChoice();
       if (!date || date < form.querySelector("[name='date']").min) {
         setInvalid(form, "date", true);
         showError(error, "Les repas se commandent pour le lendemain.");
@@ -1078,67 +1222,82 @@
         showError(error, "Veuillez choisir une heure.");
         return;
       }
-      var dishes = kind === "breakfast" ? [] : chosenDishes();
-      if (kind === "breakfast" && !quote.people) {
-        showError(error, "Veuillez indiquer le nombre de personnes.");
+      if (kind === "breakfast" && !egg) {
+        showError(error, "Veuillez choisir la cuisson des œufs.");
         return;
       }
       if (kind !== "breakfast" && !dishes.length) {
         showError(error, "Veuillez choisir au moins un plat.");
         return;
       }
+      if (!people.total) {
+        showError(error, "Veuillez indiquer le nombre d’adultes et d’enfants.");
+        return;
+      }
+      if (people.missing) {
+        showError(error, "Veuillez indiquer l’âge de chaque enfant.");
+        return;
+      }
       showError(error, "");
       var guest = getGuestFromStay();
-      var salads = Array.prototype.map.call(form.querySelectorAll("[data-salad][aria-pressed='true']"), function (button) {
+      var salads = kind === "breakfast" ? [] : Array.prototype.map.call(form.querySelectorAll("[data-salad][aria-pressed='true']"), function (button) {
         return button.getAttribute("data-salad");
       });
       var allergies = form.querySelector("[name='allergies']").value.trim();
+      var eggLabel = egg ? egg.getAttribute("data-label") : "";
+      var kidRows = [
+        ["Enfants 12 ans et plus", people.kids.plus_12],
+        ["Enfants 4 à 11 ans", people.kids.de_4_a_11],
+        ["Enfants moins de 4 ans", people.kids.moins_4]
+      ].filter(function (row) { return row[1] > 0; });
       var fields = {
         meal: kind,
         meal_label: names[kind],
         date: date,
         time: time,
         time_label: clockLabel(time),
+        eggs: egg ? egg.getAttribute("data-egg") : "",
+        eggs_label: eggLabel,
         salads: salads,
         dishes: dishes,
-        people: quote.people,
+        people: people.total,
+        adults: people.adults,
+        children: people.children,
+        children_ages: people.kids,
         allergies: allergies,
-        supplement_dh: quote.supplement || 0
+        supplement_dh: quote.supplement || 0,
+        bill_label: quote.bill
       };
+      // Guest confirmation: French, with prices.
       var rows = [
         ["Repas", names[kind]],
         ["Date", formatDate(date)],
         ["Heure", fields.time_label]
       ];
+      if (eggLabel) rows.push(["Œufs", eggLabel]);
+      rows.push(["Adultes", String(people.adults)]);
+      kidRows.forEach(function (row) { rows.push([row[0], String(row[1])]); });
       if (salads.length) rows.push(["Salades", salads.join(", ")]);
       dishes.forEach(function (item) {
-        rows.push([item.label, item.count + " · " + euro(item.sum)]);
+        rows.push([item.label, item.count + " · " + euro(quote.sums[item.label] || 0)]);
       });
-      if (kind === "breakfast") rows.push(["Personnes", String(quote.people)]);
       if (quote.supplement) rows.push(["Supplément", "Petit-déjeuner avant " + clockLabel(earlyRule().before) + " : " + euro(quote.supplement)]);
-      rows.push(["Total", personWord(quote.people) + " · " + euro(quote.total)]);
+      rows.push(["Total", personWord(people.total) + " · " + euro(quote.total)]);
       if (allergies) rows.push(["Allergies ou demandes", allergies]);
-      var lines = [
-        "Bonjour,",
-        "",
-        "Je séjourne actuellement à la " + guest.villa + " et souhaiterais commander " + spoken[kind] + ".",
-        "",
-        "Nom : " + staffName(guest),
-        "Repas : " + names[kind],
-        "Date : " + formatDateFr(date),
-        "Heure : " + fields.time_label
+      // Staff summary (Sheet resume, WhatsApp): never a price.
+      var staffRows = [
+        ["Repas", names[kind]],
+        ["Date", formatDateFr(date)],
+        ["Heure", fields.time_label]
       ];
-      if (salads.length) lines.push("Salades : " + salads.join(", "));
-      dishes.forEach(function (item) {
-        lines.push(item.label + " : " + item.count + " · " + euro(item.sum));
-      });
-      if (kind === "breakfast") lines.push("Personnes : " + quote.people);
-      if (quote.supplement) lines.push("Supplément petit-déjeuner avant " + clockLabel(earlyRule().before) + " : " + euro(quote.supplement));
-      lines.push("Total : " + personWord(quote.people) + " · " + euro(quote.total));
-      if (allergies) lines.push("Allergies ou demandes : " + allergies);
-      lines.push("", "Merci d’avance.");
-      fields.message = lines.join("\n");
-      dispatchService(root, baseRecord("restauration", guest, fields, { price_base: quote.total, supplements: [], total: quote.total, blocked: false }), rows, kind, "Fouzia", RECIPIENTS.fouzia, false);
+      if (eggLabel) staffRows.push(["Œufs", eggLabel]);
+      staffRows.push(["Personnes", String(people.total)], ["Adultes", String(people.adults)]);
+      kidRows.forEach(function (row) { staffRows.push([row[0], String(row[1])]); });
+      if (salads.length) staffRows.push(["Salades", salads.join(", ")]);
+      dishes.forEach(function (item) { staffRows.push([item.label, String(item.count)]); });
+      if (allergies) staffRows.push(["Allergies ou demandes", allergies]);
+      var record = baseRecord("restauration", guest, fields, { price_base: quote.total, supplements: [], total: quote.total, blocked: false });
+      sendAutoService(root, record, rows, staffRows, kind, "Fouzia");
     });
     showMeal("lunch");
   }
@@ -1189,7 +1348,7 @@
         if (fields.comment) lines.push("Note : " + fields.comment);
         lines.push("", "Merci d’avance.");
         fields.message = lines.join("\n");
-        dispatchService(root, baseRecord("menage", guest, fields, null), rows, scope.value === "chambres" ? "chambres" : "maison", "Nadera", RECIPIENTS.nadera, false);
+        sendAutoService(root, baseRecord("menage", guest, fields, null), rows, null, scope.value === "chambres" ? "chambres" : "maison", "Nadera");
       });
     }
 
@@ -1243,7 +1402,7 @@
         if (fields.comment) lines.push("Note : " + fields.comment);
         lines.push("", "Merci d’avance.");
         fields.message = lines.join("\n");
-        dispatchService(root, baseRecord("piscine", guest, fields, null), rows, "nettoyage", "Khalid", RECIPIENTS.khalid, false);
+        sendAutoService(root, baseRecord("piscine", guest, fields, null), rows, null, "nettoyage", "Khalid");
       });
     }
 
@@ -1401,7 +1560,7 @@
         lines.push("", "Merci d’avance.");
         fields.message = lines.join("\n");
         var price = !priced || !quote.vehicles ? null : { price_base: quote.total, supplements: [], total: quote.total, blocked: false };
-        dispatchService(root, baseRecord("activites", guest, fields, price), rows, chosen.value, "Khalid", RECIPIENTS.khalid, false);
+        sendAutoService(root, baseRecord("activites", guest, fields, price), rows, null, chosen.value, "Khalid");
       });
     }
 
@@ -1712,6 +1871,7 @@
 
   window.GuestRequests = {
     config: config,
+    mealQuote: mealQuote,
     getGuestFromStay: getGuestFromStay,
     quote: quote,
     breakdown: breakdown,

@@ -14,6 +14,11 @@ var GUEST_SHELL_EN = '<nav class="bottom-nav" aria-label="Guest space navigation
   var nav = document.querySelector(".bottom-nav");
   if (nav && window.visualViewport) {
     var pin = function () {
+      // Hidden while typing: pinning must not touch it (portal.js owns that state).
+      if (document.documentElement.classList.contains("is-keyboard")) {
+        nav.style.transform = "";
+        return;
+      }
       var x = window.visualViewport.offsetLeft || 0;
       nav.style.transform = x ? "translateX(" + (-x) + "px)" : "";
     };

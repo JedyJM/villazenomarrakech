@@ -209,46 +209,89 @@ window.paintVillaWhatsApp = paintVillaWhatsApp;
     if (key) setCurrent(key);
   })();
 
+  /* iPhone keyboard: while a text field is focused the bottom nav stays hidden
+     (html.is-keyboard), even when visualViewport scrolls or resizes. It comes
+     back only after blur. The focused field is scrolled above the keyboard. */
   var nav = document.querySelector(".bottom-nav");
-  if (nav) {
-    var keyboardTimer = 0;
-    function isTypingField(el) {
-      if (!el || !el.tagName) return false;
-      var tag = el.tagName;
-      if (tag === "TEXTAREA" || tag === "SELECT") return true;
-      if (tag !== "INPUT") return false;
-      var type = (el.type || "text").toLowerCase();
-      return ["hidden", "checkbox", "radio", "button", "submit", "reset", "file", "range", "image"].indexOf(type) === -1;
+  var root = document.documentElement;
+  var keyboardTimer = 0;
+  var revealTimer = 0;
+  function isTypingField(el) {
+    if (!el || !el.tagName) return false;
+    var tag = el.tagName;
+    if (tag === "TEXTAREA" || tag === "SELECT") return true;
+    if (tag !== "INPUT") return false;
+    var type = (el.type || "text").toLowerCase();
+    return ["hidden", "checkbox", "radio", "button", "submit", "reset", "file", "range", "image", "color"].indexOf(type) === -1;
+  }
+  // Room under the page for the keyboard, so a low field can scroll above it.
+  function keyboardSpace() {
+    var view = window.visualViewport;
+    var space = view ? Math.max(0, Math.round(window.innerHeight - view.height)) : 0;
+    root.style.setProperty("--kb-space", space + "px");
+    root.classList.toggle("is-kb-open", space >= 80);
+  }
+  function setKeyboard(on) {
+    root.classList.toggle("is-keyboard", on);
+    if (on) keyboardSpace();
+    else {
+      root.style.removeProperty("--kb-space");
+      root.classList.remove("is-kb-open");
     }
-    function keyboardClosed() {
-      var view = window.visualViewport;
-      if (!view) return true;
-      return window.innerHeight - view.height < 80;
-    }
-    function paintNav() {
-      var hide = isTypingField(document.activeElement);
-      nav.classList.toggle("is-keyboard", hide);
-      nav.setAttribute("aria-hidden", hide ? "true" : "false");
-    }
-    document.addEventListener("focusin", function (event) {
-      if (!isTypingField(event.target)) return;
-      window.clearTimeout(keyboardTimer);
-      paintNav();
+    if (!nav) return;
+    nav.classList.toggle("is-keyboard", on);
+    nav.setAttribute("aria-hidden", on ? "true" : "false");
+    if (on) nav.style.transform = "";
+  }
+  // Keeps the focused field between the sticky header and the top of the keyboard.
+  function revealField(el) {
+    if (!el || !el.getBoundingClientRect || document.activeElement !== el) return;
+    var view = window.visualViewport;
+    var top = view ? view.offsetTop : 0;
+    var height = view ? view.height : window.innerHeight;
+    var head = document.querySelector(".site-header");
+    var headBottom = head ? Math.max(0, head.getBoundingClientRect().bottom) : 0;
+    var box = el.closest(".field, .when-card, .meal-allergies, label") || el;
+    var rect = box.getBoundingClientRect();
+    var margin = 16;
+    var minTop = Math.max(top, headBottom) + margin;
+    var maxBottom = top + height - margin;
+    var delta = 0;
+    if (rect.bottom > maxBottom) delta = rect.bottom - maxBottom;
+    if (rect.top - delta < minTop) delta = rect.top - minTop;
+    if (Math.abs(delta) > 1) window.scrollBy(0, delta);
+  }
+  document.addEventListener("focusin", function (event) {
+    if (!isTypingField(event.target)) return;
+    window.clearTimeout(keyboardTimer);
+    setKeyboard(true);
+    var field = event.target;
+    window.clearTimeout(revealTimer);
+    // The keyboard animates in; check again once it has settled.
+    revealTimer = window.setTimeout(function () {
+      revealField(field);
+      revealTimer = window.setTimeout(function () { revealField(field); }, 250);
+    }, 300);
+  });
+  document.addEventListener("focusout", function (event) {
+    if (!isTypingField(event.target)) return;
+    window.clearTimeout(keyboardTimer);
+    keyboardTimer = window.setTimeout(function () {
+      if (!isTypingField(document.activeElement)) setKeyboard(false);
+    }, 150);
+  });
+  if (window.visualViewport) {
+    var lastHeight = window.visualViewport.height;
+    window.visualViewport.addEventListener("resize", function () {
+      var active = document.activeElement;
+      var shrank = window.visualViewport.height < lastHeight - 40;
+      lastHeight = window.visualViewport.height;
+      if (!isTypingField(active)) return;
+      setKeyboard(true);
+      if (shrank) revealField(active);
     });
-    document.addEventListener("focusout", function (event) {
-      if (!isTypingField(event.target)) return;
-      window.clearTimeout(keyboardTimer);
-      keyboardTimer = window.setTimeout(function () {
-        if (!isTypingField(document.activeElement)) paintNav();
-      }, 150);
+    window.visualViewport.addEventListener("scroll", function () {
+      if (isTypingField(document.activeElement)) setKeyboard(true);
     });
-    if (window.visualViewport) {
-      var onViewport = function () {
-        if (isTypingField(document.activeElement)) return;
-        if (keyboardClosed()) paintNav();
-      };
-      window.visualViewport.addEventListener("resize", onViewport);
-      window.visualViewport.addEventListener("scroll", onViewport);
-    }
   }
 })();

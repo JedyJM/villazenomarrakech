@@ -153,6 +153,7 @@ a { color: inherit; }
   height: 36px; min-width: 0; border-radius: 10px; border: 1px solid rgba(28, 25, 22, 0.12);
   background: #fff; padding: 0 2px; line-height: 1; white-space: nowrap; font-size: 14px;
 }
+.seg-sources button { padding: 0 4px; font-size: 13px; line-height: 1.1; white-space: normal; text-wrap: balance; }
 .seg button[aria-pressed="true"], .modes button[aria-pressed="true"] {
   background: var(--terracotta); border-color: var(--terracotta); color: #fffaf3; font-weight: 600;
 }
@@ -204,7 +205,7 @@ a { color: inherit; }
   width: 3rem; min-width: 0; text-align: right; border: 0;
   border-bottom: 1px solid rgba(28, 25, 22, 0.16); background: transparent; padding: 4px 0; font-size: 15px;
 }
-.heat-tarif[hidden], .offert-chip[hidden] { display: none; }
+.heat-tarif[hidden], .offert-chip[hidden], .field[hidden] { display: none; }
 .offert-chip {
   display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px;
   background: #f6e4dc; color: var(--terracotta); font-size: 11px; font-weight: 600;

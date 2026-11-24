@@ -66,14 +66,14 @@
 <li><svg viewBox="0 0 28 28" aria-hidden="true"><g transform="translate(0 2.1)"><circle cx="9.2" cy="11.4" r="2.35"/><circle cx="14.2" cy="10.2" r="2.55"/><path d="M14.2 7.2c.5.7.3 1.5-.1 2.2"/><circle cx="18.6" cy="11.6" r="2.15"/><path d="M4.4 15.6h19.2l-1.9 6.4c-.25.8-.9 1.3-1.7 1.3H8c-.8 0-1.45-.5-1.7-1.3l-1.9-6.4z"/><path d="M3.4 15.6h21.2"/></g></svg><span>Fruits frais</span></li>
 </ul>
 </section>
-<div class="bf-people">
-<div class="bf-people-copy">
-<span>Nombre de personnes</span>
-<span class="meal-pill" data-breakfast-price>10&nbsp;€&nbsp;/&nbsp;pers.</span>
+<fieldset class="bf-eggs">
+<legend>Vos œufs</legend>
+<div class="meal-chips chips" role="radiogroup" aria-label="Cuisson des œufs">
+<button type="button" role="radio" data-egg="dur" data-label="Dur" aria-checked="false" aria-pressed="false">Dur</button>
+<button type="button" role="radio" data-egg="brouille" data-label="Brouillé" aria-checked="false" aria-pressed="false">Brouillé</button>
+<button type="button" role="radio" data-egg="au_plat" data-label="Au plat" aria-checked="false" aria-pressed="false">Au plat</button>
 </div>
-<span class="stepper"><button type="button" data-meal-step="breakfast" data-dir="-1" aria-label="Moins de personnes">−</button><span data-breakfast-count>0</span><button type="button" data-meal-step="breakfast" data-dir="1" aria-label="Plus de personnes">+</button></span>
-<input type="hidden" name="breakfast" value="0">
-</div>
+</fieldset>
 </div>
 <div class="meal-menu" data-meal-panel="menu">
 <p class="meal-kicker">Vos salades à partager (comprises)</p>
@@ -110,6 +110,26 @@
 </details>
 </div>
 </div>
+<section class="meal-people" aria-label="Convives">
+<div class="bf-people">
+<div class="bf-people-copy">
+<span>Adultes</span>
+<span class="meal-pill" data-unit-price></span>
+</div>
+<span class="stepper"><button type="button" data-people-kind="adults" data-dir="-1" aria-label="Moins d’adultes">−</button><span data-adults-count>0</span><button type="button" data-people-kind="adults" data-dir="1" aria-label="Plus d’adultes">+</button></span>
+<input type="hidden" name="adults" value="0">
+</div>
+<div class="bf-people">
+<div class="bf-people-copy">
+<span>Enfants</span>
+<span class="meal-pill">Moins de 4 ans gratuit · 4 à 11 ans −50&nbsp;%</span>
+</div>
+<span class="stepper"><button type="button" data-people-kind="children" data-dir="-1" aria-label="Moins d’enfants">−</button><span data-children-count>0</span><button type="button" data-people-kind="children" data-dir="1" aria-label="Plus d’enfants">+</button></span>
+<input type="hidden" name="children" value="0">
+</div>
+<div class="kid-list" data-kid-list></div>
+<p class="meal-breakdown" data-meal-breakdown hidden></p>
+</section>
 <label class="meal-allergies" for="allergies"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><textarea id="allergies" name="allergies" rows="1" placeholder="Allergies ou demandes particulières"></textarea></label>
 <div class="meal-dock">
 <button class="request-submit meal-send" type="submit"><span data-send-label>Réserver mon déjeuner · 0&nbsp;€</span></button>

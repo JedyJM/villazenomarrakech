@@ -651,8 +651,9 @@ a.tile { color: inherit; text-decoration: none; }
   visibility: visible;
   transition: opacity 0.22s ease, visibility 0s linear;
 }
-.bottom-nav.is-keyboard {
-  display: none;
+.bottom-nav.is-keyboard,
+html.is-keyboard .bottom-nav {
+  display: none !important;
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
@@ -805,7 +806,9 @@ a.tile { color: inherit; text-decoration: none; }
   z-index: 45;
   display: grid;
 }
-body.is-typing .meal-dock { display: none; }
+body.is-typing .meal-dock,
+html.is-keyboard .meal-dock { display: none; }
+html.is-kb-open body { padding-bottom: calc(var(--kb-space, 0px) + 24px) !important; }
 .page-meal .request-back { margin-bottom: 0; }
 .page-meal .request h1 { font-size: 1.35rem; }
 .page-meal .meal-lead { margin: 0.05rem 0 0.45rem; }
@@ -885,6 +888,24 @@ body.is-typing .meal-dock { display: none; }
   gap: 2px;
 }
 .meal-hours-split span { white-space: nowrap; }
+.bf-eggs { display: grid; gap: 6px; min-width: 0; margin: 2px 0 0; padding: 0; border: 0; }
+.bf-eggs legend { float: left; width: 100%; margin: 0 0 6px; padding: 0; color: var(--ink); font-size: 16px; font-weight: 500; line-height: 1.15; }
+.bf-eggs .meal-chips.chips button,
+.kid-ages.meal-chips.chips button { height: 36px; font-size: 13px; }
+.meal-chips.chips button[role="radio"][aria-checked="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.meal-people { display: grid; gap: 2px; }
+.kid-list { display: grid; gap: 8px; }
+.kid-list:empty { display: none; }
+.kid-row { display: grid; gap: 5px; }
+.kid-name { color: var(--muted); font-size: 0.78rem; font-weight: 500; line-height: 1.1; }
+.kid-ages.meal-chips.chips button { font-size: 12px; letter-spacing: 0; }
+.meal-breakdown {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
 .meal-breakfast[hidden] { display: none !important; }
 .bf-includes {
   padding: 10px 10px 8px;
@@ -1214,10 +1235,10 @@ body.is-typing .meal-dock { display: none; }
   background: transparent;
   resize: none;
   font-family: var(--sans);
-  font-size: 13px;
+  font-size: 16px;
   line-height: 22px;
 }
-.page-meal .meal-allergies textarea::placeholder { color: var(--muted); font-family: var(--sans); font-size: 13px; opacity: 1; }
+.page-meal .meal-allergies textarea::placeholder { color: var(--muted); font-family: var(--sans); font-size: 16px; opacity: 1; }
 .meal-dock { padding: 0 0 8px; background: var(--bg); }
 .meal-dock .meal-send { width: calc(100% - 24px); margin: 8px 12px 0; }
 .page-meal .meal-send { height: 48px; margin-top: 0; border-radius: 16px; background: #6b3022; font-size: 0.86rem; white-space: nowrap; }
@@ -1392,9 +1413,12 @@ body.is-typing .meal-recap { display: none; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* iOS Safari zooms into any text field under 16px: keep every one at 16px or more. */
+input, select, textarea,
 .request input,
 .request select,
 .request textarea { font-size: 16px; }
+::placeholder { font-size: inherit; }
 .request .field input,
 .request .field select,
 .picker-value {

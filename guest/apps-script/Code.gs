@@ -6,7 +6,7 @@ var SHEET_ID = "1bd3xmrdjz7_Ae8xiu__OuxKUliQUWCvYg8i7J1ugMj8";
 var ADMIN_TEST_MODE = true;
 var ADMIN_ALLOWLIST = ["villazeno.marrakech@gmail.com", "jalil.moumni@gmail.com"];
 var STAY_HEADERS = [
-  "nom", "telephone", "source", "adultes", "enfants", "ages_enfants", "notes",
+  "nom", "telephone", "source", "agence_nom", "adultes", "enfants", "ages_enfants", "notes",
   "airbnb_frais_chambre", "airbnb_reduction", "airbnb_frais_service", "airbnb_gain",
   "booking_montant", "booking_commission", "booking_frais_bancaires", "booking_net",
   "direct_tarif", "acompte_montant", "acompte_date", "acompte_mode", "reste_a_payer",
@@ -177,7 +177,8 @@ function listDemandes_(stay) {
       when_time: details.time_label || details.time || "",
       meal: details.meal || "",
       people: details.people || "",
-      supplement: details.supplement || 0,
+      supplement: details.supplement || details.supplement_dh || 0,
+      bill: details.bill_label || "",
       dish: dish,
       activity: details.activity || "",
       activity_label: details.activity_label || "",
@@ -595,6 +596,7 @@ function stayFromRow_(row, map) {
     arrival: cellDate_(row, map, ["date_arrivee", "arrivee", "check_in", "arrival"]),
     departure: cellDate_(row, map, ["date_depart", "depart", "check_out", "departure"]),
     source: String(col("source") || ""),
+    agency: String(col("agence_nom") || ""),
     adults: num("adultes"),
     children: num("enfants"),
     ages: ages,
@@ -668,6 +670,7 @@ function stayValues_(stay, id) {
     date_arrivee: stay.date_arrivee || stay.arrival || "",
     date_depart: stay.date_depart || stay.departure || "",
     source: stay.source || "",
+    agence_nom: stay.agence_nom || "",
     adultes: stay.adultes || stay.adults || 0,
     enfants: stay.enfants || stay.children || 0,
     ages_enfants: stay.ages_enfants || "",
@@ -1203,14 +1206,41 @@ var WA_LABELS_AR = {
   "salades": "السلطات",
   "activite": "النشاط",
   "duree": "المدة",
-  "depart": "الانطلاق"
+  "depart": "الانطلاق",
+  "oeufs": "البيض",
+  "adultes": "الكبار",
+  "enfants": "الأطفال",
+  "enfants 12 ans et plus": "أطفال 12 سنة فأكثر",
+  "enfants 4 a 11 ans": "أطفال من 4 إلى 11 سنة",
+  "enfants moins de 4 ans": "أطفال أقل من 4 سنوات"
 };
 
 // Whole French values translated for staff (accent-free, lower case keys).
 var WA_VALUES_AR = {
   "petit-dejeuner": "الفطور",
   "dejeuner": "الغداء",
-  "diner": "العشاء"
+  "diner": "العشاء",
+  "dur": "مسلوق",
+  "brouille": "مخفوق",
+  "au plat": "مقلي"
+};
+
+// Menu items (guest/restauration.html data-label / data-salad) to Arabic.
+// Keep in sync with the menu: an unknown dish is left as written.
+var WA_MENU_AR = {
+  "tomates & oignons": "سلطة الطماطم والبصل",
+  "caviar d'aubergine": "زعلوك الباذنجان",
+  "salade de lentilles": "سلطة العدس",
+  "tajine poulet aux olives": "طاجين الدجاج بالزيتون",
+  "tajine de poulet aux legumes": "طاجين الدجاج بالخضر",
+  "brochettes de poulet au barbecue": "قطبان الدجاج المشوية",
+  "couscous au poulet et aux legumes": "كسكس بالدجاج والخضر",
+  "tajine d'agneau aux pruneaux": "طاجين لحم الغنم بالبرقوق",
+  "tajine d'agneau aux legumes": "طاجين لحم الغنم بالخضر",
+  "barbecue mixte (kefta, agneau, poulet)": "مشوي مشكل (كفتة، لحم الغنم، دجاج)",
+  "couscous a l'agneau et aux legumes": "كسكس بلحم الغنم والخضر",
+  "tajine vegetarien": "طاجين نباتي",
+  "couscous vegetarien": "كسكس نباتي"
 };
 
 // Meal kinds sent by the portal for restauration.
@@ -1235,6 +1265,7 @@ function waKey_(value) {
   return waTrim_(value).toLowerCase()
     .replace(/[àâä]/g, "a").replace(/[éèêë]/g, "e").replace(/[îï]/g, "i")
     .replace(/[ôö]/g, "o").replace(/[ùûü]/g, "u").replace(/ç/g, "c")
+    .replace(/œ/g, "oe").replace(/[‘’]/g, "'")
     .replace(/\s+/g, " ");
 }
 
@@ -1258,11 +1289,24 @@ function waStripMoney_(value) {
   return kept.join(" · ");
 }
 
-// "4 personnes" -> "4 أشخاص"; whole meal names -> Arabic.
+// "4 personnes" -> "4 أشخاص"; meal names, egg styles, dishes -> Arabic.
 function waValueAr_(value) {
-  var whole = WA_VALUES_AR[waKey_(value)];
+  var key = waKey_(value);
+  var whole = WA_VALUES_AR[key] || WA_MENU_AR[key];
   if (whole) return whole;
   return String(value).replace(/\bpersonnes?\b/gi, WA_LABELS_AR.personnes);
+}
+
+// Money-free value, each part translated: "Tomates & oignons, Salade de
+// lentilles" -> "سلطة الطماطم والبصل، سلطة العدس". "" when only money.
+function waPartsAr_(value) {
+  var whole = WA_MENU_AR[waKey_(value)];
+  if (whole) return whole;
+  var kept = waStripMoney_(value);
+  if (!kept) return "";
+  var segs = kept.split(" · ");
+  for (var i = 0; i < segs.length; i++) segs[i] = waValueAr_(segs[i]);
+  return segs.join("، ");
 }
 
 // "09:30", "9:30", "9 h 30", "9h", "9 h" -> "09:30". Empty if unknown.
@@ -1321,18 +1365,27 @@ function waDetails_(data, details) {
     if (key === "date" || key === "heure" || key === "nom") continue;
     if (key === "repas" && meal) continue;
     var first = key.split(" ")[0];
+    var label = waTrim_(lm[1]);
     if (WA_MONEY_LABELS[first] && (key === first || waHasMoney_(value))) {
       // Keep a head count hidden in "Total : 4 personnes · 80 €".
       var pm = value.match(/(\d+)\s*personnes?\b/i);
       if (pm) people = pm[1];
       continue;
     }
+    if (WA_MONEY_LABELS[first]) {
+      // "Total quads : 2 quads" -> "quads : 2 quads": no money word for staff.
+      label = waTrim_(label.replace(/^\S+\s*/, ""));
+      key = waKey_(label);
+    }
     if (key === "personnes") hasPeople = true;
-    if (!WA_FREE_TEXT[key]) {
-      value = waValueAr_(waStripMoney_(value));
+    if (WA_FREE_TEXT[key]) {
+      // Guest text kept as written, isolated so it reads well inside Arabic.
+      value = waIsolate_(value);
+    } else {
+      value = waPartsAr_(value);
       if (!value) continue;
     }
-    parts.push((WA_LABELS_AR[key] || waTrim_(lm[1])) + " : " + value);
+    parts.push((WA_LABELS_AR[key] || WA_MENU_AR[key] || label) + " : " + value);
   }
   if (people && !hasPeople) parts.push(WA_LABELS_AR.personnes + " : " + people);
   if (meal) parts.unshift(meal);

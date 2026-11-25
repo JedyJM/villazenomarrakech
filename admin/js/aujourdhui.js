@@ -41,56 +41,105 @@
     if (status === "Terminée") return "is-grey";
     return "is-terra";
   }
-  function daysBetween(a, b) {
-    return Math.round((b.setHours(0, 0, 0, 0) - a.setHours(0, 0, 0, 0)) / 86400000);
+
+  function isoText(iso, withYear) {
+    var p = String(iso || "").split("-");
+    if (p.length < 3) return "";
+    return Number(p[2]) + "\u00A0" + MONTHS[Number(p[1]) - 1] + (withYear ? "\u00A0" + p[0] : "");
   }
-
-  function boot() {
-    var root = document.querySelector("[data-today]");
-    if (!root || document.body.classList.contains("is-locked") || !sample) return;
-    var day = sample.today();
-    var book = sample.stays();
-    var empty = query("vide") === "1";
-    var current = empty ? null : book.current;
-    var next = book.next;
-    var items = empty ? [] : requests();
-    var todayKey = isoDay(day);
-
-    root.querySelector("[data-date]").textContent = WEEK[day.getDay()] + " " + day.getDate() + "\u00A0" + MONTHS[day.getMonth()] + "\u00A0" + day.getFullYear();
-
-    var stay = root.querySelector("[data-stay]");
-    if (!current) {
-      stay.classList.add("is-empty");
-      stay.removeAttribute("href");
-      stay.innerHTML = '<p class="kicker">Séjour en cours</p><p class="stay-empty">Aucun séjour en cours</p>' + (next ? '<p class="stay-next">Prochaine arrivée · ' + esc(next.name) + " · " + esc(dayText(next.arrival)) + "</p>" : "");
-    } else {
-      var night = daysBetween(new Date(current.arrival), new Date(day)) + 1;
-      var width = Math.round(night / current.nights * 100);
-      stay.href = "sejour.html?id=" + encodeURIComponent(current.id);
-      stay.innerHTML = '<p class="kicker">Séjour en cours</p>'
-        + '<p class="stay-who"><span>' + esc(current.name) + '</span><span class="chip is-cours">En cours</span></p>'
-        + '<p class="stay-dates">' + esc(dayText(current.arrival)) + " → " + esc(dayText(current.departure)) + "\u00A0" + current.departure.getFullYear() + "</p>"
-        + '<p class="stay-meta"><span>Nuit ' + night + "/" + current.nights + '</span><span>' + current.adults + " ad. · " + current.children + " enf. · " + esc(current.source) + "</span></p>"
-        + '<span class="stay-bar" aria-hidden="true"><span style="width:' + width + '%"></span></span>';
+  function firstName(nom) { return String(nom || "").trim().split(/\s+/)[0] || ""; }
+  function people(stay) {
+    return (stay.adults || 0) + " ad. · " + (stay.children || 0) + " enf. · " + (window.AdminStays ? window.AdminStays.sourceLabel(stay) : String(stay.source || ""));
+  }
+  // Current stay: arrival ≤ today < departure. Next: earliest arrival after
+  // today (or a second stay already started, should two overlap).
+  function pickStays(todayKey) {
+    var list = (window.AdminStays ? window.AdminStays.all() : []).filter(function (stay) {
+      return !stay.hidden && stay.arrival && stay.departure && stay.departure > stay.arrival;
+    }).sort(function (a, b) { return String(a.arrival).localeCompare(String(b.arrival)); });
+    var current = null;
+    var next = null;
+    list.forEach(function (stay) {
+      if (stay.arrival <= todayKey && todayKey < stay.departure) {
+        if (!current) current = stay;
+        else if (!next) next = stay;
+      } else if (stay.arrival > todayKey && (!next || stay.arrival < next.arrival)) next = stay;
+    });
+    return { current: current, next: next };
+  }
+  // Same layout for both cards: kicker, name + chip, dates, meta, bar.
+  function stayCard(el, kind, stay, todayKey, loaded) {
+    var kicker = kind === "current" ? "Séjour en cours" : "Prochain séjour";
+    if (!stay) {
+      el.classList.add("is-empty");
+      el.removeAttribute("href");
+      el.innerHTML = '<p class="kicker">' + kicker + '</p><p class="stay-empty">' + (loaded ? (kind === "current" ? "Aucun séjour en cours" : "Aucun séjour à venir") : "Chargement…") + "</p>";
+      return;
     }
-
+    var total = nightsBetween(stay.arrival, stay.departure);
+    var left;
+    var width = 0;
+    var chip;
+    if (kind === "current") {
+      var night = nightsBetween(stay.arrival, todayKey) + 1;
+      width = Math.round(night / total * 100);
+      left = "Nuit " + night + "/" + total;
+      chip = '<span class="chip is-cours">En cours</span>';
+    } else {
+      var wait = nightsBetween(todayKey, stay.arrival);
+      left = (wait <= 1 ? "Demain" : "Dans " + wait + "\u00A0jours") + " · " + total + "\u00A0nuit" + (total > 1 ? "s" : "");
+      chip = '<span class="chip is-venir">À venir</span>';
+    }
+    el.classList.remove("is-empty");
+    el.href = "sejour.html?id=" + encodeURIComponent(stay.id);
+    el.innerHTML = '<p class="kicker">' + kicker + "</p>"
+      + '<p class="stay-who"><span>' + esc(stay.nom || firstName(stay.nom)) + "</span>" + chip + "</p>"
+      + '<p class="stay-dates">' + esc(isoText(stay.arrival)) + " → " + esc(isoText(stay.departure, true)) + "</p>"
+      + '<p class="stay-meta"><span>' + esc(left) + "</span><span>" + esc(people(stay)) + "</span></p>"
+      + '<span class="stay-bar' + (kind === "current" ? "" : " is-idle") + '" aria-hidden="true"><span style="width:' + width + '%"></span></span>';
+  }
+  function nightsBetween(a, b) {
+    var pa = String(a).split("-");
+    var pb = String(b).split("-");
+    return Math.round((Date.UTC(+pb[0], pb[1] - 1, +pb[2]) - Date.UTC(+pa[0], pa[1] - 1, +pa[2])) / 86400000);
+  }
+  function paintStays(root, todayKey, empty, loaded) {
+    var pick = empty ? { current: null, next: null } : pickStays(todayKey);
+    var current = pick.current;
+    var next = pick.next;
+    stayCard(root.querySelector("[data-stay]"), "current", current, todayKey, loaded || empty);
+    stayCard(root.querySelector("[data-next]"), "next", next, todayKey, loaded || empty);
     var depart = root.querySelector("[data-depart]");
     var arrive = root.querySelector("[data-arrive]");
     if (current) {
-      var left = daysBetween(new Date(day), new Date(current.departure));
+      var left = nightsBetween(todayKey, current.departure);
       depart.href = "sejour.html?id=" + encodeURIComponent(current.id);
-      depart.innerHTML = '<p class="kicker">Départ</p><strong>' + esc(current.name) + '</strong><span>' + esc(dayText(current.departure)) + " · dans " + left + "\u00A0jours</span>";
+      depart.innerHTML = '<p class="kicker">Départ</p><strong>' + esc(firstName(current.nom)) + "</strong><span>" + esc(isoText(current.departure)) + " · " + (left <= 1 ? "demain" : "dans " + left + "\u00A0jours") + "</span>";
     } else {
       depart.removeAttribute("href");
       depart.innerHTML = '<p class="kicker">Départ</p><strong>Aucun</strong><span>Pas de départ prévu</span>';
     }
     if (next) {
       arrive.href = "sejour.html?id=" + encodeURIComponent(next.id);
-      arrive.innerHTML = '<p class="kicker">Arrivée</p><strong>' + esc(next.name) + '</strong><span>' + esc(dayText(next.arrival)) + " · " + esc(next.source) + " · " + next.nights + "\u00A0j</span>";
+      arrive.innerHTML = '<p class="kicker">Arrivée</p><strong>' + esc(firstName(next.nom)) + "</strong><span>" + esc(isoText(next.arrival)) + " · " + esc(window.AdminStays ? window.AdminStays.sourceLabel(next) : next.source) + "</span>";
     } else {
       arrive.removeAttribute("href");
       arrive.innerHTML = '<p class="kicker">Arrivée</p><strong>Aucune</strong><span>Pas d’arrivée prévue</span>';
     }
+  }
+
+  function boot() {
+    var root = document.querySelector("[data-today]");
+    if (!root || document.body.classList.contains("is-locked") || !sample) return;
+    var day = sample.today();
+    var empty = query("vide") === "1";
+    var items = empty ? [] : requests();
+    var todayKey = isoDay(day);
+
+    root.querySelector("[data-date]").textContent = WEEK[day.getDay()] + " " + day.getDate() + "\u00A0" + MONTHS[day.getMonth()] + "\u00A0" + day.getFullYear();
+    paintStays(root, todayKey, empty, false);
+    // Real Zen'O stays from the daily cache (same feed as Séjours).
+    if (window.AdminStays && !empty) window.AdminStays.load(function () { paintStays(root, todayKey, empty, true); });
 
     var alerts = items.filter(function (item) {
       return item.status === "Envoyée" && isoDay(item.when) >= todayKey;

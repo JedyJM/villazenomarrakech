@@ -29,6 +29,11 @@ function addDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return i
 const STAY_ID = "LEA2611BX";
 const GUEST = "Léa Bernard";
 
+/* Fake Google ID token for the « session Google » mode (as in production:
+   ADMIN_TEST_MODE false, real admin token). Not a real token: the mock
+   accepts exactly this string through adminCheck_, nothing else. */
+const GOOGLE_TOKEN = "eyJhbGciOiJSUzI1NiJ9." + Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 86400 })).toString("base64url") + ".verify-not-a-signature";
+
 function keyOf(id) { return crypto.createHmac("sha256", SECRET).update(id, "utf8").digest("hex").slice(0, 16); }
 
 function createBackend(opts) {
@@ -41,19 +46,27 @@ function createBackend(opts) {
   const box = makeSandbox({
     source,
     props: { LINK_SECRET: SECRET, WHATSAPP_TOKEN: "placeholder-not-a-token" },
+    // Real grids (opts.maxRows, e.g. { Demandes: 5 } = the production tab on 2026-11-25).
+    maxRows: opts.maxRows,
     sheets: {
       "Réservations": [RES_HEADERS,
         // The test stay of the journey (origine test: reachable in admin test mode).
         [STAY_ID, GUEST, "+33600000000", addDays(-1), addDays(7), "Airbnb", 2, 0, "Villa Zen'O", "test", true, "", 3, 60, false, "", "", "", ""],
       ],
-      Demandes: [DEM_HEADERS],
+      Demandes: [DEM_HEADERS].concat(opts.demandes || []),
     },
     fetch: (url, o) => {
       whatsapp.push({ url, payload: JSON.parse(o.payload) });
       return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ messages: [{ id: "wamid.TEST" + whatsapp.length }] }) };
     },
   });
-  box.ctx.ADMIN_TEST_MODE = true; // admin « Mode test » session (token=test, test=1)
+  if (opts.session === "google") {
+    // Production: ADMIN_TEST_MODE false, the admin signs in with Google.
+    box.ctx.ADMIN_TEST_MODE = false;
+    box.ctx.adminCheck_ = (token) => (String(token) === GOOGLE_TOKEN ? { email: "admin@verify.test", error: "" } : { email: "", error: "invalid_token" });
+  } else {
+    box.ctx.ADMIN_TEST_MODE = true; // admin « Mode test » session (token=test, test=1)
+  }
   box.ctx.notifyNewDemande_ = () => {};
   // WhatsApp staff messages go to the test number only, like the live test mode.
   const faults = [];
@@ -87,7 +100,13 @@ function createBackend(opts) {
     if (mode && mode.status) return route.fulfill({ status: mode.status, contentType: "text/html", body: "<html>Erreur</html>" });
     if (mode && mode.body !== undefined) return route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: mode.body });
     if (mode && mode.json) return route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(mode.json) });
-    const out = run(req.method(), params, body);
+    let out;
+    try { out = run(req.method(), params, body); } catch (err) {
+      // Like the live web app: an uncaught exception is Google's HTML
+      // error page, without CORS header (the browser sees a network error).
+      entry.answer = { exception: String(err && err.message || err) };
+      return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: "<html><body>Erreur : " + String(err && err.message || err).replace(/</g, "&lt;") + "</body></html>" });
+    }
     entry.answer = out.text ? JSON.parse(out.text) : { html: true };
     if (out.html !== undefined) {
       // HtmlService page: served by Google without CORS (like the live script).
@@ -112,7 +131,7 @@ function createBackend(opts) {
     head.forEach((h, i) => { o[h] = r[i]; });
     return o;
   }
-  return { route, fault, faults, log, whatsapp, demandes, stayRow, box, STAY_ID, GUEST, key: keyOf(STAY_ID), keyOf, addDays };
+  return { GOOGLE_TOKEN, route, fault, faults, log, whatsapp, demandes, stayRow, box, STAY_ID, GUEST, key: keyOf(STAY_ID), keyOf, addDays };
 }
 
-module.exports = { createBackend, block, STAY_ID, GUEST, keyOf, addDays, CODE, ROOT };
+module.exports = { GOOGLE_TOKEN, DEM_HEADERS, createBackend, block, STAY_ID, GUEST, keyOf, addDays, CODE, ROOT };

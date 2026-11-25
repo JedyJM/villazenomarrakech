@@ -30,22 +30,29 @@ class FakeRange {
   setValues(vals) { vals.forEach((line, r) => line.forEach((v, c) => this.sheet.set(this.row + r, this.col + c, v))); return this; }
   setFontWeight() { return this; }
   setNumberFormat() { return this; }
-  insertCheckboxes() { return this; }
-  setDataValidation() { return this; }
+  insertCheckboxes() { this.sheet.writes.push("insertCheckboxes"); return this; }
+  setDataValidation() { this.sheet.writes.push("setDataValidation"); return this; }
 }
 
+/* Like a real Sheet: a grid of maxRows rows (default 1000, as a new tab;
+   opts.maxRows to mimic a trimmed tab). getRange past the grid throws the
+   real Apps Script error; appendRow / writes grow the grid. writes lists
+   the formatting writes (checkboxes, validation) a call made. */
 class FakeSheet {
-  constructor(name, rows) { this.name = name; this.rows = (rows || []).map((r) => r.slice()); }
+  constructor(name, rows, maxRows) { this.name = name; this.rows = (rows || []).map((r) => r.slice()); this.maxRows = Math.max(maxRows || 1000, this.rows.length); this.writes = []; }
   cell(r, c) { const line = this.rows[r - 1]; return line && line[c - 1] !== undefined ? line[c - 1] : ""; }
-  set(r, c, v) { while (this.rows.length < r) this.rows.push([]); const line = this.rows[r - 1]; while (line.length < c) line.push(""); line[c - 1] = v; }
+  set(r, c, v) { if (r > this.maxRows) this.maxRows = r; while (this.rows.length < r) this.rows.push([]); const line = this.rows[r - 1]; while (line.length < c) line.push(""); line[c - 1] = v; }
   getLastRow() { return this.rows.length; }
   getLastColumn() { return this.rows.reduce((m, r) => Math.max(m, r.length), 0); }
-  getMaxRows() { return Math.max(this.rows.length, 100); }
-  getRange(r, c, nr, nc) { return new FakeRange(this, r, c, nr, nc); }
-  appendRow(values) { this.rows.push(values.slice()); }
-  insertRowBefore(r) { this.rows.splice(r - 1, 0, []); }
+  getMaxRows() { return this.maxRows; }
+  getRange(r, c, nr, nc) {
+    if (r < 1 || c < 1 || r + (nr || 1) - 1 > this.maxRows) throw new Error("Exception: The coordinates of the range are outside the dimensions of the sheet.");
+    return new FakeRange(this, r, c, nr, nc);
+  }
+  appendRow(values) { this.rows.push(values.slice()); if (this.rows.length > this.maxRows) this.maxRows = this.rows.length; }
+  insertRowBefore(r) { this.rows.splice(r - 1, 0, []); this.maxRows += 1; }
   setFrozenRows() {}
-  deleteRow(r) { this.rows.splice(r - 1, 1); }
+  deleteRow(r) { this.rows.splice(r - 1, 1); this.maxRows -= 1; }
 }
 
 function makeSandbox(opts) {
@@ -54,7 +61,8 @@ function makeSandbox(opts) {
   const cache = {};
   const calls = { mail: 0, fetch: [], setProperty: 0 };
   const sheets = {};
-  for (const [name, rows] of Object.entries(opts.sheets || {})) sheets[name] = new FakeSheet(name, rows);
+  const grids = opts.maxRows || {};
+  for (const [name, rows] of Object.entries(opts.sheets || {})) sheets[name] = new FakeSheet(name, rows, grids[name]);
   const ss = {
     getSheetByName: (n) => sheets[n] || null,
     insertSheet: (n) => (sheets[n] = new FakeSheet(n, [])),

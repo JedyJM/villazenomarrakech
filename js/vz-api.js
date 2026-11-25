@@ -73,8 +73,11 @@
   }
 
   /* Read. opts: timeout (ms, default 20000), retries (default 2),
-     backoff (ms, default 800). Retries only network / timeout / busy /
-     non-JSON answers, never a refusal (session, invalid_link, expired). */
+     backoff (ms, default 800), retryTimeout (default true). Retries only
+     network / timeout / busy / non-JSON answers, never a refusal (session,
+     invalid_link, expired). retryTimeout false: a timed-out read is not
+     sent again (the script is still running it; a new copy only queues
+     behind it). */
   function get(params, opts) {
     opts = opts || {};
     var timeoutMs = opts.timeout || 20000;
@@ -83,7 +86,7 @@
     var url = api.URL + "?" + query(params);
     function attempt(n) {
       return once(url, { method: "GET" }, timeoutMs).then(function (result) {
-        var retryable = !result.ok && (result.kind === "network" || result.kind === "timeout" || result.kind === "busy" || result.error === "not_json");
+        var retryable = !result.ok && (result.kind === "network" || (result.kind === "timeout" && opts.retryTimeout !== false) || result.kind === "busy" || result.error === "not_json");
         if (retryable && n < retries) return wait(backoff * (n + 1)).then(function () { return attempt(n + 1); });
         return result;
       });

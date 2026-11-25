@@ -59,7 +59,9 @@ test("slow script (25 s, like a real admin read): the list still arrives, the re
 });
 
 test("script exception (Google error page, no CORS): an error with « Réessayer », never an endless « Chargement »", async () => {
-  const b = createBackend({ session: "google", demandes: rows("LEA2611BX"), maxRows: { Demandes: 5 } });
+  const b = createBackend({ session: "google", demandes: rows("LEA2611BX") });
+  // The v19 failure on the production grid (prod-shape.test.js), for any script version.
+  b.fault("demandes", { sticky: true, exception: "Exception: The coordinates of the range are outside the dimensions of the sheet." });
   const A = await signedIn(b);
   try {
     await A.page.goto(srv.origin + "/admin/demandes.html");

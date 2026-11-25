@@ -101,7 +101,10 @@ function createBackend(opts) {
     if (mode && mode.body !== undefined) return route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: mode.body });
     if (mode && mode.json) return route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(mode.json) });
     let out;
-    try { out = run(req.method(), params, body); } catch (err) {
+    try {
+      if (mode && mode.exception) throw new Error(mode.exception);
+      out = run(req.method(), params, body);
+    } catch (err) {
       // Like the live web app: an uncaught exception is Google's HTML
       // error page, without CORS header (the browser sees a network error).
       entry.answer = { exception: String(err && err.message || err) };

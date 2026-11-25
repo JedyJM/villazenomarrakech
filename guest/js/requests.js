@@ -146,19 +146,64 @@
     imoreau26d: { name: "Inès Moreau", phone: "+33 6 12 00 00 03" }
   };
 
+  /* Current stay of the guest link, shared by every page. Read only through
+     the existing gated read (action=list&stay=&k=, see listDemandes): the
+     script answers stay data only for a valid key. The answer is kept in
+     localStorage (WELCOME_CACHE) for the same stay id AND key, so any page
+     knows the guest at once; applyStayGate refreshes it on every page load.
+     Returns null when there is no valid stay (no link, refused, not loaded). */
+  function currentStay() {
+    var id = stayId();
+    if (!id) return null;
+    var cached = welcomeFromCache(id);
+    if (!cached) return null;
+    var prenom = String(cached.prenom || "").trim();
+    var nom = String(cached.nom || "").trim();
+    return {
+      id: id,
+      // Full name when the script sends it (stay.nom), else the first name.
+      name: nom || prenom,
+      prenom: prenom || (nom ? nom.split(/\s+/)[0] : ""),
+      nom: nom,
+      arrival: cached.arrival || "",
+      departure: cached.departure || "",
+      villa: "Villa Zen\u2019O"
+    };
+  }
+  // Same, refreshed from the script. Resolves the stay or null.
+  function refreshStay() {
+    var id = stayId();
+    if (!id) return Promise.resolve(null);
+    return listDemandes(id).then(function () { return currentStay(); }, function () { return currentStay(); });
+  }
+  function rememberStay(id, stay) {
+    if (!id || !stay) return;
+    try {
+      localStorage.setItem(WELCOME_CACHE, JSON.stringify({
+        id: id,
+        k: stayKey(),
+        prenom: stay.prenom || "",
+        nom: stay.nom || "",
+        arrival: stay.arrival || "",
+        departure: stay.departure || ""
+      }));
+    } catch (e) {}
+  }
+
   function getGuestFromStay() {
-    // Placeholder. Name and phone will be looked up from the Google Sheet
-    // "Villa Zen'O – Bookings" (tab Bookings), using the stay booking id.
-    // The guest does not type them. In TEST_MODE the example stays get
-    // their example name and phone.
+    // Name from the stay of the guest link (currentStay: action=list, cached),
+    // never typed by the guest. In TEST_MODE the example stays get their
+    // example name. "Invité" / "Guest" only when no valid stay is known.
     var id = stayId();
     var known = TEST_MODE && EXAMPLE_GUESTS.hasOwnProperty(id) ? EXAMPLE_GUESTS[id] : null;
+    var real = known ? null : currentStay();
+    var realName = real ? real.name : "";
     return {
-      name: known ? known.name : (isEn() ? "Guest" : "Invité"),
+      name: known ? known.name : (realName || (isEn() ? "Guest" : "Invité")),
       phone: known ? known.phone : "+212 600 000 000",
       villa: "Villa Zen’O",
       bookingId: id,
-      example: !known,
+      example: !known && !realName,
       // Read only. Tab Réservations, never written by the portal.
       // chauffage_piscine_jours, chauffage_piscine_tarif_eur
       // chauffage_jacuzzi_jours, chauffage_jacuzzi_tarif_eur
@@ -1952,6 +1997,8 @@
     rentalUrl: rentalUrl,
     stayId: stayId,
     stayKey: stayKey,
+    currentStay: currentStay,
+    refreshStay: refreshStay,
     listDemandes: listDemandes
   };
 
@@ -1967,10 +2014,14 @@
     }).then(function (data) {
       if (data && data.ok === false) {
         if (data.error === "invalid_link" && stay === stayId()) forgetStay();
+        else if (stay === stayId()) { try { localStorage.removeItem(WELCOME_CACHE); } catch (e) {} }
         return { items: [], stay: null, error: String(data.error || "invalid_link") };
       }
       if (Array.isArray(data)) return { items: data, stay: null };
-      return { items: (data && data.items) || [], stay: (data && data.stay) || null };
+      var info = (data && data.stay) || null;
+      // Shared stay (currentStay): any page that reads the list keeps it.
+      if (info && stay === stayId()) rememberStay(stay, info);
+      return { items: (data && data.items) || [], stay: info };
     });
   }
 
@@ -2065,15 +2116,11 @@
   function welcomeDone(id, stay, refused) {
     var card = document.querySelector(".stay-card");
     if (!card) return;
-    if (stay && paintWelcome(stay)) {
-      try {
-        localStorage.setItem(WELCOME_CACHE, JSON.stringify({ id: id, k: stayKey(), prenom: stay.prenom || "", arrival: stay.arrival, departure: stay.departure }));
-      } catch (e) {}
-      return;
-    }
+    // The cache itself is written by listDemandes (rememberStay).
+    if (stay && paintWelcome(stay)) return;
     // No valid stay for this id (or a refused link): back to the example card.
     if (stay || refused) {
-      try { localStorage.removeItem(WELCOME_CACHE); } catch (e2) {}
+      if (refused) { try { localStorage.removeItem(WELCOME_CACHE); } catch (e2) {} }
       if (welcomeExample) {
         card.innerHTML = welcomeExample.html;
         card.setAttribute("aria-label", welcomeExample.label);

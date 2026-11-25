@@ -775,6 +775,7 @@ function stayFromRow_(row, map) {
     reduction: Math.round(num("airbnb_reduction") * 100),
     hostFee: Math.round(num("airbnb_frais_service") * 100),
     total: Math.round(num("booking_montant") * 100),
+    totalVoyageur: Math.round(num("total_voyageur") * 100), // paid by the guest (Stats brut)
     commission: Math.round(num("booking_commission") * 100),
     bank: Math.round(num("booking_frais_bancaires") * 100),
     tarif: Math.round(num("direct_tarif") * 100),

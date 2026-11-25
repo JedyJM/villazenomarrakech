@@ -317,6 +317,8 @@ p { margin: 0; }
   color: var(--muted);
 }
 .stay-range span[aria-hidden="true"] { color: var(--gold); }
+/* ?stay= loading: no example name or dates flash before the real stay. */
+.stay-card[data-loading] h1, .stay-card[data-loading] .mini-example, .stay-card[data-loading] .stay-range { visibility: hidden; }
 
 .wifi-cols {
   display: grid;

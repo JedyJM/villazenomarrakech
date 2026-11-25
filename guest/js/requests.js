@@ -1951,6 +1951,88 @@
     if (today.getTime() >= depart.getTime()) return "closed";
     return "open";
   }
+  /* Accueil: the welcome card shows the stay read with ?stay= (action=list:
+     stay.prenom, stay.arrival, stay.departure). The example card in the HTML
+     (Invité, 12 → 19 déc., badge Exemple) stays only when there is no valid
+     stay. A cached copy for the same id paints at once, the API refreshes it. */
+  var WELCOME_CACHE = "villazeno.stayCard";
+  function welcomeDate(iso) {
+    var d = gateDate(iso);
+    if (!d) return "";
+    var fr = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+    var en = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return d.getDate() + " " + (isEn() ? en : fr)[d.getMonth()] + " " + d.getFullYear();
+  }
+  function welcomeLong(iso) {
+    var d = gateDate(iso);
+    if (!d) return "";
+    var fr = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+    var en = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    return d.getDate() + " " + (isEn() ? en : fr)[d.getMonth()] + " " + d.getFullYear();
+  }
+  function validWelcome(stay) {
+    return !!(stay && gateDate(stay.arrival) && gateDate(stay.departure));
+  }
+  function paintWelcome(stay) {
+    var card = document.querySelector(".stay-card");
+    if (!card || !validWelcome(stay)) return false;
+    var name = String(stay.prenom || "").trim() || text("Invité", "Guest");
+    var title = card.querySelector("h1");
+    if (title) {
+      title.textContent = "";
+      var em = document.createElement("em");
+      em.textContent = "Marhaba";
+      title.appendChild(em);
+      title.appendChild(document.createTextNode(" " + name + ","));
+    }
+    var badge = card.querySelector(".mini-example");
+    if (badge) badge.remove();
+    var times = card.querySelectorAll(".stay-range time");
+    if (times[0]) { times[0].setAttribute("datetime", String(stay.arrival).slice(0, 10)); times[0].textContent = welcomeDate(stay.arrival); }
+    if (times[1]) { times[1].setAttribute("datetime", String(stay.departure).slice(0, 10)); times[1].textContent = welcomeDate(stay.departure); }
+    card.setAttribute("aria-label", text(
+      "Marhaba " + name + ", bienvenue à la Villa Zen’O. Arrivée le " + welcomeLong(stay.arrival) + ", départ le " + welcomeLong(stay.departure) + ".",
+      "Marhaba " + name + ", welcome to Villa Zen’O. Arrival " + welcomeLong(stay.arrival) + ", departure " + welcomeLong(stay.departure) + "."
+    ));
+    card.removeAttribute("data-loading");
+    return true;
+  }
+  function welcomeFromCache(id) {
+    try {
+      var cached = JSON.parse(localStorage.getItem(WELCOME_CACHE) || "null");
+      return cached && cached.id === id ? cached : null;
+    } catch (e) { return null; }
+  }
+  var welcomeExample = null;
+  function welcomeStart(id) {
+    var card = document.querySelector(".stay-card");
+    if (!card || !id) return;
+    welcomeExample = { html: card.innerHTML, label: card.getAttribute("aria-label") || "" };
+    if (paintWelcome(welcomeFromCache(id))) return;
+    // Hide the example while the stay loads; give up after 8 s.
+    card.setAttribute("data-loading", "");
+    window.setTimeout(function () { card.removeAttribute("data-loading"); }, 8000);
+  }
+  function welcomeDone(id, stay) {
+    var card = document.querySelector(".stay-card");
+    if (!card) return;
+    if (stay && paintWelcome(stay)) {
+      try {
+        localStorage.setItem(WELCOME_CACHE, JSON.stringify({ id: id, prenom: stay.prenom || "", arrival: stay.arrival, departure: stay.departure }));
+      } catch (e) {}
+      return;
+    }
+    // No valid stay for this id: back to the example card.
+    if (stay) {
+      try { localStorage.removeItem(WELCOME_CACHE); } catch (e2) {}
+      if (welcomeExample) {
+        card.innerHTML = welcomeExample.html;
+        card.setAttribute("aria-label", welcomeExample.label);
+      }
+    }
+    card.removeAttribute("data-loading");
+  }
+
   function applyStayGate() {
     var file = (location.pathname.split("/").pop() || "").toLowerCase();
     function run(state) {
@@ -1979,7 +2061,11 @@
     if (demo) { run(stayAccess(null)); return; }
     var id = stayId();
     if (!id) return;
-    listDemandes(id).then(function (data) { run(stayAccess(data && data.stay)); }).catch(function () {});
+    welcomeStart(id);
+    listDemandes(id).then(function (data) {
+      welcomeDone(id, data && data.stay);
+      run(stayAccess(data && data.stay));
+    }).catch(function () { welcomeDone(id, null); });
   }
 
   if (document.readyState === "loading") {

@@ -160,6 +160,7 @@
     try { sessionStorage.setItem("vz.admin.confirmer", String(count)); } catch (e2) {}
     var link = document.querySelector("[data-nav='demandes']");
     if (link) link.classList.toggle("has-dot", count > 0);
+    if (shell.invalidate) shell.invalidate("demandes");
     if (!shell.SCRIPT_URL || !window.fetch) return;
     window.fetch(shell.SCRIPT_URL, {
       method: "POST",

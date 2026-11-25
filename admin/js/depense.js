@@ -109,6 +109,7 @@
     bag.items = (bag.items || []).filter(function (item) { return item.id !== record.id; });
     bag.items.push(record);
     stats.saveExtra(bag);
+    if (shell.invalidate) shell.invalidate("depenses");
     if (shell.SCRIPT_URL && window.fetch) {
       window.fetch(shell.SCRIPT_URL, {
         method: "POST",
@@ -131,6 +132,7 @@
     if (bag.gone.indexOf(model.id) < 0) bag.gone.push(model.id);
     bag.items = (bag.items || []).filter(function (item) { return item.id !== model.id; });
     stats.saveExtra(bag);
+    if (shell.invalidate) shell.invalidate("depenses");
     if (shell.SCRIPT_URL && window.fetch) {
       window.fetch(shell.SCRIPT_URL, {
         method: "POST",

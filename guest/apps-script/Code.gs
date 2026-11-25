@@ -71,10 +71,17 @@ function doPost(e) {
       var counts = waWebhook_(data.payload || {});
       return jsonOut({ ok: true, statuts: counts.statuts, messages: counts.messages, confirmees: counts.confirmees });
     }
+    // Guest request: only with a valid guest link (stay + k), see guestAccess_.
+    // Refused before any Sheet write, e-mail or staff WhatsApp.
+    var details = data.details || {};
+    var stayId = String(data.stay || details.booking_id || "");
+    var access = guestAccess_(stayId, data.k);
+    if (!access.ok) return jsonOut({ ok: false, error: access.error });
     if (!data.id) return jsonOut({ ok: false });
+    details.booking_id = stayId; // the checked stay, never another one
+    data.details = details;
     var sheet = getDemandesSheet_();
     if (findRow_(sheet, String(data.id)) > 0) return jsonOut({ ok: true, duplicate: true });
-    var details = data.details || {};
     if (data.token && !details.token) details.token = data.token;
     ensureDemandes_(sheet);
     sheet.appendRow([
@@ -100,7 +107,7 @@ function doPost(e) {
 
 function doGet(e) {
   var params = (e && e.parameter) || {};
-  if (params.action === "list") return listDemandes_(params.stay || "");
+  if (params.action === "list") return listDemandes_(params.stay || "", params.k || "");
   if (params.action === "stays" || params.action === "stays-stats" || params.action === "stay" || params.action === "demandes" || params.action === "depenses" || params.action === "get-reglages") return adminGet_(params);
   if (params.action !== "confirm" || !params.id || !params.t) {
     return htmlPage_("Ce lien n\u2019est pas valable.");
@@ -132,6 +139,116 @@ function doGet(e) {
   }
 }
 
+// ---------- Guest link key (stateless, no Sheet column) ----------
+// Guest link = /guest/?stay=<id>&k=<key>.
+// key = first LINK_KEY_HEX hex chars of HMAC-SHA256(stayId, LINK_SECRET).
+// LINK_SECRET lives in Script properties. When missing, it is generated
+// (two random UUIDs, 244 random bits) and stored there on first use: no
+// Sheet write. Changing or deleting LINK_SECRET invalidates every link.
+// 16 hex chars = 64 bits: the secret never leaves the server, so the only
+// attack is guessing online through /exec, one request at a time
+// (2^63 tries on average for one stay id): far out of reach.
+//
+// Every guest route (action=list, guest POST of a demande) goes through
+// guestAccess_. Without a valid key the answer is always
+// { ok: false, error: "invalid_link" } with no data, the same for an
+// unknown id, a wrong key or no key (no oracle).
+//
+// Transition, Script property LINK_LEGACY_OPEN (comma-separated stay ids,
+// e.g. "FAM-SK-2611"): for those ids only, the old link without k (or with
+// any k) is still accepted. Strict by default for every other id. Once the
+// guest has received the new link with &k=, remove the id from the
+// property (or delete the property) to close the old link.
+var LINK_KEY_HEX = 16;
+
+function linkSecret_() {
+  var props = PropertiesService.getScriptProperties();
+  var secret = props.getProperty("LINK_SECRET");
+  if (secret) return secret;
+  // User lock (the script runs as one account): distinct from the script
+  // lock doPost already holds, so no self-wait. Re-read after the lock so
+  // two first calls never end with two different secrets.
+  var lock = LockService.getUserLock();
+  lock.waitLock(10000);
+  try {
+    secret = props.getProperty("LINK_SECRET");
+    if (!secret) {
+      secret = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "");
+      props.setProperty("LINK_SECRET", secret);
+    }
+    return secret;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function bytesHex_(bytes) {
+  var out = "";
+  for (var i = 0; i < bytes.length; i++) {
+    var b = bytes[i] & 0xff;
+    out += (b < 16 ? "0" : "") + b.toString(16);
+  }
+  return out;
+}
+
+// Guest link key of a stay id. Admin answers only, never public ones.
+function linkKey_(stayId) {
+  var sig = Utilities.computeHmacSha256Signature(String(stayId), linkSecret_(), Utilities.Charset.UTF_8);
+  return bytesHex_(sig).slice(0, LINK_KEY_HEX);
+}
+
+// Constant-time string comparison (XOR over the longer length).
+function safeEqual_(a, b) {
+  a = String(a == null ? "" : a);
+  b = String(b == null ? "" : b);
+  var len = Math.max(a.length, b.length);
+  var diff = a.length ^ b.length;
+  for (var i = 0; i < len; i++) {
+    diff |= (i < a.length ? a.charCodeAt(i) : 0) ^ (i < b.length ? b.charCodeAt(i) : 0);
+  }
+  return diff === 0;
+}
+
+// Ids still open without k (Script property LINK_LEGACY_OPEN), see above.
+function linkLegacyOpen_(stayId) {
+  var raw = "";
+  try { raw = String(PropertiesService.getScriptProperties().getProperty("LINK_LEGACY_OPEN") || ""); } catch (err) {}
+  if (!raw || !stayId) return false;
+  var list = raw.split(",");
+  for (var i = 0; i < list.length; i++) {
+    if (String(list[i]).replace(/^\s+|\s+$/g, "") === stayId) return true;
+  }
+  return false;
+}
+
+// True when k is the key of stayId, or stayId is listed in LINK_LEGACY_OPEN.
+function linkKeyOk_(stayId, k) {
+  stayId = String(stayId == null ? "" : stayId).replace(/^\s+|\s+$/g, "");
+  if (!stayId) return false;
+  var given = String(k == null ? "" : k).toLowerCase();
+  var good = given !== "" && safeEqual_(given, linkKey_(stayId));
+  return good || linkLegacyOpen_(stayId);
+}
+
+// Gate of every guest route. Returns { ok: true, stay } or
+// { ok: false, error: "invalid_link" } (never any stay data).
+function guestAccess_(stayId, k) {
+  var id = String(stayId == null ? "" : stayId).replace(/^\s+|\s+$/g, "");
+  if (!linkKeyOk_(id, k)) return { ok: false, error: "invalid_link" };
+  var stay = stayRecord_(id);
+  if (!stay) return { ok: false, error: "invalid_link" };
+  return { ok: true, stay: stay };
+}
+
+// Admin: adds the guest link key. Google session: every stay. Test
+// session (token=test, ADMIN_TEST_MODE): it only ever sees origine=test
+// rows, and only those get a key, so the preview can open test stays.
+function withLinkKey_(stay, session) {
+  if (!stay || !stay.id) return stay;
+  if (session === "google" || (session === "test" && stay.origine === "test")) stay.k = linkKey_(stay.id);
+  return stay;
+}
+
 function getDemandesSheet_() {
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName("Demandes");
@@ -148,11 +265,12 @@ function getDemandesSheet_() {
   return sheet;
 }
 
-function listDemandes_(stay) {
+function listDemandes_(stay, k) {
+  var access = guestAccess_(stay, k);
+  if (!access.ok) return jsonOut({ ok: false, error: access.error });
+  var stayInfo = access.stay;
   var sheet = getDemandesSheet_();
   var map = ensureDemandes_(sheet);
-  var stayInfo = stayRecord_(stay);
-  if (!stay) return jsonOut({ ok: true, items: [], stay: stayInfo });
   var last = sheet.getLastRow();
   if (last < 2) return jsonOut({ ok: true, items: [], stay: stayInfo });
   var width = sheet.getLastColumn();
@@ -259,8 +377,10 @@ function rowIsTest_(row, map) {
   return map.origine != null && String(row[map.origine] || "").trim().toLowerCase() === "test";
 }
 
+// Stay info for the guest portal, or null when the id is unknown or not
+// Villa Zen'O. Only reached through guestAccess_ (valid guest link).
 function stayRecord_(stay) {
-  var empty = { arrival: "", departure: "", lien_actif: true, lien_expire_le: "", pool: null, jacuzzi: null, source: "", adults: 0, children: 0, prenom: "" };
+  var empty = null;
   if (!stay) return empty;
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName("R\u00e9servations");
@@ -580,12 +700,14 @@ function adminGet_(params) {
   if (!session) return jsonOut({ ok: false, error: "forbidden" });
   var onlyTest = session === "test";
   var withTest = session === "google" && ADMIN_TEST_MODE && String(params.test || "") === "1";
-  if (params.action === "stay") return jsonOut({ ok: true, stay: adminStay_(params.id || "", withTest, onlyTest) });
+  if (params.action === "stay") return jsonOut({ ok: true, stay: withLinkKey_(adminStay_(params.id || "", withTest, onlyTest), session) });
   if (params.action === "demandes") return adminDemandes_(params, onlyTest);
   if (params.action === "depenses") return jsonOut({ ok: true, depenses: onlyTest ? [] : adminDepenses_(params.year || "") });
   if (params.action === "get-reglages") return jsonOut({ ok: true, reglages: onlyTest ? { notif_email_on: false, notif_email_to: "", recap_8h_on: false } : readReglages_() });
   if (params.action === "stays-stats") return jsonOut({ ok: true, stays: onlyTest ? [] : adminStatsStays_() });
-  return jsonOut({ ok: true, stays: adminStays_(params.year || "", withTest, onlyTest) });
+  var stays = adminStays_(params.year || "", withTest, onlyTest);
+  for (var i = 0; i < stays.length; i++) withLinkKey_(stays[i], session);
+  return jsonOut({ ok: true, stays: stays });
 }
 
 function adminPost_(data) {

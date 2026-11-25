@@ -73,6 +73,9 @@
     }
     if (record.guest && record.guest.bookingId) details.booking_id = record.guest.bookingId;
     return {
+      // Guest link (stay + key): the script refuses a request without them.
+      stay: (record.guest && record.guest.bookingId) || "",
+      k: stayKey(),
       id: record.id,
       token: token,
       date_creation: record.created_at,
@@ -97,16 +100,40 @@
     } catch (e) {}
   }
 
+  /* Guest link: ?stay=<id>&k=<key>. Both are kept from the arrival page
+     (localStorage) for the whole visit, internal links carry neither.
+     A new ?stay= without k drops the old key (old link, see LINK_LEGACY_OPEN
+     in Code.gs). The key is sent with every call to the script. */
+  var STAY_STORE = "villazeno.stay";
+  var KEY_STORE = "villazeno.stayKey";
+  function queryParam(name) {
+    try { return new URLSearchParams(window.location.search).get(name) || ""; } catch (e) { return ""; }
+  }
   function stayId() {
-    var fromQuery = "";
-    try {
-      fromQuery = new URLSearchParams(window.location.search).get("stay") || "";
-    } catch (e) {}
+    var fromQuery = queryParam("stay");
     if (fromQuery) {
-      try { localStorage.setItem("villazeno.stay", fromQuery); } catch (e2) {}
+      var key = queryParam("k");
+      try {
+        localStorage.setItem(STAY_STORE, fromQuery);
+        if (key) localStorage.setItem(KEY_STORE, key);
+        else localStorage.removeItem(KEY_STORE);
+      } catch (e2) {}
       return fromQuery;
     }
-    try { return localStorage.getItem("villazeno.stay") || ""; } catch (e3) { return ""; }
+    try { return localStorage.getItem(STAY_STORE) || ""; } catch (e3) { return ""; }
+  }
+  function stayKey() {
+    var fromQuery = queryParam("stay");
+    if (fromQuery) return queryParam("k");
+    try { return localStorage.getItem(KEY_STORE) || ""; } catch (e) { return ""; }
+  }
+  // The script refused the link: forget it and every copy of its data.
+  function forgetStay() {
+    try {
+      localStorage.removeItem(STAY_STORE);
+      localStorage.removeItem(KEY_STORE);
+      localStorage.removeItem(WELCOME_CACHE);
+    } catch (e) {}
   }
 
   // TEST_MODE only: the example stays of admin/js/stays.js.
@@ -1912,15 +1939,24 @@
     cityUrl: cityUrl,
     rentalUrl: rentalUrl,
     stayId: stayId,
+    stayKey: stayKey,
     listDemandes: listDemandes
   };
 
+  /* { items, stay, error }. error: "invalid_link" (unknown id, wrong or
+     missing key: no data at all) or "expired" (lien_actif off, or past
+     lien_expire_le). The stored link is forgotten on invalid_link. */
   function listDemandes(stay) {
-    if (!APPS_SCRIPT_URL || !stay || !window.fetch) return Promise.resolve([]);
-    var url = APPS_SCRIPT_URL + "?action=list&stay=" + encodeURIComponent(stay);
+    if (!APPS_SCRIPT_URL || !stay || !window.fetch) return Promise.resolve({ items: [], stay: null });
+    var key = stayKey();
+    var url = APPS_SCRIPT_URL + "?action=list&stay=" + encodeURIComponent(stay) + "&k=" + encodeURIComponent(key);
     return window.fetch(url).then(function (response) {
       return response.json();
     }).then(function (data) {
+      if (data && data.ok === false) {
+        if (data.error === "invalid_link" && stay === stayId()) forgetStay();
+        return { items: [], stay: null, error: String(data.error || "invalid_link") };
+      }
       if (Array.isArray(data)) return { items: data, stay: null };
       return { items: (data && data.items) || [], stay: (data && data.stay) || null };
     });
@@ -1997,10 +2033,11 @@
     card.removeAttribute("data-loading");
     return true;
   }
+  // Cached card only for the same stay id AND the same key.
   function welcomeFromCache(id) {
     try {
       var cached = JSON.parse(localStorage.getItem(WELCOME_CACHE) || "null");
-      return cached && cached.id === id ? cached : null;
+      return cached && cached.id === id && String(cached.k || "") === stayKey() ? cached : null;
     } catch (e) { return null; }
   }
   var welcomeExample = null;
@@ -2013,17 +2050,17 @@
     card.setAttribute("data-loading", "");
     window.setTimeout(function () { card.removeAttribute("data-loading"); }, 8000);
   }
-  function welcomeDone(id, stay) {
+  function welcomeDone(id, stay, refused) {
     var card = document.querySelector(".stay-card");
     if (!card) return;
     if (stay && paintWelcome(stay)) {
       try {
-        localStorage.setItem(WELCOME_CACHE, JSON.stringify({ id: id, prenom: stay.prenom || "", arrival: stay.arrival, departure: stay.departure }));
+        localStorage.setItem(WELCOME_CACHE, JSON.stringify({ id: id, k: stayKey(), prenom: stay.prenom || "", arrival: stay.arrival, departure: stay.departure }));
       } catch (e) {}
       return;
     }
-    // No valid stay for this id: back to the example card.
-    if (stay) {
+    // No valid stay for this id (or a refused link): back to the example card.
+    if (stay || refused) {
       try { localStorage.removeItem(WELCOME_CACHE); } catch (e2) {}
       if (welcomeExample) {
         card.innerHTML = welcomeExample.html;
@@ -2047,7 +2084,13 @@
       var prefix = location.pathname.indexOf("/en/") >= 0 ? "../" : "";
       var card = document.createElement("div");
       card.className = "stay-closed-card";
-      card.innerHTML = "<p>Votre séjour se termine, merci pour votre visite</p><a href=\"" + prefix + "recap.html" + (location.search || "") + "\">Voir mon récapitulatif</a>";
+      var note = document.createElement("p");
+      note.textContent = "Votre séjour se termine, merci pour votre visite";
+      var recap = document.createElement("a");
+      recap.href = prefix + "recap.html" + (location.search || "");
+      recap.textContent = "Voir mon récapitulatif";
+      card.appendChild(note);
+      card.appendChild(recap);
       var services = document.querySelector(".services");
       if (services && !services.querySelector(".stay-closed-card")) services.appendChild(card);
       var blocked = ["transfert", "restauration", "menage", "piscine", "activites", "massage", "transfer"];
@@ -2063,7 +2106,8 @@
     if (!id) return;
     welcomeStart(id);
     listDemandes(id).then(function (data) {
-      welcomeDone(id, data && data.stay);
+      // Refused link: neutral example card, no error shown.
+      welcomeDone(id, data && data.stay, !!(data && data.error));
       run(stayAccess(data && data.stay));
     }).catch(function () { welcomeDone(id, null); });
   }

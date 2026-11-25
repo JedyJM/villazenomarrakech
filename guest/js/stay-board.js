@@ -52,13 +52,34 @@
     return (neg ? "−" : "") + text + "\u00A0DH";
   }
   function pad(n) { return (n < 10 ? "0" : "") + n; }
+  // Local date (+ time when given). hasTime is false when there is no
+  // usable time: the row then shows the day only, never a made-up 00:00.
   function parseWhen(date, time) {
     if (!/^\d{4}-\d{2}-\d{2}/.test(String(date || ""))) return null;
     var parts = String(date).slice(0, 10).split("-");
     var match = String(time || "").match(/(\d{1,2})(?:\s*[:hH]\s*(\d{2}))?/);
     var hour = match ? Number(match[1]) : 0;
     var minute = match && match[2] ? Number(match[2]) : 0;
-    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), hour, minute, 0, 0);
+    if (hour > 23 || minute > 59) { match = null; hour = 0; minute = 0; }
+    var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), hour, minute, 0, 0);
+    d.hasTime = !!match;
+    return d;
+  }
+  /* Requested day and time of a demande. The script sends when_date
+     (details.date) and when_time (details.time_label || details.time).
+     Services that store them under other keys (transfert:
+     flight_arrival_time / pickup_time; location_voiture: start_date +
+     pickup_time) are read here too when the script sends them. */
+  // Shared field model (js/vz-fields.js): the script sends when_date /
+  // when_time; older answers are completed from the local copy (fillLocal).
+  function whenDateOf(item) {
+    return item.when_date || window.VZFields.when(item.service, item).date;
+  }
+  function whenTimeOf(item) {
+    return item.when_time || window.VZFields.when(item.service, item).time;
+  }
+  function whenOf(item) {
+    return parseWhen(whenDateOf(item), whenTimeOf(item));
   }
   function clock(date) {
     return pad(date.getHours()) + ":" + pad(date.getMinutes());
@@ -76,22 +97,37 @@
   function effectiveStatus(item) {
     var status = canonStatus(item.status);
     if (status !== "Confirmée") return status;
-    var when = parseWhen(item.when_date, item.when_time);
+    var when = whenOf(item);
     if (!when) return status;
-    if (Date.now() >= when.getTime() + 2 * 60 * 60 * 1000) return "Terminée";
+    // Without a time: done the day after.
+    var end = when.getTime() + (when.hasTime ? 2 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000);
+    if (Date.now() >= end) return "Terminée";
     return status;
   }
   function whenText(item) {
-    var when = parseWhen(item.when_date, item.when_time);
-    if (!when) return [item.when_date, item.when_time].filter(Boolean).join(" · ");
+    var when = whenOf(item);
+    if (!when) return "";
     var now = new Date();
     var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     var day = new Date(when.getFullYear(), when.getMonth(), when.getDate());
     var diff = Math.round((day - today) / 86400000);
-    var hour = clock(when);
-    if (diff === 0) return (when.getHours() >= 17 ? "Ce soir" : "Aujourd’hui") + " · " + hour;
-    if (diff === 1) return "Demain · " + hour;
-    return dayLabel(when) + " · " + hour;
+    var label = dayLabel(when);
+    if (diff === 0) label = when.hasTime && when.getHours() >= 17 ? "Ce soir" : "Aujourd’hui";
+    else if (diff === 1) label = "Demain";
+    return when.hasTime ? label + " · " + clock(when) : label;
+  }
+  /* "Confirmée le 25 nov. à 14:32" from date_confirmation (Demandes,
+     "yyyy-MM-dd HH:mm", Africa/Casablanca). No text when the script does
+     not send it. */
+  function confirmedText(item) {
+    if (item.status !== "Confirmée") return "";
+    var m = String(item.date_confirmation || "").match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+    if (!m) return "";
+    var month = (isEn() ? MONTHS_EN : MONTHS)[Number(m[2]) - 1];
+    if (!month) return "";
+    var day = Number(m[3]) + "\u00A0" + month;
+    if (isEn()) return "Confirmed on " + day + (m[4] ? " at " + m[4] + ":" + m[5] : "");
+    return "Confirmée le " + day + (m[4] ? " à " + m[4] + ":" + m[5] : "");
   }
   function stayDates(stay) {
     if (!stay || !stay.arrival) return "";
@@ -109,7 +145,7 @@
       return "lunch";
     }
     if (item.service === "activites") return item.activity === "quad" || item.sous_type === "quad" ? "quad" : "quad";
-    if (item.service === "transfert") return "car";
+    if (item.service === "transfert" || item.service === "course" || item.service === "location_voiture") return "car";
     if (item.service === "massage") return "flower";
     if (item.service === "piscine") return "pool";
     return "menage";
@@ -125,6 +161,8 @@
       return item.activity_label || "Activité";
     }
     if (item.service === "transfert") return item.trip_type === "city" ? "Trajet en ville" : "Transfert aéroport";
+    if (item.service === "course") return "Trajet en ville";
+    if (item.service === "location_voiture") return "Location de voiture";
     if (item.service === "massage") return "Massage";
     if (item.service === "piscine") return "Piscine";
     if (item.service === "menage") return "Ménage";
@@ -172,8 +210,11 @@
         jacuzzi: { days: 3, rate: 35, offert: true }
       },
       items: [
+        { service: "transfert", trip_type: "arrival", total: 350, unit: "dh", status: "Confirmée", when_date: "2026-11-27", when_time: "15:30", date_creation: "2026-11-24T10:00:00", date_confirmation: "2026-11-25 14:32" },
+        { service: "location_voiture", total: "", status: "Envoyée", start_date: "2026-11-23", pickup_time: "10:00", date_creation: "2026-11-21T13:00:00" },
         { service: "restauration", meal: "breakfast", people: 2, dish: "", total: 20, unit: "eur", status: "Envoyée", when_date: "2026-11-22", when_time: "10:00", date_creation: "2026-11-21T12:00:00" },
-        { service: "restauration", meal: "dinner", people: 4, dish: "Tajine d’agneau aux pruneaux", total: 80, unit: "eur", status: "Confirmée", when_date: "2026-11-21", when_time: "20:00", date_creation: "2026-11-21T09:00:00" },
+        { service: "restauration", meal: "dinner", people: 4, dish: "Tajine d’agneau aux pruneaux", total: 80, unit: "eur", status: "Confirmée", when_date: "2026-11-21", when_time: "20:00", date_creation: "2026-11-21T09:00:00", date_confirmation: "2026-11-21 10:05" },
+        { service: "piscine", total: "", status: "Envoyée", when_date: "2026-11-24", when_time: "", date_creation: "2026-11-21T08:30:00" },
         { service: "restauration", meal: "lunch", people: 4, dish: "Tajine d’agneau aux pruneaux", total: 80, unit: "eur", status: "Terminée", when_date: "2026-11-15", when_time: "13:00", date_creation: "2026-11-14T18:00:00" },
         { service: "activites", activity: "quad", sous_type: "quad", activity_label: "1 quad · 1 personne", total: 300, unit: "dh", status: "Terminée", when_date: "2026-11-14", when_time: "14:30", date_creation: "2026-11-13T16:00:00" },
         { service: "menage", scope: "maison", total: "", status: "Annulée", when_date: "2026-11-16", when_time: "11:00", date_creation: "2026-11-15T08:00:00" }
@@ -252,19 +293,29 @@
     });
     return { items: pack.items || [], stay: stay };
   }
-  function loadPack() {
-    if (queryFlag("demo") === "1") return Promise.resolve(demoPack());
-    if (queryFlag("demo") === "booking") return Promise.resolve(bookingPack());
-    var api = window.GuestRequests;
-    var stay = api && api.stayId ? api.stayId() : "";
-    var test = api && api.TEST_MODE;
-    function finish(pack) { return applyStoredPayment(pack, stay); }
-    if (test && sampleStay(stay)) return Promise.resolve(finish(sampleStay(stay)));
-    if (!api || !api.listDemandes || !stay) return Promise.resolve({ items: [], stay: null });
-    return api.listDemandes(stay).then(function (data) {
-      var pack = data && data.items ? data : { items: data || [], stay: null };
-      return finish(pack);
-    }).catch(function () { return finish({ items: [], stay: null }); });
+  /* The guest's own copy of each demande (localStorage villazeno.demandes,
+     full fields). Fills the requested time when an older script answer
+     lacks it (v18 sends only time_label || time). */
+  function fillLocal(items) {
+    var local = {};
+    try {
+      (JSON.parse(localStorage.getItem("villazeno.demandes") || "[]") || []).forEach(function (record) {
+        if (record && record.id) local[record.id] = record;
+      });
+    } catch (e) {}
+    (items || []).forEach(function (item) {
+      var record = local[item.id];
+      if (!record || (item.when_date && item.when_time)) return;
+      var when = window.VZFields.when(record.service || item.service, record.fields || {});
+      if (!item.when_date) item.when_date = when.date;
+      if (!item.when_time) item.when_time = when.time;
+    });
+    return items;
+  }
+  function demoPackFor() {
+    if (queryFlag("demo") === "1") return demoPack();
+    if (queryFlag("demo") === "booking") return bookingPack();
+    return null;
   }
 
   function prepare(pack) {
@@ -282,7 +333,7 @@
     return '<span class="demand-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[kind] || ICONS.menage) + "</svg></span>";
   }
 
-  function paintList(root, pack) {
+  function paintList(root, pack, emptyIsSure) {
     var data = prepare(pack);
     var list = root.querySelector("[data-demand-list]");
     var empty = root.querySelector("[data-demand-empty]");
@@ -295,8 +346,10 @@
       sum.textContent = n + " demande" + (n > 1 ? "s" : "") + " · " + waiting + " en attente";
     }
     if (!data.items.length) {
-      if (empty) empty.hidden = false;
+      // « Aucune demande » only after a successful empty answer.
+      if (empty) empty.hidden = !emptyIsSure;
       if (list) list.hidden = true;
+      if (sum && !emptyIsSure) sum.textContent = "";
       return;
     }
     if (empty) empty.hidden = true;
@@ -306,11 +359,13 @@
       var chip = status === "Annulée" ? "status-annulee" : status === "Confirmée" ? "status-confirmee" : status === "Terminée" ? "status-terminee" : "status-envoyee";
       var price = eurosOf(item);
       var priceHtml = price == null ? "" : "<b>" + esc(euros(price)) + "</b>";
-      return '<li class="demand-card">' + iconSvg(kindOf(item))
+      var confirmed = confirmedText(item);
+      return '<li class="demand-card' + (confirmed ? " has-confirmed" : "") + '">' + iconSvg(kindOf(item))
         + '<strong>' + esc(guestName(item)) + '</strong>'
         + '<span class="status-chip ' + chip + '">' + esc(status) + '</span>'
         + '<p class="demand-detail">' + esc(detailLine(item)) + '</p>'
         + '<p class="demand-when">' + esc(whenText(item)) + '</p>'
+        + (confirmed ? '<p class="demand-confirmed">' + esc(confirmed) + '</p>' : '')
         + priceHtml
         + '</li>';
     }).join("");
@@ -451,21 +506,54 @@
       if (payBtn) payBtn.setAttribute("aria-pressed", paypal ? "true" : "false");
     }
     if (!showSettled(root, data.stay, linesHtml, due)) paintTotal("cash");
+    root.__paintTotal = paintTotal;
+    if (root.__payBound) return;
+    root.__payBound = true;
     root.querySelectorAll("[data-pay]").forEach(function (button) {
       button.addEventListener("click", function (event) {
         if (button.getAttribute("data-pay") === "paypal") {
           if (button.getAttribute("aria-pressed") !== "true") {
             event.preventDefault();
-            paintTotal("paypal");
+            root.__paintTotal("paypal");
             return;
           }
           if (window.GuestRequests && window.GuestRequests.TEST_MODE) event.preventDefault();
         }
         if (button.getAttribute("data-pay") === "cash") {
           event.preventDefault();
-          paintTotal("cash");
+          root.__paintTotal("cash");
         }
       });
+    });
+  }
+
+  /* One state line under the title: loading | updating | error | invalid |
+     expired. Never a blank page: before any answer the loading line shows,
+     a failure shows the error with « Réessayer ». */
+  function stateNode(root) {
+    var node = root.querySelector("[data-demand-state]");
+    if (node) return node;
+    node = document.createElement("div");
+    node.className = "demand-state";
+    node.setAttribute("data-demand-state", "");
+    node.setAttribute("role", "status");
+    node.setAttribute("aria-live", "polite");
+    var head = root.querySelector(".demand-head") || root.querySelector("h1");
+    var anchor = head && head.parentNode ? head : null;
+    if (anchor) anchor.parentNode.insertBefore(node, anchor.nextSibling);
+    else root.insertBefore(node, root.firstChild);
+    return node;
+  }
+  function setState(root, name, snap, retry) {
+    var node = stateNode(root);
+    node.setAttribute("data-state", name);
+    node.removeAttribute("data-api-error");
+    if (name === "ok") { node.hidden = true; node.textContent = ""; return; }
+    node.hidden = false;
+    if (name === "loading") { node.textContent = text("Chargement de vos demandes…", "Loading your requests…"); return; }
+    if (name === "updating") { node.textContent = text("Mise à jour…", "Updating…"); return; }
+    window.VZApi.showError(node, (snap && snap.error) || { kind: name === "invalid" ? "invalid_link" : name === "expired" ? "expired" : "network" }, retry, {
+      text: name === "error" ? text("Impossible de charger vos demandes. Vérifiez le réseau, puis réessayez.", "Your requests could not be loaded. Check your connection, then try again.") : ""
     });
   }
 
@@ -473,10 +561,34 @@
     var listRoot = document.querySelector("[data-demand-page]");
     var recapRoot = document.querySelector("[data-recap-page]");
     if (!listRoot && !recapRoot) return;
-    loadPack().then(function (pack) {
-      if (listRoot) paintList(listRoot, pack);
+    var roots = [listRoot, recapRoot].filter(Boolean);
+    function paintPack(pack, emptyIsSure) {
+      if (listRoot) paintList(listRoot, pack, emptyIsSure);
       if (recapRoot) paintRecap(recapRoot, pack);
-    });
+    }
+    var demo = demoPackFor();
+    if (demo) { paintPack(demo, true); return; }
+    var api = window.GuestRequests;
+    var gs = window.GuestStay;
+    var id = gs ? gs.id() : "";
+    if (api && api.TEST_MODE && sampleStay(id)) { paintPack(applyStoredPayment(sampleStay(id), id), true); return; }
+    if (!gs || !id) { paintPack({ items: [], stay: null }, true); return; }
+    function retry() { gs.load({ force: true }); }
+    function render(snap) {
+      try {
+        var has = !!(snap.stay || snap.items);
+        var pack = applyStoredPayment({ items: fillLocal((snap.items || []).slice()), stay: snap.stay }, id);
+        if (has) paintPack(pack, snap.state === "ok");
+        var name = snap.state;
+        if (name === "loading") name = has ? "updating" : "loading";
+        roots.forEach(function (root) { setState(root, name, snap, retry); });
+      } catch (e) {
+        roots.forEach(function (root) { setState(root, "error", { error: { kind: "server" } }, retry); });
+      }
+    }
+    gs.onChange(render);
+    render(gs.snapshot());
+    gs.load();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

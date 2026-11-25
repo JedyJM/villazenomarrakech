@@ -8,7 +8,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const crypto = require("node:crypto");
 
-const CODE = path.join(__dirname, "..", "guest", "apps-script", "Code.gs");
+const CODE = process.env.VZ_GAS_CODE || path.join(__dirname, "..", "guest", "apps-script", "Code.gs");
 
 function signedBytes(buf) {
   return Array.from(buf, (b) => (b > 127 ? b - 256 : b));
@@ -109,7 +109,7 @@ function makeSandbox(opts) {
     Logger: { log() {} },
   };
   vm.createContext(ctx);
-  vm.runInContext(fs.readFileSync(CODE, "utf8"), ctx, { filename: "Code.gs" });
+  vm.runInContext(opts.source || fs.readFileSync(opts.code || CODE, "utf8"), ctx, { filename: "Code.gs" });
   if (opts.now) {
     // Freeze "today" for the date rules.
     const fixed = new Date(opts.now).getTime();

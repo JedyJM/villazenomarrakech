@@ -3,7 +3,8 @@
   "use strict";
 
   var TEST_MODE = true;
-  var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrmyFtKdhIovJAh2A-DjYfIYNwGWz7s-r_yKz8TDj29J1OcbnBPA7tIBV1qRJbtFcwlw/exec";
+  // One URL and one client for the whole site: js/vz-api.js.
+  var SCRIPT_URL = window.VZApi ? window.VZApi.URL : "";
   // Public OAuth web client ID (safe in the front-end). The script checks aud.
   var GOOGLE_CLIENT_ID = "971461193352-3kafun281dtmvorv1tpp2j7n9l2g8klf.apps.googleusercontent.com";
   var GIS_SRC = "https://accounts.google.com/gsi/client";
@@ -111,23 +112,18 @@
 
   function verifyToken(idToken, note) {
     if (note) note.textContent = "Vérification du compte…";
-    if (!window.fetch) { if (note) note.textContent = MSG_NETWORK; return; }
-    window.fetch(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "admin-auth", id_token: idToken })
-    }).then(function (res) { return res.json(); }).then(function (data) {
-      if (data && data.ok) {
+    if (!window.VZApi) { if (note) note.textContent = MSG_NETWORK; return; }
+    window.VZApi.post({ action: "admin-auth", id_token: idToken }).then(function (result) {
+      if (result.ok) {
         setSession(idToken);
-        try { sessionStorage.setItem(EMAIL_KEY, String(data.email || "")); } catch (e) {}
+        try { sessionStorage.setItem(EMAIL_KEY, String(result.data.email || "")); } catch (e) {}
         afterSignIn();
         return;
       }
       clearSession();
-      var error = data && data.error;
-      if (note) note.textContent = (error === "invalid_token") ? MSG_INVALID : MSG_DENIED;
-    }).catch(function () {
-      if (note) note.textContent = MSG_NETWORK;
+      if (!note) return;
+      if (result.kind === "network" || result.kind === "timeout" || result.kind === "busy") note.textContent = MSG_NETWORK;
+      else note.textContent = result.error === "invalid_token" ? MSG_INVALID : MSG_DENIED;
     });
   }
 
@@ -348,20 +344,22 @@
     var fresh = entry && entry.day === localDay();
     if (entry) done(entry.data, { cached: true, at: entry.at, stale: !fresh });
     if (fresh) return;
-    if (!SCRIPT_URL || !window.fetch || !session()) { if (!entry) done(null, { at: 0, error: true }); return; }
-    var url = SCRIPT_URL + "?" + params + "&token=" + encodeURIComponent(session()) + (TEST_MODE ? "&test=1" : "");
-    var job = inflight[url];
+    if (!window.VZApi || !session()) { if (!entry) done(null, { at: 0, error: true, result: { ok: false, kind: "session" } }); return; }
+    var job = inflight[params];
     if (!job) {
-      job = inflight[url] = window.fetch(url).then(function (res) { return res.json(); });
-      job.then(function () { delete inflight[url]; }, function () { delete inflight[url]; });
+      var query = {};
+      new URLSearchParams(params).forEach(function (value, key) { query[key] = value; });
+      job = inflight[params] = apiGet(query);
+      job.then(function () { delete inflight[params]; });
     }
-    job.then(function (data) {
-      if (data && data.ok) {
-        var saved = writeCache(name, data);
-        done(data, { at: saved.at });
-      } else if (!entry) done(data || null, { at: 0, error: true });
-    }).catch(function () {
-      if (!entry) done(null, { at: 0, error: true });
+    job.then(function (result) {
+      if (result.ok) {
+        var saved = writeCache(name, result.data);
+        done(result.data, { at: saved.at });
+      } else {
+        // Never silent: the page shows the error (with the cached copy if any).
+        done(entry ? entry.data : null, { at: entry ? entry.at : 0, cached: !!entry, error: true, result: result });
+      }
     });
   }
   // Zen'O rows must carry totalVoyageur (Stats brut).
@@ -412,7 +410,97 @@
     return "Mis à jour le " + d.getDate() + "\u00A0" + months[d.getMonth()] + " à " + hm;
   }
 
+  /* Shared admin calls (js/vz-api.js): token and test flag added here,
+     answers always awaited, failures returned as { ok:false, kind }. */
+  function apiGet(params, opts) {
+    var query = Object.assign({}, params, { token: session() });
+    if (TEST_ALLOWED) query.test = "1";
+    return window.VZApi ? window.VZApi.get(query, opts) : Promise.resolve({ ok: false, kind: "network" });
+  }
+  function apiPost(body, opts) {
+    var payload = Object.assign({ token: session(), test: TEST_ALLOWED ? "1" : "" }, body);
+    return window.VZApi ? window.VZApi.post(payload, opts) : Promise.resolve({ ok: false, kind: "network" });
+  }
+  // Error line + « Réessayer » + « Se reconnecter » on session expiry.
+  function showError(node, result, retry, context) {
+    if (!window.VZApi || !node) return;
+    window.VZApi.showError(node, result, retry, { context: context, signIn: "index.html", onSignIn: function () { clearSession(); } });
+  }
+
+  /* Page-level load error (any read that failed): one line above the page
+     content with « Réessayer ». loadError(null) hides it. */
+  function loadError(result, retry) {
+    var node = document.querySelector("[data-load-error]");
+    if (!result) { if (node) node.hidden = true; return; }
+    if (!node) {
+      node = document.createElement("p");
+      node.className = "load-error wrap";
+      node.setAttribute("data-load-error", "");
+      node.setAttribute("role", "alert");
+      var main = document.querySelector("main");
+      if (main && main.parentNode) main.parentNode.insertBefore(node, main);
+      else document.body.insertBefore(node, document.body.firstChild);
+    }
+    showError(node, result, retry);
+  }
+
+  // « restauration » → « Restauration »; only the first letter changes.
+  function serviceLabel(value) {
+    var text = String(value || "").trim();
+    return text ? text.charAt(0).toLocaleUpperCase("fr-FR") + text.slice(1) : text;
+  }
+  /* Admin demande from action=demandes (shared field model). when: local
+     date + time; hasTime false when the script sent no time (never a
+     made-up 00:00). */
+  function demandeFromApi(raw) {
+    var fields = window.VZFields;
+    var day = fields ? fields.iso(raw.date) : String(raw.date || "").slice(0, 10);
+    var clock = fields ? fields.clock(raw.time) : "";
+    var d = (day || "1970-01-01").split("-");
+    var t = clock ? clock.split(":") : ["0", "0"];
+    var when = new Date(Number(d[0]), (Number(d[1]) || 1) - 1, Number(d[2]) || 1, Number(t[0]), Number(t[1]));
+    var service = serviceLabel(raw.service) || "Demande";
+    var key = service.toLowerCase();
+    var kind = "menage";
+    if (key.indexOf("petit") >= 0 || raw.meal === "breakfast") kind = "breakfast";
+    else if (key.indexOf("ner") >= 0 || key.indexOf("dinner") >= 0 || raw.meal === "dinner") kind = "dinner";
+    else if (key.indexOf("nage") >= 0) kind = "menage";
+    else if (key.indexOf("quad") >= 0 || key.indexOf("activ") >= 0) kind = "quad";
+    else if (key.indexOf("transfert") >= 0 || key.indexOf("voiture") >= 0 || key.indexOf("course") >= 0) kind = "car";
+    else if (key.indexOf("massage") >= 0) kind = "flower";
+    var created = Date.parse(raw.created);
+    var guest = String(raw.guest || "");
+    return {
+      id: String(raw.id || ""),
+      kind: kind,
+      label: service,
+      service: String(raw.service || ""),
+      adults: Number(raw.adults) || 0,
+      children: Number(raw.children) || 0,
+      extra: raw.trip || raw.sous_type || "",
+      guest: fields && fields.isPlaceholderName(guest) ? "" : guest,
+      stay: guest,
+      stay_id: String(raw.stay || ""),
+      staff: raw.staff || "",
+      status: raw.status || "Envoyée",
+      when: when,
+      hasTime: !!clock,
+      hasDate: !!day,
+      created: isFinite(created) ? created : Date.now(),
+      total: raw.total,
+      token: raw.token || "",
+      offert: !!raw.offert,
+      date_confirmation: fields ? fields.confirmedAt(raw.date_confirmation) : "",
+      staff_confirm: Array.isArray(raw.staff_confirm) ? raw.staff_confirm : []
+    };
+  }
+
   window.AdminShell = {
+    api: { get: apiGet, post: apiPost },
+    showError: showError,
+    loadError: loadError,
+    demandeFromApi: demandeFromApi,
+    serviceLabel: serviceLabel,
     cachedGet: cachedGet,
     warm: warm,
     isFresh: isFresh,
@@ -429,6 +517,7 @@
     SCRIPT_URL: SCRIPT_URL,
     GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID,
     session: session,
+    clearSession: clearSession,
     email: function () { try { return sessionStorage.getItem(EMAIL_KEY) || ""; } catch (e) { return ""; } },
     signOut: signOut
   };

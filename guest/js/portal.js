@@ -34,6 +34,14 @@ function paintVillaWhatsApp(testMode) {
     if (!number) return;
     el.href = "https://wa.me/" + number;
   });
+  // Contacts utiles: Mehdi's number written out (+212 661 147 610), from MEHDI_WHATSAPP.
+  var shown = real.length === 12 && real.indexOf("212") === 0
+    ? "+212 " + real.slice(3, 6) + " " + real.slice(6, 9) + " " + real.slice(9)
+    : (real ? "+" + real : "");
+  if (shown) {
+    document.querySelectorAll("[data-mehdi-number]").forEach(function (el) { el.textContent = shown; });
+    document.querySelectorAll("[data-mehdi-label]").forEach(function (el) { el.setAttribute("aria-label", "Mehdi, WhatsApp, " + shown); });
+  }
   document.querySelectorAll("[data-guest-whatsapp]").forEach(function (el) {
     if (!href) {
       el.setAttribute("aria-disabled", "true");

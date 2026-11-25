@@ -1,0 +1,12 @@
+{
+  "name": "villazenomarrakech-verify",
+  "private": true,
+  "description": "Verification suite only (static site: no build). See .cursor/skills/verify-villazeno/SKILL.md.",
+  "scripts": {
+    "verify": "node tests/verify/run.js",
+    "verify:gas": "node --test tests/verify/fields.test.js tests/verify/gas.test.js"
+  },
+  "devDependencies": {
+    "playwright": "1.65.1"
+  }
+}

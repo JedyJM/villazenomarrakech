@@ -110,21 +110,30 @@
     bag.items.push(record);
     stats.saveExtra(bag);
     if (shell.invalidate) shell.invalidate("depenses");
-    if (shell.SCRIPT_URL && window.fetch) {
-      window.fetch(shell.SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({
-          action: "save-depense",
-          test: shell.TEST_MODE ? "1" : "",
-          token: shell.session(),
-          depense: record,
-          facture_base64: model.facture_url && model.facture_url.indexOf("base64,") > 0 ? model.facture_url : "",
-          facture_nom: model.facture_nom
-        })
-      }).catch(function () {});
+    writeThen({
+      action: "save-depense",
+      depense: record,
+      facture_base64: model.facture_url && model.facture_url.indexOf("base64,") > 0 ? model.facture_url : "",
+      facture_nom: model.facture_nom
+    });
+  }
+  /* Awaited write (shared client): back to Stats only after ok:true;
+     otherwise the error stays on the page with « Réessayer ». */
+  function writeThen(body) {
+    var root = document.querySelector("[data-depense]");
+    var note = root && root.querySelector("[data-depense-error]");
+    if (root && !note) {
+      note = document.createElement("p");
+      note.className = "form-error";
+      note.setAttribute("data-depense-error", "");
+      note.setAttribute("role", "alert");
+      root.appendChild(note);
     }
-    window.location.href = "stats.html?vue=depenses&test=1";
+    if (note) { note.hidden = false; note.textContent = "Enregistrement…"; }
+    shell.api.post(body).then(function (result) {
+      if (result.ok) { window.location.href = "stats.html?vue=depenses"; return; }
+      if (note) shell.showError(note, result, function () { writeThen(body); }, "save");
+    });
   }
   function remove() {
     var bag = stats.readExtra();
@@ -133,14 +142,7 @@
     bag.items = (bag.items || []).filter(function (item) { return item.id !== model.id; });
     stats.saveExtra(bag);
     if (shell.invalidate) shell.invalidate("depenses");
-    if (shell.SCRIPT_URL && window.fetch) {
-      window.fetch(shell.SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "delete-depense", test: shell.TEST_MODE ? "1" : "", token: shell.session(), id: model.id })
-      }).catch(function () {});
-    }
-    window.location.href = "stats.html?vue=depenses&test=1";
+    writeThen({ action: "delete-depense", id: model.id });
   }
   function boot() {
     var root = document.querySelector("[data-depense]");

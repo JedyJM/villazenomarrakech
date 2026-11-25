@@ -87,6 +87,11 @@ test("admin (Google session) gets k on stays and stay; token=test only on test r
   assert.equal(byId["FAM-SK-2611"].k, keyOf("FAM-SK-2611"));
   const one = out(box.ctx.doGet({ parameter: { action: "stay", id: "HMABC123", token: "good-google-token" } }));
   assert.equal(one.stay.k, keyOf("HMABC123"));
+  // Production value (ADMIN_TEST_MODE false): token=test is refused outright.
+  box.ctx.ADMIN_TEST_MODE = false;
+  assert.deepEqual(out(box.ctx.doGet({ parameter: { action: "stays", token: "test", test: "1" } })), { ok: false, error: "forbidden" });
+  // Test mode on (preview): token=test sees only the test rows.
+  box.ctx.ADMIN_TEST_MODE = true;
   const t = out(box.ctx.doGet({ parameter: { action: "stays", token: "test", test: "1" } }));
   assert.deepEqual(t.stays.map((s) => s.id), ["tst0000001"]);
   assert.equal(t.stays[0].k, keyOf("tst0000001"));
@@ -114,7 +119,9 @@ test("guest POST without k / wrong k / unknown id: refused, no row, no WhatsApp,
 test("guest POST with valid k: row written for the checked stay, WhatsApp called once", () => {
   const box = sandbox();
   const r = post(box, demande({ id: "okreq01", stay: "HMABC123", k: keyOf("HMABC123"), details: { booking_id: "FAM-SK-2611" } }));
-  assert.deepEqual(r, { ok: true });
+  assert.equal(r.ok, true);
+  // v19 also answers the id and the real guest name it wrote (never "Invité").
+  if ("nom_client" in r) assert.equal(r.nom_client, "Jean Dupont");
   const last = box.sheets.Demandes.rows[box.sheets.Demandes.rows.length - 1];
   assert.equal(last[0], "okreq01");
   assert.equal(JSON.parse(last[5]).booking_id, "HMABC123", "booking_id forced to the checked stay");
@@ -123,7 +130,9 @@ test("guest POST with valid k: row written for the checked stay, WhatsApp called
 
 test("guest POST for a legacy-open id without k is accepted", () => {
   const box = sandbox({ props: { LINK_LEGACY_OPEN: "FAM-SK-2611" } });
-  assert.deepEqual(post(box, demande({ id: "legacy1", details: { booking_id: "FAM-SK-2611" } })), { ok: true });
+  const r = post(box, demande({ id: "legacy1", details: { booking_id: "FAM-SK-2611" } }));
+  assert.equal(r.ok, true);
+  if ("nom_client" in r) assert.equal(r.nom_client, "Samiya Kabbaj");
   assert.equal(box.wa, 1);
 });
 

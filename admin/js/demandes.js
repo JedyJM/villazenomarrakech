@@ -38,7 +38,6 @@
   function pad(n) { return (n < 10 ? "0" : "") + n; }
   function isoDay(date) { return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()); }
   function today() {
-    if (shell.TEST_MODE) return new Date(2026, 11, 16);
     var now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
@@ -101,15 +100,15 @@
     if (staffConfirmDemo()) return demoStaffItems();
 
     var patches = readPatches();
-    var source = shell.TEST_MODE ? examples() : (remoteItems || []);
+    // Real feed (action=demandes) in every mode; a test session gets the
+    // test rows from the script. Samples only on the explicit demo URL.
+    var source = remoteItems || [];
     return source.map(function (item) {
       return Object.assign({}, item, patches[item.id] || {});
     });
   }
   function activeStayIds() {
-    if (!shell.TEST_MODE) return remoteCurrentIds || [];
-    var book = window.AdminSample && window.AdminSample.stays && window.AdminSample.stays();
-    return book && book.current ? [book.current.id] : [];
+    return remoteCurrentIds || [];
   }
   function euroText(dh) {
     var eur = Math.round(Number(dh)) / 10;
@@ -120,41 +119,12 @@
     var frac = Math.round((eur - Math.floor(eur)) * 100);
     return (neg ? "−" : "") + whole + (frac ? "," + (frac < 10 ? "0" : "") + frac : "") + "\u00A0€";
   }
+  // Shared normalizer (AdminShell.demandeFromApi, js/vz-fields.js).
   function fromApi(raw) {
-    var date = String(raw.date || "1970-01-01").split("-");
-    var time = String(raw.time || "0:0").split(":");
-    var when = new Date(Number(date[0]), (Number(date[1]) || 1) - 1, Number(date[2]) || 1, Number(time[0]) || 0, Number(time[1]) || 0);
-    var service = serviceLabel(raw.service) || "Demande";
-    var key = service.toLowerCase();
-    var kind = "menage";
-    if (key.indexOf("petit") >= 0) kind = "breakfast";
-    else if (key.indexOf("ner") >= 0 || key.indexOf("dinner") >= 0) kind = "dinner";
-    else if (key.indexOf("nage") >= 0) kind = "menage";
-    else if (key.indexOf("quad") >= 0) kind = "quad";
-    else if (key.indexOf("transfert") >= 0 || key.indexOf("voiture") >= 0) kind = "car";
-    else if (key.indexOf("massage") >= 0) kind = "flower";
-    var created = Date.parse(raw.created);
-    var price = raw.total === "" || raw.total == null ? "" : euroText(raw.total);
-    return {
-      id: String(raw.id || ""),
-      kind: kind,
-      label: service,
-      adults: Number(raw.adults) || 0,
-      children: Number(raw.children) || 0,
-      extra: raw.trip || raw.sous_type || "",
-      guest: raw.guest || "",
-      stay: raw.guest || "",
-      stay_id: String(raw.stay || ""),
-      staff: raw.staff || "",
-      status: raw.status || "Envoyée",
-      when: when,
-      created: isFinite(created) ? created : Date.now(),
-      price: price,
-      dh: price && raw.total ? (Math.round(Number(raw.total)) + "\u00A0DH") : "",
-      token: raw.token || "",
-      offert: !!raw.offert,
-      staff_confirm: Array.isArray(raw.staff_confirm) ? raw.staff_confirm : []
-    };
+    var item = shell.demandeFromApi(raw);
+    item.price = raw.total === "" || raw.total == null ? "" : euroText(raw.total);
+    item.dh = item.price && raw.total ? (Math.round(Number(raw.total)) + "\u00A0DH") : "";
+    return item;
   }
   function dayKey(item) { return isoDay(item.when); }
   function isFutureDay(item) { return dayKey(item) >= isoDay(today()); }
@@ -179,10 +149,15 @@
   function rowTitleOf(item) {
     return item.extra ? item.label + " · " + item.extra : item.label;
   }
+  // Never a made-up 00:00: without a time, the day only.
   function whenLabel(item) {
     var date = item.when;
     var day = isToday(item) ? "aujourd’hui" : (date.getDate() + "\u00A0" + MONTHS[date.getMonth()]);
-    return day + " · " + pad(date.getHours()) + ":" + pad(date.getMinutes());
+    return item.hasTime === false ? day : day + " · " + pad(date.getHours()) + ":" + pad(date.getMinutes());
+  }
+  // « Confirmée le 25 nov. à 14:32 » (date_confirmation).
+  function confirmedLine(item) {
+    return item.status === "Confirmée" && window.VZFields ? window.VZFields.confirmedText(item.date_confirmation) : "";
   }
   function since(item) {
     var min = Math.round((Date.now() - item.created) / 60000);
@@ -215,21 +190,42 @@
     var text = "Bonjour " + item.staff + ", un rappel Villa Zen’O :\n" + titleOf(item) + "\n" + item.guest + " · " + whenLabel(item) + "\n\nConfirmer :\n" + confirmUrl(item);
     return "https://wa.me/" + number + "?text=" + encodeURIComponent(text);
   }
-  function savePatch(item) {
-    var patches = readPatches();
-    patches[item.id] = { status: item.status, offert: !!item.offert };
-    try { sessionStorage.setItem(STORE, JSON.stringify(patches)); } catch (e) {}
-    var count = toConfirm(allItems()).length;
-    try { sessionStorage.setItem("vz.admin.confirmer", String(count)); } catch (e2) {}
-    var link = document.querySelector("[data-nav='demandes']");
-    if (link) link.classList.toggle("has-dot", count > 0);
-    if (shell.invalidate) shell.invalidate("demandes");
-    if (!shell.SCRIPT_URL || !window.fetch) return;
-    window.fetch(shell.SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "set-demande", test: shell.TEST_MODE ? "1" : "", token: shell.session(), id: item.id, statut: item.status, offert: !!item.offert })
-    }).catch(function () {});
+  /* Status / Offert change: written through the shared client and WAITED
+     for. The row shows the new state only after ok:true; a failure puts
+     the previous state back and shows the error with « Réessayer ». */
+  function savePatch(item, previous, root) {
+    item.saving = true;
+    if (root) paint(root);
+    shell.api.post({ action: "set-demande", id: item.id, statut: item.status, offert: !!item.offert }).then(function (result) {
+      item.saving = false;
+      var note = root ? root.querySelector("[data-req-error]") : null;
+      if (!result.ok) {
+        item.status = previous.status;
+        item.offert = previous.offert;
+        if (root) paint(root);
+        note = root ? root.querySelector("[data-req-error]") : null;
+        if (note) shell.showError(note, result, function () {
+          var again = { status: item.status, offert: item.offert };
+          item.status = previous.next.status;
+          item.offert = previous.next.offert;
+          savePatch(item, again, root);
+        }, "save");
+        return;
+      }
+      if (item.status === "Confirmée" && !item.date_confirmation && window.VZFields) {
+        var now = new Date();
+        item.date_confirmation = window.VZFields.iso(now) + " " + window.VZFields.clock(now);
+      }
+      var patches = readPatches();
+      patches[item.id] = { status: item.status, offert: !!item.offert };
+      try { sessionStorage.setItem(STORE, JSON.stringify(patches)); } catch (e) {}
+      var count = toConfirm(allItems()).length;
+      try { sessionStorage.setItem("vz.admin.confirmer", String(count)); } catch (e2) {}
+      var link = document.querySelector("[data-nav='demandes']");
+      if (link) link.classList.toggle("has-dot", count > 0);
+      if (shell.invalidate) shell.invalidate("demandes");
+      if (root) paint(root);
+    });
   }
   function rowHtml(item) {
     var open = openId === item.id;
@@ -251,6 +247,7 @@
       + icon(item.kind)
       + '<span class="req-title">' + esc(rowTitleOf(item)) + '</span>'
       + '<span class="req-meta">' + esc(metaOf(item)) + '</span>'
+      + (confirmedLine(item) ? '<span class="req-meta req-confirmed">' + esc(confirmedLine(item)) + '</span>' : '')
       + '<span class="req-foot">' + price + staff + '</span>'
       + '<span class="req-chip status-chip ' + chipClass(item.status) + '">' + esc(item.status) + '</span>'
       + '</button>' + actions + '</div>';
@@ -354,7 +351,12 @@
       var set = event.target.closest("[data-set]");
       if (set) {
         var item = findItem(root.querySelector("[data-sheet]").getAttribute("data-for"));
-        if (item) { item.status = set.getAttribute("data-set"); savePatch(item); }
+        if (item && !item.saving) {
+          var before = { status: item.status, offert: item.offert };
+          item.status = set.getAttribute("data-set");
+          before.next = { status: item.status, offert: item.offert };
+          savePatch(item, before, root);
+        }
         closeSheet(root);
         paint(root);
         return;
@@ -362,28 +364,45 @@
       var offert = event.target.closest("[data-offert]");
       if (offert) {
         var target = findItem(offert.getAttribute("data-offert"));
-        if (target) { target.offert = !target.offert; savePatch(target); paint(root); }
+        if (target && !target.saving) {
+          var was = { status: target.status, offert: target.offert };
+          target.offert = !target.offert;
+          was.next = { status: target.status, offert: target.offert };
+          savePatch(target, was, root);
+        }
         return;
       }
       if (event.target.closest("[data-sheet-close]") || event.target.hasAttribute("data-sheet-back")) closeSheet(root);
     });
-    if (shell.TEST_MODE || !shell.SCRIPT_URL || !window.fetch) {
-      paint(root);
-      return;
+    if (staffConfirmDemo()) { paint(root); return; }
+    load(root);
+  }
+  // Demandes + stays (current stays), both awaited; an error is shown with « Réessayer ».
+  function load(root) {
+    var note = root.querySelector("[data-req-loading]");
+    if (!note) {
+      note = document.createElement("p");
+      note.className = "empty";
+      note.setAttribute("data-req-loading", "");
+      root.insertBefore(note, root.firstChild);
     }
-    var token = encodeURIComponent(shell.session());
-    var base = shell.SCRIPT_URL + "?token=" + token;
-    Promise.all([
-      window.fetch(base + "&action=demandes").then(function (res) { return res.json(); }),
-      window.fetch(base + "&action=stays").then(function (res) { return res.json(); })
-    ]).then(function (pair) {
-      remoteItems = ((pair[0] && pair[0].items) || []).map(fromApi);
+    note.hidden = false;
+    note.textContent = "Chargement des demandes…";
+    Promise.all([shell.api.get({ action: "demandes" }), shell.api.get({ action: "stays" })]).then(function (pair) {
+      note.hidden = true;
+      if (!pair[0].ok) {
+        shell.loadError(pair[0], function () { load(root); });
+        paint(root);
+        return;
+      }
+      shell.loadError(null);
+      remoteItems = ((pair[0].data && pair[0].data.items) || []).map(fromApi);
       var todayIso = isoDay(today());
-      remoteCurrentIds = ((pair[1] && pair[1].stays) || []).filter(function (stay) {
+      remoteCurrentIds = ((pair[1].ok && pair[1].data.stays) || []).filter(function (stay) {
         return stay.arrival && stay.departure && stay.arrival <= todayIso && todayIso < stay.departure;
       }).map(function (stay) { return stay.id; });
       paint(root);
-    }).catch(function () { paint(root); });
+    });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

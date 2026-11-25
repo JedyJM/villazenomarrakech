@@ -1983,6 +1983,22 @@ a.guide-row .ext { margin-left: auto; width: 13px; height: 13px; color: var(--mu
 }
 .page-demandes .demand-detail { grid-column: 2 / span 2; grid-row: 2; }
 .page-demandes .demand-when { grid-column: 2; grid-row: 3; color: var(--ink); }
+/* Confirmed row: a 4th line, the card grows by one row (15px). */
+.page-demandes .demand-card.has-confirmed {
+  grid-template-rows: 16px 15px 15px 15px;
+  height: 78px;
+}
+.page-demandes .demand-confirmed {
+  grid-column: 2 / span 2;
+  grid-row: 4;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .page-demandes .demand-card b {
   grid-column: 3;
   grid-row: 3;
@@ -2924,3 +2940,17 @@ body.is-stay-closed [data-request-page] [data-panel] { display: none !important;
   }
   .home .wifi-heading { font-size: 0.8rem; }
 }
+
+/* iPhone baseline (shared rule, guest and admin): no double-tap zoom on
+   steppers, buttons and links (touch-action: manipulation), and no focus
+   zoom on fields (iOS zooms into any field under 16px). */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body, a, button, label, summary, output, [role="button"], .stepper, .stepper * { touch-action: manipulation; }
+input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px !important; touch-action: manipulation; }
+
+/* Shared Apps Script states (js/vz-api.js, guest-stay.js): loading line,
+   error with « Réessayer », send status on the received panel. */
+.demand-state, .send-status { margin: 0.6rem 0; font-family: var(--sans, system-ui, sans-serif); font-size: 0.9rem; line-height: 1.4; color: var(--muted, #5e554c); }
+.demand-state[data-api-error], .send-status.is-error { color: #8c3f2a; }
+.send-status.is-ok { color: #1d6b3a; }
+.api-retry { display: inline-block; margin-left: 0.5rem; min-height: 36px; padding: 0 0.9rem; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font: inherit; font-size: 0.9rem; white-space: nowrap; cursor: pointer; touch-action: manipulation; }

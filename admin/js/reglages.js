@@ -66,19 +66,24 @@
     if (email && document.activeElement !== email) email.value = model.notif_email_to;
     fitEmail(email);
   }
+  // Awaited write (shared client); a failure is shown with « Réessayer ».
   function save() {
     writeLocal();
-    if (!shell.SCRIPT_URL || !window.fetch) return;
-    window.fetch(shell.SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        action: "save-reglages",
-        test: shell.TEST_MODE ? "1" : "",
-        token: shell.session(),
-        reglages: model
-      })
-    }).catch(function () {});
+    if (!shell.api) return;
+    shell.api.post({ action: "save-reglages", reglages: model }).then(function (result) {
+      var root = document.querySelector("[data-reglages]");
+      var note = root && root.querySelector("[data-reglages-error]");
+      if (root && !note) {
+        note = document.createElement("p");
+        note.className = "form-error";
+        note.setAttribute("data-reglages-error", "");
+        note.setAttribute("role", "alert");
+        root.appendChild(note);
+      }
+      if (!note) return;
+      if (result.ok) { note.hidden = true; note.textContent = ""; return; }
+      shell.showError(note, result, save, "save");
+    });
   }
   function boot() {
     var root = document.querySelector("[data-reglages]");
@@ -90,16 +95,16 @@
       if (stored.notif_email_to) model.notif_email_to = stored.notif_email_to;
     }
     paint();
-    if (!shell.TEST_MODE && shell.SCRIPT_URL && window.fetch) {
-      window.fetch(shell.SCRIPT_URL + "?action=get-reglages&token=" + encodeURIComponent(shell.session()))
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-          if (!data || !data.reglages) return;
-          model.notif_email_on = data.reglages.notif_email_on !== false;
-          model.recap_8h_on = data.reglages.recap_8h_on !== false;
-          if (data.reglages.notif_email_to) model.notif_email_to = data.reglages.notif_email_to;
-          paint();
-        }).catch(function () {});
+    if (shell.api && shell.session() !== "test") {
+      shell.api.get({ action: "get-reglages" }).then(function (result) {
+        if (!result.ok) { shell.loadError(result, boot); return; }
+        var data = result.data;
+        if (!data || !data.reglages) return;
+        model.notif_email_on = data.reglages.notif_email_on !== false;
+        model.recap_8h_on = data.reglages.recap_8h_on !== false;
+        if (data.reglages.notif_email_to) model.notif_email_to = data.reglages.notif_email_to;
+        paint();
+      });
     }
     // « Jeu de test »: local to this browser, off by default.
     var jeu = root.querySelector("[data-jeu-test]");

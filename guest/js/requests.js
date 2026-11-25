@@ -12,7 +12,8 @@
 
   /* Google Apps Script web app for the sheet “Villa Zen’O – Bookings”.
      An empty value skips the sheet and keeps the request in localStorage only. */
-  var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwrmyFtKdhIovJAh2A-DjYfIYNwGWz7s-r_yKz8TDj29J1OcbnBPA7tIBV1qRJbtFcwlw/exec";
+  // One URL for the whole site: js/vz-api.js (VZApi.URL).
+  var APPS_SCRIPT_URL = window.VZApi ? window.VZApi.URL : "";
 
   /* While TEST_MODE is true, every staff WhatsApp opens the villa test number.
      Flip TEST_MODE to false to open the real recipients. Nothing is sent from this file. */
@@ -91,80 +92,112 @@
     };
   }
 
-  function postToSheet(payload) {
-    if (!APPS_SCRIPT_URL || !window.fetch) return;
-    try {
-      window.fetch(APPS_SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
-      }).catch(function () {});
-    } catch (e) {}
-  }
-
-  /* Guest link: ?stay=<id>&k=<key>. Both are kept from the arrival page
-     (localStorage) for the whole visit, internal links carry neither.
-     A new ?stay= without k drops the old key (old link, see LINK_LEGACY_OPEN
-     in Code.gs). The key is sent with every call to the script. */
-  var STAY_STORE = "villazeno.stay";
-  var KEY_STORE = "villazeno.stayKey";
-  function queryParam(name) {
-    try { return new URLSearchParams(window.location.search).get(name) || ""; } catch (e) { return ""; }
-  }
-  function stayId() {
-    var fromQuery = queryParam("stay");
-    if (fromQuery) {
-      var key = queryParam("k");
-      try {
-        localStorage.setItem(STAY_STORE, fromQuery);
-        if (key) localStorage.setItem(KEY_STORE, key);
-        else localStorage.removeItem(KEY_STORE);
-      } catch (e2) {}
-      return fromQuery;
+  /* Sends the demande to the villa through the shared client and WAITS
+     for the answer (no fire-and-forget). The received panel shows
+     « Envoi à la villa… », then « Demande enregistrée » or the error with
+     « Réessayer » (same id: the script never writes it twice). The guest
+     WhatsApp (if any) is opened BEFORE this call, during the tap (iOS). */
+  function sendToVilla(root, payload) {
+    var done = root && root.querySelector("[data-confirm]");
+    var status = done ? done.querySelector("[data-send-status]") : null;
+    if (done && !status) {
+      status = document.createElement("p");
+      status.className = "send-status";
+      status.setAttribute("data-send-status", "");
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+      var card = done.querySelector(".confirm-card") || done.querySelector("[data-confirm-list]");
+      if (card && card.parentNode) card.parentNode.insertBefore(status, card.nextSibling);
+      else done.appendChild(status);
     }
-    try { return localStorage.getItem(STAY_STORE) || ""; } catch (e3) { return ""; }
-  }
-  function stayKey() {
-    var fromQuery = queryParam("stay");
-    if (fromQuery) return queryParam("k");
-    try { return localStorage.getItem(KEY_STORE) || ""; } catch (e) { return ""; }
-  }
-  // The script refused the link: forget it and every copy of its data.
-  function forgetStay() {
-    try {
-      localStorage.removeItem(STAY_STORE);
-      localStorage.removeItem(KEY_STORE);
-      localStorage.removeItem(WELCOME_CACHE);
-    } catch (e) {}
+    function attempt() {
+      if (status) {
+        status.hidden = false;
+        status.className = "send-status is-pending";
+        status.removeAttribute("data-api-error");
+        status.textContent = text("Envoi à la villa…", "Sending to the villa…");
+      }
+      if (!window.VZApi) return Promise.resolve({ ok: false, kind: "network" });
+      return window.VZApi.post(payload).then(function (result) {
+        if (status) {
+          if (result.ok) {
+            status.className = "send-status is-ok";
+            status.textContent = text("Demande enregistrée par la villa.", "Request saved by the villa.");
+          } else {
+            status.className = "send-status is-error";
+            window.VZApi.showError(status, result, attempt, { context: "save" });
+          }
+        }
+        return result;
+      });
+    }
+    return attempt();
   }
 
-  // TEST_MODE only: the example stays of admin/js/stays.js.
-  var EXAMPLE_GUESTS = {
-    cmartin26a: { name: "Camille Martin", phone: "+33 6 12 00 00 01" },
-    jroche26bk: { name: "Julien Roche", phone: "+33 6 12 00 00 02" },
-    imoreau26d: { name: "Inès Moreau", phone: "+33 6 12 00 00 03" }
-  };
+  /* Guest link and stay: one context for every page (guest/js/guest-stay.js).
+     These readers only forward to it. */
+  function stayId() { return window.GuestStay ? window.GuestStay.id() : ""; }
+  function stayKey() { return window.GuestStay ? window.GuestStay.k() : ""; }
+  function forgetStay() { if (window.GuestStay) window.GuestStay.forget(); }
+
+  // Current stay of the guest link (shared context), or null when unknown.
+  function currentStay() {
+    var snap = window.GuestStay ? window.GuestStay.snapshot() : null;
+    if (!snap || !snap.id || !snap.stay) return null;
+    var fields = window.VZFields;
+    return {
+      id: snap.id,
+      name: fields.guestName(snap.stay),
+      prenom: fields.firstName(snap.stay),
+      nom: String(snap.stay.nom || ""),
+      arrival: snap.stay.arrival || "",
+      departure: snap.stay.departure || "",
+      villa: "Villa Zen\u2019O"
+    };
+  }
+  function refreshStay() {
+    if (!window.GuestStay) return Promise.resolve(null);
+    return window.GuestStay.load().then(function () { return currentStay(); });
+  }
 
   function getGuestFromStay() {
-    // Placeholder. Name and phone will be looked up from the Google Sheet
-    // "Villa Zen'O – Bookings" (tab Bookings), using the stay booking id.
-    // The guest does not type them. In TEST_MODE the example stays get
-    // their example name and phone.
+    // Real name of the stay (shared context: action=list), never typed by
+    // the guest. "Invité" / "Guest" only when the page has no stay link at
+    // all; with a link, submit waits for the name (stayReady).
     var id = stayId();
-    var known = TEST_MODE && EXAMPLE_GUESTS.hasOwnProperty(id) ? EXAMPLE_GUESTS[id] : null;
+    var real = currentStay();
+    var realName = real ? real.name : "";
     return {
-      name: known ? known.name : (isEn() ? "Guest" : "Invité"),
-      phone: known ? known.phone : "+212 600 000 000",
+      name: realName || (isEn() ? "Guest" : "Invité"),
+      phone: "",
       villa: "Villa Zen’O",
       bookingId: id,
-      example: !known,
+      example: !realName,
       // Read only. Tab Réservations, never written by the portal.
-      // chauffage_piscine_jours, chauffage_piscine_tarif_eur
-      // chauffage_jacuzzi_jours, chauffage_jacuzzi_tarif_eur
-      // days: integer, rate: euros per day. Null until the columns exist.
       heating: { pool: null, jacuzzi: null }
     };
+  }
+
+  /* Before any request is built: with a stay link, the real name must be
+     known (never « Invité » in a message). Loading: ask to wait; error:
+     message + « Réessayer » (reloads the stay). No link: allowed. */
+  function stayReady(node) {
+    var gs = window.GuestStay;
+    if (!gs || !gs.id()) return true;
+    var snap = gs.snapshot();
+    if (snap.stay && window.VZFields.guestName(snap.stay)) return true;
+    if (!node) return false;
+    if (snap.state === "invalid" || snap.state === "expired") {
+      window.VZApi.showError(node, snap.error || { kind: snap.state === "invalid" ? "invalid_link" : "expired" });
+      return false;
+    }
+    if (snap.state === "error") {
+      window.VZApi.showError(node, snap.error, function () { gs.load({ force: true }); });
+      return false;
+    }
+    showError(node, text("Chargement de votre séjour… réessayez dans un instant.", "Loading your stay… try again in a moment."));
+    gs.load();
+    return false;
   }
 
   var rates = {
@@ -251,7 +284,7 @@
   }
 
   function staffName(guest) {
-    if (!guest || guest.example || guest.name === "Guest") return "Invité";
+    if (!guest || guest.example || window.VZFields.isPlaceholderName(guest.name)) return "Invité";
     return guest.name;
   }
 
@@ -925,7 +958,7 @@
   function sendAutoService(root, record, rows, staffRows, sousType, destinataire) {
     record.token = newToken();
     submitRequest(record);
-    postToSheet(sheetPayload(record, record.token, sousType, destinataire, staffRows || priceFreeRows(rows)));
+    sendToVilla(root, sheetPayload(record, record.token, sousType, destinataire, staffRows || priceFreeRows(rows)));
     showServiceReceived(root, rows);
   }
 
@@ -935,7 +968,7 @@
     record.fields.message = message;
     submitRequest(record);
     openGuestWhatsApp(viaVilla ? villaWhatsApp(message) : requestWhatsApp(number, message));
-    postToSheet(sheetPayload(record, record.token, sousType, destinataire, rows));
+    sendToVilla(root, sheetPayload(record, record.token, sousType, destinataire, rows));
     showServiceReceived(root, rows);
   }
 
@@ -1305,6 +1338,7 @@
         return;
       }
       showError(error, "");
+      if (!stayReady(error)) return;
       var guest = getGuestFromStay();
       var salads = kind === "breakfast" ? [] : Array.prototype.map.call(form.querySelectorAll("[data-salad][aria-pressed='true']"), function (button) {
         return button.getAttribute("data-salad");
@@ -1388,6 +1422,7 @@
         }
         showError(menageError, when);
         if (when) return;
+        if (!stayReady(menageError)) return;
         var guest = getGuestFromStay();
         var label = scope.getAttribute("data-label");
         var fields = {
@@ -1441,6 +1476,7 @@
         var when = requireWhen(pool);
         showError(poolError, when);
         if (when) return;
+        if (!stayReady(poolError)) return;
         var guest = getGuestFromStay();
         var labels = chosen.map(function (chip) { return chip.getAttribute("data-label"); });
         var spoken = chosen.map(function (chip) { return phrases[chip.getAttribute("data-clean")]; });
@@ -1571,6 +1607,7 @@
         var when = requireWhen(activity);
         showError(activityError, when);
         if (when) return;
+        if (!stayReady(activityError)) return;
         var guest = getGuestFromStay();
         var fields = {
           activity: chosen.value,
@@ -1732,6 +1769,7 @@
         var when = requireWhen(massage);
         showError(massageError, when);
         if (when) return;
+        if (!stayReady(massageError)) return;
         var guest = getGuestFromStay();
         var total = paintMassage();
         var fields = {
@@ -1841,6 +1879,7 @@
         var message = validateTransfer(transfer);
         showError(errorNode, message);
         if (message) return;
+        if (!stayReady(errorNode)) return;
         var data = readTransfer(transfer);
         var rows = transferRows(data);
         var record = baseRecord("transfert", data.guest, data.fields, data.price);
@@ -1848,7 +1887,7 @@
         data.fields.message = withStaffConfirm(transferMessage(data.guest, data.fields, data.price), record.id, record.token);
         submitRequest(record);
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, data.fields.message));
-        postToSheet(sheetPayload(record, record.token, data.fields.trip_type === "departure" ? "départ" : "arrivée", "Hicham", staffTransferRows(data)));
+        sendToVilla(root, sheetPayload(record, record.token, data.fields.trip_type === "departure" ? "départ" : "arrivée", "Hicham", staffTransferRows(data)));
         showReceived(root, rows);
       });
     }
@@ -1869,6 +1908,7 @@
         var message = validateCity(city);
         showError(cityError, message);
         if (message) return;
+        if (!stayReady(cityError)) return;
         var guest = getGuestFromStay();
         var fields = readCity(city);
         var rows = [
@@ -1888,7 +1928,7 @@
         fields.message = withStaffConfirm(cityMessage(guest, fields), record.id, record.token);
         submitRequest(record);
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.hicham, fields.message));
-        postToSheet(sheetPayload(record, record.token, "en ville", "Hicham", staffRows));
+        sendToVilla(root, sheetPayload(record, record.token, "en ville", "Hicham", staffRows));
         showReceived(root, rows);
       });
     }
@@ -1905,6 +1945,7 @@
         var message = validateRental(rental);
         showError(rentalError, message);
         if (message) return;
+        if (!stayReady(rentalError)) return;
         var guest = getGuestFromStay();
         var fields = readRental(rental);
         var rentalRows = [
@@ -1928,7 +1969,7 @@
         fields.message = withStaffConfirm(rentalMessage(guest, fields), record.id, record.token);
         submitRequest(record);
         openGuestWhatsApp(requestWhatsApp(RECIPIENTS.massillya, fields.message));
-        postToSheet(sheetPayload(record, record.token, fields.car_type === "4x4" ? "4x4" : "citadine", "Massillya", staffRentalRows));
+        sendToVilla(root, sheetPayload(record, record.token, fields.car_type === "4x4" ? "4x4" : "citadine", "Massillya", staffRentalRows));
         showReceived(root, rentalRows);
       });
     }
@@ -1952,25 +1993,18 @@
     rentalUrl: rentalUrl,
     stayId: stayId,
     stayKey: stayKey,
+    currentStay: currentStay,
+    refreshStay: refreshStay,
     listDemandes: listDemandes
   };
 
-  /* { items, stay, error }. error: "invalid_link" (unknown id, wrong or
-     missing key: no data at all) or "expired" (lien_actif off, or past
-     lien_expire_le). The stored link is forgotten on invalid_link. */
-  function listDemandes(stay) {
-    if (!APPS_SCRIPT_URL || !stay || !window.fetch) return Promise.resolve({ items: [], stay: null });
-    var key = stayKey();
-    var url = APPS_SCRIPT_URL + "?action=list&stay=" + encodeURIComponent(stay) + "&k=" + encodeURIComponent(key);
-    return window.fetch(url).then(function (response) {
-      return response.json();
-    }).then(function (data) {
-      if (data && data.ok === false) {
-        if (data.error === "invalid_link" && stay === stayId()) forgetStay();
-        return { items: [], stay: null, error: String(data.error || "invalid_link") };
-      }
-      if (Array.isArray(data)) return { items: data, stay: null };
-      return { items: (data && data.items) || [], stay: (data && data.stay) || null };
+  /* { items, stay, error } from the shared stay context (one action=list
+     per page). error: invalid_link | expired | network kinds. */
+  function listDemandes() {
+    if (!window.GuestStay || !stayId()) return Promise.resolve({ items: [], stay: null });
+    return window.GuestStay.load().then(function (snap) {
+      if (snap.state === "ok") return { items: snap.items || [], stay: snap.stay };
+      return { items: snap.items || [], stay: snap.stay, error: snap.error ? snap.error.kind : snap.state };
     });
   }
 
@@ -1999,11 +2033,9 @@
     if (today.getTime() >= depart.getTime()) return "closed";
     return "open";
   }
-  /* Accueil: the welcome card shows the stay read with ?stay= (action=list:
-     stay.prenom, stay.arrival, stay.departure). The example card in the HTML
-     (Invité, 12 → 19 déc., badge Exemple) stays only when there is no valid
-     stay. A cached copy for the same id paints at once, the API refreshes it. */
-  var WELCOME_CACHE = "villazeno.stayCard";
+  /* Accueil: the welcome card shows the stay of the shared context
+     (prenom, arrival, departure). The example card in the HTML stays only
+     when the page has no stay link or the link is refused. */
   function welcomeDate(iso) {
     var d = gateDate(iso);
     if (!d) return "";
@@ -2024,7 +2056,7 @@
   function paintWelcome(stay) {
     var card = document.querySelector(".stay-card");
     if (!card || !validWelcome(stay)) return false;
-    var name = String(stay.prenom || "").trim() || text("Invité", "Guest");
+    var name = window.VZFields.firstName(stay) || text("Invité", "Guest");
     var title = card.querySelector("h1");
     if (title) {
       title.textContent = "";
@@ -2043,43 +2075,22 @@
       "Marhaba " + name + ", welcome to Villa Zen’O. Arrival " + welcomeLong(stay.arrival) + ", departure " + welcomeLong(stay.departure) + "."
     ));
     card.removeAttribute("data-loading");
+    card.setAttribute("data-stay-ready", "");
     return true;
   }
-  // Cached card only for the same stay id AND the same key.
-  function welcomeFromCache(id) {
-    try {
-      var cached = JSON.parse(localStorage.getItem(WELCOME_CACHE) || "null");
-      return cached && cached.id === id && String(cached.k || "") === stayKey() ? cached : null;
-    } catch (e) { return null; }
-  }
   var welcomeExample = null;
-  function welcomeStart(id) {
-    var card = document.querySelector(".stay-card");
-    if (!card || !id) return;
-    welcomeExample = { html: card.innerHTML, label: card.getAttribute("aria-label") || "" };
-    if (paintWelcome(welcomeFromCache(id))) return;
-    // Hide the example while the stay loads; give up after 8 s.
-    card.setAttribute("data-loading", "");
-    window.setTimeout(function () { card.removeAttribute("data-loading"); }, 8000);
-  }
-  function welcomeDone(id, stay, refused) {
+  // Paints the welcome card from a snapshot: real stay, loading, or example.
+  function paintWelcomeState(snap) {
     var card = document.querySelector(".stay-card");
     if (!card) return;
-    if (stay && paintWelcome(stay)) {
-      try {
-        localStorage.setItem(WELCOME_CACHE, JSON.stringify({ id: id, k: stayKey(), prenom: stay.prenom || "", arrival: stay.arrival, departure: stay.departure }));
-      } catch (e) {}
-      return;
-    }
-    // No valid stay for this id (or a refused link): back to the example card.
-    if (stay || refused) {
-      try { localStorage.removeItem(WELCOME_CACHE); } catch (e2) {}
-      if (welcomeExample) {
-        card.innerHTML = welcomeExample.html;
-        card.setAttribute("aria-label", welcomeExample.label);
-      }
-    }
+    if (!welcomeExample) welcomeExample = { html: card.innerHTML, label: card.getAttribute("aria-label") || "" };
+    if (snap.stay && paintWelcome(snap.stay)) return;
+    if (snap.state === "loading") { card.setAttribute("data-loading", ""); return; }
     card.removeAttribute("data-loading");
+    if (snap.state === "invalid" || snap.state === "expired") {
+      card.innerHTML = welcomeExample.html;
+      card.setAttribute("aria-label", welcomeExample.label);
+    }
   }
 
   function applyStayGate() {
@@ -2114,16 +2125,15 @@
     var demo = "";
     try { demo = new URLSearchParams(window.location.search).get("demo") || ""; } catch (e2) {}
     if (demo) { run(stayAccess(null)); return; }
-    var id = stayId();
-    if (!id) return;
-    welcomeStart(id);
-    listDemandes(id).then(function (data) {
-      // Refused link: neutral example card, no error shown.
-      welcomeDone(id, data && data.stay, !!(data && data.error));
+    var gs = window.GuestStay;
+    if (!gs || !gs.id()) return;
+    gs.onChange(paintWelcomeState);
+    paintWelcomeState(gs.snapshot());
+    gs.load().then(function (snap) {
       // The script enforces lien_actif / lien_expire_le itself ("expired").
-      if (data && data.error === "expired") { run("expired"); return; }
-      run(stayAccess(data && data.stay));
-    }).catch(function () { welcomeDone(id, null); });
+      if (snap.state === "expired") { run("expired"); return; }
+      if (snap.state === "ok") run(stayAccess(snap.stay));
+    });
   }
 
   if (document.readyState === "loading") {

@@ -170,10 +170,19 @@
     document.querySelector("[data-pay-back]").hidden = false;
   }
   function closeSheet() {
+    if (saving) return;
+    var note = document.querySelector("[data-pay-error]");
+    if (note) note.textContent = "";
     document.querySelector("[data-pay-sheet]").hidden = true;
     document.querySelector("[data-pay-back]").hidden = true;
   }
+  // « Confirmer »: waits for the script; paid state (local copy, chip,
+  // screen) only after ok:true. Failure: message in the sheet, retry.
+  var saving = false;
   function persist() {
+    if (saving) return;
+    var confirm = document.querySelector("[data-pay-confirm]");
+    var note = document.querySelector("[data-pay-error]");
     var due = dueOf(state.lines);
     var amount = state.mode === "paypal" ? paypalCents(due) : due;
     var record = {
@@ -182,21 +191,39 @@
       encaisse_le: state.stay.departure,
       offerts: state.lines.filter(function (line) { return line.offert; }).map(function (line) { return line.id; })
     };
-    var bag = readPay();
-    bag[state.stay.id] = record;
-    try { localStorage.setItem(PAY_KEY, JSON.stringify(bag)); } catch (e) {}
-    state.paid = record;
-    if (window.AdminStays && window.AdminStays.sheet && window.AdminStays.post) {
-      var copy = Object.assign({}, state.stay, record, { offerts: record.offerts.join(",") });
-      window.AdminStays.post({
-        action: "save-stay",
-        test: shell.TEST_MODE ? "1" : "",
-        token: shell.session(),
-        stay: window.AdminStays.sheet(copy)
-      });
+    var stays = window.AdminStays;
+    if (!stays || !stays.sheet || !stays.post) {
+      if (note) note.textContent = "Pas de réponse. Vérifiez le réseau, puis réessayez.";
+      return;
     }
-    closeSheet();
-    paint();
+    saving = true;
+    confirm.disabled = true;
+    confirm.setAttribute("aria-busy", "true");
+    confirm.textContent = "Enregistrement…";
+    if (note) note.textContent = "";
+    var copy = Object.assign({}, state.stay, record, { offerts: record.offerts.join(",") });
+    stays.post({
+      action: "save-stay",
+      test: stays.testFlag ? stays.testFlag() : "",
+      token: shell.session(),
+      stay: stays.sheet(copy)
+    }).then(function (result) {
+      saving = false;
+      confirm.disabled = false;
+      confirm.removeAttribute("aria-busy");
+      if (!result.ok) {
+        confirm.textContent = result.kind === "session" ? "Confirmer" : "Réessayer";
+        if (stays.showFailure) stays.showFailure(note, result, persist);
+        return;
+      }
+      confirm.textContent = "Confirmer";
+      var bag = readPay();
+      bag[state.stay.id] = record;
+      try { localStorage.setItem(PAY_KEY, JSON.stringify(bag)); } catch (e) {}
+      state.paid = record;
+      closeSheet();
+      paint();
+    });
   }
   function bind(root) {
     root.addEventListener("click", function (event) {
@@ -221,25 +248,33 @@
       else if (event.target.closest("[data-pay-cancel]") || event.target.hasAttribute("data-pay-back")) closeSheet();
     });
   }
+  /* Meals to pay at the villa (same rule as the guest récap): restauration
+     demandes of this stay that are Terminée (Confirmée + 2 h, shared field
+     model). total is in euros for restauration. Provider services
+     (transfert, activités, massage) are paid to the provider. */
   function withMeals(stay, items) {
     if (!stay || (stay.charges && stay.charges.length) || !items) return stay;
-    var meals = { breakfast: ["petit_dejeuner", "Petit-déjeuner", 0], dinner: ["diner", "Dîner", 0] };
+    var fields = window.VZFields;
+    var meals = { breakfast: ["petit_dejeuner", "Petit-déjeuner", 0], lunch: ["dejeuner", "Déjeuner", 0], dinner: ["diner", "Dîner", 0] };
     var names = [];
     var providerCents = 0;
     items.forEach(function (item) {
       if (String(item.stay || "") !== String(stay.id)) return;
       var service = String(item.service || "").toLowerCase();
-      var cents = Math.round((Number(item.total) || 0) * 10);
-      if (service.indexOf("petit") >= 0) meals.breakfast[2] += cents;
-      else if (service.indexOf("ner") >= 0) meals.dinner[2] += cents;
-      else if (service.indexOf("transfert") >= 0 || service.indexOf("quad") >= 0 || service.indexOf("massage") >= 0) {
-        var name = service.indexOf("quad") >= 0 ? "quad" : (service.indexOf("massage") >= 0 ? "massage" : "transfert");
+      var details = { date: item.date, time: item.time };
+      var status = fields ? fields.shownStatus(item.status, service, details, Date.now()) : item.status;
+      if (status !== "Terminée") return;
+      if (service === "restauration") {
+        var kind = meals[item.meal] ? item.meal : "lunch";
+        meals[kind][2] += Math.round((Number(item.total) || 0) * 100);
+      } else if (service === "transfert" || service === "activites" || service === "massage") {
+        var name = service === "activites" ? "quad" : service;
         if (names.indexOf(name) < 0) names.push(name);
-        providerCents += cents;
+        providerCents += Math.round((Number(item.total) || 0) * 10);
       }
     });
-    stay.charges = ["breakfast", "dinner"].filter(function (key) { return meals[key][2] > 0; }).map(function (key) {
-      return { id: meals[key][0], kind: key, label: meals[key][1], cents: meals[key][2] };
+    stay.charges = ["breakfast", "lunch", "dinner"].filter(function (key) { return meals[key][2] > 0; }).map(function (key) {
+      return { id: meals[key][0], kind: key === "lunch" ? "dinner" : key, label: meals[key][1], cents: meals[key][2] };
     });
     if (names.length) stay.providers = { names: names, cents: providerCents };
     return stay;
@@ -250,7 +285,10 @@
       root.innerHTML = '<a class="back" href="sejours.html">‹ Séjours</a><p class="empty">Séjour introuvable.</p>';
       return;
     }
-    var saved = readPay()[stay.id] || null;
+    // Paid state from the Sheet (encaisse_le), the local copy only as a fallback.
+    var saved = stay.encaisse_le
+      ? { encaisse_le: stay.encaisse_le, encaisse_mode: stay.encaisse_mode, encaisse_total_eur: stay.encaisse_total_eur, offerts: stay.offerts || [] }
+      : (readPay()[stay.id] || null);
     state = { stay: stay, lines: billLines(stay, saved), mode: "eur", paid: saved };
     bind(root);
     paint();
@@ -259,27 +297,28 @@
     var root = document.querySelector("[data-cash]");
     if (!root || document.body.classList.contains("is-locked") || !calc) return;
     var id = query("sejour") || query("id");
-    if (shell.TEST_MODE && window.AdminStays) {
-      window.AdminStays.load(function () { start(window.AdminStays.find(id)); });
-      return;
-    }
-    if (!shell.SCRIPT_URL || !window.fetch) {
-      start(null);
-      return;
-    }
-    var token = encodeURIComponent(shell.session());
-    var base = shell.SCRIPT_URL + "?token=" + token + "&id=" + encodeURIComponent(id);
-    Promise.all([
-      window.fetch(base + "&action=stay").then(function (res) { return res.json(); }),
-      window.fetch(shell.SCRIPT_URL + "?token=" + token + "&action=demandes").then(function (res) { return res.json(); })
-    ]).then(function (pair) {
-      var stay = pair[0] && pair[0].stay;
-      if (stay && window.AdminCalc) {
-        stay.nights = calc.nights(stay.arrival, stay.departure);
-        if (stay.source === "Booking") stay.tax = calc.bookingTax((stay.adults || 0) + (stay.children || 0), stay.nights);
-      }
-      start(withMeals(stay, (pair[1] && pair[1].items) || []));
-    }).catch(function () { start(null); });
+    if (!window.AdminStays || !shell.api) { start(null); return; }
+    // Stay (daily cache, same as Séjours) + demandes (meals), both awaited.
+    root.innerHTML = '<a class="back" href="sejours.html">‹ Séjours</a><p class="empty" data-cash-loading>Chargement…</p>';
+    shell.api.get({ action: "demandes" }).then(function (demandes) {
+      if (!demandes.ok) shell.loadError(demandes, function () { boot(); });
+      var started = false;
+      window.AdminStays.load(function () {
+        var stay = window.AdminStays.find(id);
+        if (started || !stay) {
+          if (!started && !stay) root.innerHTML = '<a class="back" href="sejours.html">‹ Séjours</a><p class="empty" data-cash-loading>Chargement…</p>';
+          return;
+        }
+        started = true;
+        stay = Object.assign({}, stay);
+        if (calc) {
+          stay.nights = calc.nights(stay.arrival, stay.departure);
+          if (stay.source === "Booking" && calc.bookingTax) stay.tax = calc.bookingTax((stay.adults || 0) + (stay.children || 0), stay.nights);
+        }
+        start(withMeals(stay, demandes.ok ? (demandes.data.items || []) : null));
+      });
+      window.setTimeout(function () { if (!started) start(null); }, 30000);
+    });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

@@ -411,11 +411,16 @@
   }
 
   /* Shared admin calls (js/vz-api.js): token and test flag added here,
-     answers always awaited, failures returned as { ok:false, kind }. */
+     answers always awaited, failures returned as { ok:false, kind }.
+     Admin reads go through the real Sheet (Google check + whole tabs):
+     they may take longer than a guest read. 45 s, and a timed-out read is
+     never re-sent (each copy kept running on the script and queued the
+     next one: « Chargement… » for over a minute, 2026-11-25). */
+  var ADMIN_GET = { timeout: 45000, retries: 1, retryTimeout: false };
   function apiGet(params, opts) {
     var query = Object.assign({}, params, { token: session() });
     if (TEST_ALLOWED) query.test = "1";
-    return window.VZApi ? window.VZApi.get(query, opts) : Promise.resolve({ ok: false, kind: "network" });
+    return window.VZApi ? window.VZApi.get(query, Object.assign({}, ADMIN_GET, opts || {})) : Promise.resolve({ ok: false, kind: "network" });
   }
   function apiPost(body, opts) {
     var payload = Object.assign({ token: session(), test: TEST_ALLOWED ? "1" : "" }, body);

@@ -17,10 +17,10 @@ if (!fs.existsSync(code)) {
   process.exit(2);
 }
 const groups = [
-  ["script (Code.v19.gs)", ["tests/guest-link.test.js", "tests/hardening.test.js", "tests/verify/fields.test.js", "tests/verify/gas.test.js"]],
+  ["script (Code.v19.gs)", ["tests/guest-link.test.js", "tests/hardening.test.js", "tests/verify/fields.test.js", "tests/verify/gas.test.js", "tests/verify/prod-shape.test.js"]],
   ["relay (api/wa-webhook.js)", ["tests/wa-webhook.test.mjs"]],
   ["guest journey", ["tests/verify/guest.e2e.test.js"]],
-  ["admin journey + link", ["tests/verify/admin.e2e.test.js"]],
+  ["admin journey + link", ["tests/verify/admin.e2e.test.js", "tests/verify/admin-google.e2e.test.js"]],
   ["cross-cutting", ["tests/verify/cross.e2e.test.js"]],
 ];
 let pass = 0, fail = 0;

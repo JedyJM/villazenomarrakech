@@ -388,7 +388,9 @@
     }
     note.hidden = false;
     note.textContent = "Chargement des demandes…";
+    var slow = window.setTimeout(function () { note.textContent = "Chargement des demandes… le serveur met du temps à répondre."; }, 8000);
     Promise.all([shell.api.get({ action: "demandes" }), shell.api.get({ action: "stays" })]).then(function (pair) {
+      window.clearTimeout(slow);
       note.hidden = true;
       if (!pair[0].ok) {
         shell.loadError(pair[0], function () { load(root); });

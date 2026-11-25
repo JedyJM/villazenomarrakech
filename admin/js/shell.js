@@ -16,6 +16,16 @@
   var MSG_INVALID = "La connexion Google n’a pas pu être vérifiée. Réessayez.";
   var MSG_NETWORK = "Connexion au serveur impossible. Vérifiez le réseau et réessayez.";
 
+  // Mode test only on local and Vercel preview hosts, never on
+  // villazenomarrakech.com / www (GitHub Pages): no button, ?test=1 ignored,
+  // a stored test session is dropped. The script still never serves real
+  // data to token=test.
+  function testHost(host) {
+    host = String(host || "").toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || /\.vercel\.app$/.test(host);
+  }
+  var TEST_ALLOWED = TEST_MODE && testHost(window.location.hostname);
+
   function query(name) {
     try { return new URLSearchParams(window.location.search).get(name) || ""; } catch (e) { return ""; }
   }
@@ -75,7 +85,7 @@
       + '<p class="lead">Connexion réservée à Mehdi et Jedy.</p>'
       + '<div class="google-slot" data-google-slot></div>'
       + '<button type="button" class="primary" data-google>Continuer avec Google</button>'
-      + (TEST_MODE ? '<button type="button" class="ghost" data-test>Mode test</button>' : '')
+      + (TEST_ALLOWED ? '<button type="button" class="ghost" data-test>Mode test</button>' : '')
       + '<p class="note" data-gate-note role="status" aria-live="polite"></p>'
       + '</div>';
   }
@@ -145,7 +155,9 @@
       if (note) note.textContent = "Chargement de Google…";
       start();
     });
-    if (test) test.addEventListener("click", function () {
+    if (test && !TEST_ALLOWED) test.remove();
+    else if (test) test.hidden = false;
+    if (test && TEST_ALLOWED) test.addEventListener("click", function () {
       setSession("test");
       window.location.href = "aujourdhui.html";
     });
@@ -239,8 +251,8 @@
     });
   }
 
-  if (TEST_MODE && query("test") === "1") setSession("test");
-  if (!TEST_MODE && session() === "test") clearSession();
+  if (TEST_ALLOWED && query("test") === "1") setSession("test");
+  if (!TEST_ALLOWED && session() === "test") clearSession();
   if (session() && session() !== "test" && tokenExpired(session())) clearSession();
 
   var page = document.body.getAttribute("data-page") || "";
@@ -398,6 +410,7 @@
     stampText: stampText,
     localDay: localDay,
     TEST_MODE: TEST_MODE,
+    TEST_ALLOWED: TEST_ALLOWED,
     testData: testData,
     setTestData: setTestData,
     isTestRow: isTestRow,

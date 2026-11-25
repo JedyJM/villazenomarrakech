@@ -493,7 +493,10 @@
     });
     paint();
     loadStays(paint);
-    loadOthers(paint);
+    loadOthers(function () {
+      paint();
+      if (shell.warm) shell.warm();
+    });
   }
 
   function blank() {

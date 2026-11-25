@@ -70,10 +70,22 @@
   // Same layout for both cards: kicker, name + chip, dates, meta, bar.
   function stayCard(el, kind, stay, todayKey, loaded) {
     var kicker = kind === "current" ? "Séjour en cours" : "Prochain séjour";
+    if (!stay && !loaded) {
+      // First load of the day: a quiet skeleton with the card's own shape.
+      el.classList.add("is-empty", "is-skeleton");
+      el.removeAttribute("href");
+      el.setAttribute("aria-busy", "true");
+      el.innerHTML = '<p class="kicker">' + kicker + "</p>"
+        + '<span class="sk sk-name"></span><span class="sk sk-line"></span>'
+        + '<span class="sk-row"><span class="sk sk-short"></span><span class="sk sk-short"></span></span>';
+      return;
+    }
+    el.classList.remove("is-skeleton");
+    el.removeAttribute("aria-busy");
     if (!stay) {
       el.classList.add("is-empty");
       el.removeAttribute("href");
-      el.innerHTML = '<p class="kicker">' + kicker + '</p><p class="stay-empty">' + (loaded ? (kind === "current" ? "Aucun séjour en cours" : "Aucun séjour à venir") : "Chargement…") + "</p>";
+      el.innerHTML = '<p class="kicker">' + kicker + '</p><p class="stay-empty">' + (kind === "current" ? "Aucun séjour en cours" : "Aucun séjour à venir") + "</p>";
       return;
     }
     var total = nightsBetween(stay.arrival, stay.departure);
@@ -111,6 +123,16 @@
     stayCard(root.querySelector("[data-next]"), "next", next, todayKey, loaded || empty);
     var depart = root.querySelector("[data-depart]");
     var arrive = root.querySelector("[data-arrive]");
+    if (!loaded && !empty) {
+      [[depart, "Départ"], [arrive, "Arrivée"]].forEach(function (pair) {
+        pair[0].removeAttribute("href");
+        pair[0].setAttribute("aria-busy", "true");
+        pair[0].innerHTML = '<p class="kicker">' + pair[1] + '</p><span class="sk sk-mini"></span><span class="sk sk-short"></span>';
+      });
+      return;
+    }
+    depart.removeAttribute("aria-busy");
+    arrive.removeAttribute("aria-busy");
     if (current) {
       var left = nightsBetween(todayKey, current.departure);
       depart.href = "sejour.html?id=" + encodeURIComponent(current.id);
@@ -139,7 +161,15 @@
     root.querySelector("[data-date]").textContent = WEEK[day.getDay()] + " " + day.getDate() + "\u00A0" + MONTHS[day.getMonth()] + "\u00A0" + day.getFullYear();
     paintStays(root, todayKey, empty, false);
     // Real Zen'O stays from the daily cache (same feed as Séjours).
-    if (window.AdminStays && !empty) window.AdminStays.load(function () { paintStays(root, todayKey, empty, true); });
+    // Cached answer: painted in the same task (no skeleton flash); network
+    // only when the cache is from another day or missing. Then the other
+    // shared feeds are filled in the background for Séjours and Stats.
+    if (window.AdminStays && !empty) {
+      window.AdminStays.load(function (meta) {
+        paintStays(root, todayKey, empty, true);
+        if (window.AdminShell && window.AdminShell.warm && !(meta && meta.cached && meta.stale)) window.AdminShell.warm();
+      });
+    }
 
     var alerts = items.filter(function (item) {
       return item.status === "Envoyée" && isoDay(item.when) >= todayKey;

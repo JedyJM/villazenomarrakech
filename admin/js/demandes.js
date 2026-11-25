@@ -24,7 +24,7 @@
   var MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
   var STATUSES = ["Envoyée", "Confirmée", "Terminée", "Annulée"];
   var openId = "";
-  var filter = "confirmer";
+  var filter = staffConfirmDemo() ? "toutes" : "confirmer"; // demo rows are Confirmée
   var remoteItems = null;
   var remoteCurrentIds = null;
   try {
@@ -62,13 +62,19 @@
       return (row.name || "") + (row.confirmed ? " ✓" : " en attente");
     }).filter(Boolean).join(" · ");
   }
+  // French sentence case for service labels: « restauration » → « Restauration »,
+  // « location voiture » → « Location voiture ». Only the first letter changes.
+  function serviceLabel(value) {
+    var text = String(value || "").trim();
+    return text ? text.charAt(0).toLocaleUpperCase("fr-FR") + text.slice(1) : text;
+  }
   function demoStaffItems() {
     var now = new Date();
     function row(id, confirm) {
       return {
         id: id,
         kind: "breakfast",
-        label: "restauration",
+        label: serviceLabel("restauration"),
         adults: 2,
         children: 0,
         extra: "Petit-déjeuner",
@@ -118,7 +124,7 @@
     var date = String(raw.date || "1970-01-01").split("-");
     var time = String(raw.time || "0:0").split(":");
     var when = new Date(Number(date[0]), (Number(date[1]) || 1) - 1, Number(date[2]) || 1, Number(time[0]) || 0, Number(time[1]) || 0);
-    var service = String(raw.service || "Demande");
+    var service = serviceLabel(raw.service) || "Demande";
     var key = service.toLowerCase();
     var kind = "menage";
     if (key.indexOf("petit") >= 0) kind = "breakfast";
@@ -156,12 +162,22 @@
   function toConfirm(items) {
     return items.filter(function (item) { return item.status === "Envoyée" && isFutureDay(item); });
   }
-  function titleOf(item) {
+  function paxOf(item) {
     var bits = [];
     if (item.adults) bits.push(item.adults + " ad.");
     if (item.children) bits.push(item.children + " enf.");
+    return bits;
+  }
+  // Full title, used in the WhatsApp relance text.
+  function titleOf(item) {
+    var bits = paxOf(item);
     if (item.extra) bits.push(item.extra);
     return bits.length ? item.label + " · " + bits.join(" · ") : item.label;
+  }
+  // Row title: service + sous-type only, so it fits on one line at iPhone width.
+  // Guests count moves to the subtitle (metaOf).
+  function rowTitleOf(item) {
+    return item.extra ? item.label + " · " + item.extra : item.label;
   }
   function whenLabel(item) {
     var date = item.when;
@@ -176,7 +192,7 @@
     return "depuis " + Math.round(hours / 24) + "\u00A0j";
   }
   function metaOf(item) {
-    var text = item.guest + " · " + whenLabel(item);
+    var text = [item.guest].concat(paxOf(item)).filter(Boolean).join(" · ") + " · " + whenLabel(item);
     if (item.status === "Envoyée") text += " · " + since(item);
     return text;
   }
@@ -220,6 +236,10 @@
     var price = item.price
       ? '<span class="req-price">' + esc(item.price) + (item.dh ? '<span class="req-dh"> · ' + esc(item.dh) + '</span>' : '') + '</span>'
       : '<span class="req-price">\u00A0</span>';
+    var confirmText = staffConfirmText(item);
+    var staff = confirmText
+      ? '<span class="req-staff req-staff-confirm">' + esc(confirmText) + '</span>'
+      : '<span class="req-staff">' + esc(item.staff) + '</span>';
     var href = relanceHref(item);
     var relance = href
       ? '<a href="' + esc(href) + '" target="_blank" rel="noopener">Relancer</a>'
@@ -229,10 +249,9 @@
       : "";
     return '<div data-id="' + esc(item.id) + '"><button type="button" class="req-row" data-open="' + esc(item.id) + '" aria-expanded="' + (open ? "true" : "false") + '">'
       + icon(item.kind)
-      + '<span class="req-title">' + esc(titleOf(item)) + '</span>'
-      + '<span class="req-staff">' + esc(item.staff) + (staffConfirmText(item) ? '<em class="req-staff-confirm">' + esc(staffConfirmText(item)) + '</em>' : '') + '</span>'
+      + '<span class="req-title">' + esc(rowTitleOf(item)) + '</span>'
       + '<span class="req-meta">' + esc(metaOf(item)) + '</span>'
-      + price
+      + '<span class="req-foot">' + price + staff + '</span>'
       + '<span class="req-chip status-chip ' + chipClass(item.status) + '">' + esc(item.status) + '</span>'
       + '</button>' + actions + '</div>';
   }

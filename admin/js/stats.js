@@ -33,8 +33,8 @@
   var ZENO = "Villa Zen'O";
   var BIENS = [ZENO, "M avenue", "Villa la tour"];
   var BIEN_FILTERS = [["Tous", "Tous"], [ZENO, "Zen’O"], ["M avenue", "M avenue"], ["Villa la tour", "La tour"]];
-  var SOURCES = ["Airbnb", "Booking", "Direct", "Agences"];
-  var SOURCE_LABELS = { Airbnb: "Airbnb", Booking: "Booking.com", Direct: "Direct", Agences: "Agences" };
+  var SOURCES = ["Airbnb", "Booking", "Direct", "Agences", "Famille"];
+  var SOURCE_LABELS = { Airbnb: "Airbnb", Booking: "Booking.com", Direct: "Direct", Agences: "Agences", Famille: "Famille" };
   // statsStays: action=stays-stats (all properties), null until loaded.
   var state = { view: "sejours", year: 2026, month: "2026-12", sMonth: "", bien: "Tous", remoteStays: [], remoteDemandes: [], statsStays: null, loading: 2 };
 
@@ -333,8 +333,10 @@
   }
   // Zen'O year rollup for Services (panier) and Dépenses (marge).
   function stayRollup(list) { return rollup(list, periodOf(state.year, ""), [ZENO]); }
-  function sourceKey(source) {
+  // agency: agence_nom, read too so "Autre agence" + "Famille" lands in Famille.
+  function sourceKey(source, agency) {
     var s = String(source || "").toLowerCase();
+    if (/famil/.test(s + " " + String(agency || "").toLowerCase())) return "Famille"; // « Autre : famille »
     if (s.indexOf("airbnb") >= 0) return "Airbnb";
     if (s.indexOf("booking") >= 0) return "Booking";
     if (!s || s === "direct") return "Direct";
@@ -402,7 +404,7 @@
       + (sel.length > 1 ? bienCard(list, period) : "")
       + (state.sMonth ? "" : monthCard(list, sel))
       + (notes.length ? '<p class="stat-note">' + esc(notes.join(" ")) + "</p>" : "")
-      + '<p class="stat-note">Nuits réparties par mois, futures comprises ; séjours annulés exclus. Montants par devise (€ et DH) : jamais additionnés, aucune conversion. Occupation = nuits / (jours × biens). ADR = brut / nuits, RevPAR = brut / nuits disponibles. Frais plateformes = frais de service hôte (Airbnb) et commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net.</p>';
+      + '<p class="stat-note">Nuits réparties par mois, futures comprises ; séjours annulés exclus. Montants par devise (€ et DH) : jamais additionnés, aucune conversion. Occupation = nuits / (jours × biens). ADR = brut / nuits, RevPAR = brut / nuits disponibles. Brut = total payé par le voyageur (total_voyageur) ; à défaut, frais de chambre − réduction (Airbnb), montant (Booking), tarif (direct). Frais plateformes = brut − net versé (Airbnb : frais voyageur et hôte), commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net.</p>';
   }
   function serviceSums(book) {
     var repas = book.repas.reduce(function (s, n) { return s + n; }, 0);
@@ -602,7 +604,8 @@
     }).catch(settle);
   }
   function apiStay(stay) {
-    var source = sourceKey(stay.source);
+    var source = sourceKey(stay.source, stay.agency);
+    var kind = sourceKey(stay.source);
     var brut = 0;
     var frais = 0;
     var net = 0;
@@ -610,17 +613,23 @@
       brut = stay.brut || 0;
       frais = stay.frais || 0;
       net = stay.net != null ? stay.net : brut - frais;
-    } else if (source === "Airbnb") {
+    } else if (kind === "Airbnb") {
+      net = (stay.room || 0) - (stay.reduction || 0) - (stay.hostFee || 0);
       brut = (stay.room || 0) - (stay.reduction || 0);
       frais = stay.hostFee || 0;
-      net = brut - frais;
-    } else if (source === "Booking") {
+    } else if (kind === "Booking") {
       brut = stay.total || 0;
       frais = (stay.commission || 0) + (stay.bank || 0);
       net = brut - frais;
     } else {
       brut = stay.tarif || 0;
       net = brut;
+    }
+    // Brut = what the guest paid (total_voyageur, cents) when the Sheet has
+    // it. Net (payout) is unchanged; frais = brut - net keeps them coherent.
+    if (stay.portal !== false && Number(stay.totalVoyageur) > 0) {
+      brut = Number(stay.totalVoyageur);
+      frais = brut - net;
     }
     return {
       source: source, arrival: stay.arrival, departure: stay.departure, brut: brut, frais: frais, net: net,

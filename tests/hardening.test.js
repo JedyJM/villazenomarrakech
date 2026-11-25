@@ -66,6 +66,11 @@ test("admin routes: forged / empty token and token=test without test=1 are forbi
 test("token=test (test=1): no real stay, no real demande, no writes on real rows", () => {
   const box = sandbox();
   const get = (p) => JSON.parse(box.ctx.doGet({ parameter: Object.assign({ token: "test", test: "1" }, p) }).text);
+  // Production value (ADMIN_TEST_MODE false): every token=test call is refused.
+  box.ctx.ADMIN_TEST_MODE = false;
+  assert.deepEqual(get({ action: "stays" }), { ok: false, error: "forbidden" });
+  // Test mode on (preview): test rows only, never a write on real rows.
+  box.ctx.ADMIN_TEST_MODE = true;
   assert.deepEqual(get({ action: "stays" }).stays.map((s) => s.id), ["tst0000001"]);
   assert.equal(get({ action: "stay", id: "HMABC123" }).stay, null);
   assert.deepEqual(get({ action: "demandes" }).items, []);

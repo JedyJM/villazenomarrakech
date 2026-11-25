@@ -213,7 +213,7 @@
       confirm.removeAttribute("aria-busy");
       if (!result.ok) {
         confirm.textContent = result.kind === "session" ? "Confirmer" : "Réessayer";
-        if (stays.showFailure) stays.showFailure(note, result);
+        if (stays.showFailure) stays.showFailure(note, result, persist);
         return;
       }
       confirm.textContent = "Confirmer";

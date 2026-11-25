@@ -87,6 +87,11 @@ test("admin (Google session) gets k on stays and stay; token=test only on test r
   assert.equal(byId["FAM-SK-2611"].k, keyOf("FAM-SK-2611"));
   const one = out(box.ctx.doGet({ parameter: { action: "stay", id: "HMABC123", token: "good-google-token" } }));
   assert.equal(one.stay.k, keyOf("HMABC123"));
+  // Production value (ADMIN_TEST_MODE false): token=test is refused outright.
+  box.ctx.ADMIN_TEST_MODE = false;
+  assert.deepEqual(out(box.ctx.doGet({ parameter: { action: "stays", token: "test", test: "1" } })), { ok: false, error: "forbidden" });
+  // Test mode on (preview): token=test sees only the test rows.
+  box.ctx.ADMIN_TEST_MODE = true;
   const t = out(box.ctx.doGet({ parameter: { action: "stays", token: "test", test: "1" } }));
   assert.deepEqual(t.stays.map((s) => s.id), ["tst0000001"]);
   assert.equal(t.stays[0].k, keyOf("tst0000001"));

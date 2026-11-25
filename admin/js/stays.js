@@ -221,21 +221,13 @@
     if (result.kind === "busy" && window.VZApi) return window.VZApi.message(result);
     return MSG_NETWORK;
   }
-  // Fills a role="alert" node with the failure; a session failure adds a
-  // link to the Google gate (index.html) without leaving the page.
-  function showFailure(node, result) {
+  // Fills a role="alert" node with the failure (shared error box: message,
+  // « Réessayer » when retry is given, « Se reconnecter » on session expiry;
+  // drafts and typed fields are kept in sessionStorage).
+  function showFailure(node, result, retry) {
     if (!node) return;
+    if (shell.showError) { shell.showError(node, result, retry, "save"); return; }
     node.textContent = failureText(result);
-    if (result.kind === "session") {
-      node.appendChild(document.createTextNode(" "));
-      var link = document.createElement("a");
-      link.href = "index.html";
-      link.textContent = "Se reconnecter";
-      // The gate sends a signed-in session straight on: the stale token is
-      // dropped first (drafts and typed fields are kept in sessionStorage).
-      link.addEventListener("click", function () { if (shell.clearSession) shell.clearSession(); });
-      node.appendChild(link);
-    }
   }
 
   function peopleBits(stay) {
@@ -978,8 +970,9 @@
         }
         error.className = "form-error";
         error.setAttribute("role", "alert");
+        var retry = function () { if (form.requestSubmit) form.requestSubmit(); else save.click(); };
         setBusy(false, result.kind === "session" ? LABEL_SAVE : LABEL_RETRY);
-        showFailure(error, result);
+        showFailure(error, result, result.kind === "session" ? null : retry);
       });
     });
     fill();
@@ -1120,7 +1113,7 @@
         stop.disabled = false;
         button.removeAttribute("aria-busy");
         button.textContent = label;
-        showFailure(linkError, result);
+        showFailure(linkError, result, function () { linkOp(button, fields, op); });
       });
     }
     if (prolong) prolong.addEventListener("click", function () {

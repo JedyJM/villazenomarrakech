@@ -52,13 +52,32 @@
     return (neg ? "−" : "") + text + "\u00A0DH";
   }
   function pad(n) { return (n < 10 ? "0" : "") + n; }
+  // Local date (+ time when given). hasTime is false when there is no
+  // usable time: the row then shows the day only, never a made-up 00:00.
   function parseWhen(date, time) {
     if (!/^\d{4}-\d{2}-\d{2}/.test(String(date || ""))) return null;
     var parts = String(date).slice(0, 10).split("-");
     var match = String(time || "").match(/(\d{1,2})(?:\s*[:hH]\s*(\d{2}))?/);
     var hour = match ? Number(match[1]) : 0;
     var minute = match && match[2] ? Number(match[2]) : 0;
-    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), hour, minute, 0, 0);
+    if (hour > 23 || minute > 59) { match = null; hour = 0; minute = 0; }
+    var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), hour, minute, 0, 0);
+    d.hasTime = !!match;
+    return d;
+  }
+  /* Requested day and time of a demande. The script sends when_date
+     (details.date) and when_time (details.time_label || details.time).
+     Services that store them under other keys (transfert:
+     flight_arrival_time / pickup_time; location_voiture: start_date +
+     pickup_time) are read here too when the script sends them. */
+  function whenDateOf(item) {
+    return item.when_date || item.start_date || item.date || "";
+  }
+  function whenTimeOf(item) {
+    return item.when_time || item.flight_arrival_time || item.pickup_time || item.time_label || item.time || "";
+  }
+  function whenOf(item) {
+    return parseWhen(whenDateOf(item), whenTimeOf(item));
   }
   function clock(date) {
     return pad(date.getHours()) + ":" + pad(date.getMinutes());
@@ -76,22 +95,37 @@
   function effectiveStatus(item) {
     var status = canonStatus(item.status);
     if (status !== "Confirmée") return status;
-    var when = parseWhen(item.when_date, item.when_time);
+    var when = whenOf(item);
     if (!when) return status;
-    if (Date.now() >= when.getTime() + 2 * 60 * 60 * 1000) return "Terminée";
+    // Without a time: done the day after.
+    var end = when.getTime() + (when.hasTime ? 2 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000);
+    if (Date.now() >= end) return "Terminée";
     return status;
   }
   function whenText(item) {
-    var when = parseWhen(item.when_date, item.when_time);
-    if (!when) return [item.when_date, item.when_time].filter(Boolean).join(" · ");
+    var when = whenOf(item);
+    if (!when) return "";
     var now = new Date();
     var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     var day = new Date(when.getFullYear(), when.getMonth(), when.getDate());
     var diff = Math.round((day - today) / 86400000);
-    var hour = clock(when);
-    if (diff === 0) return (when.getHours() >= 17 ? "Ce soir" : "Aujourd’hui") + " · " + hour;
-    if (diff === 1) return "Demain · " + hour;
-    return dayLabel(when) + " · " + hour;
+    var label = dayLabel(when);
+    if (diff === 0) label = when.hasTime && when.getHours() >= 17 ? "Ce soir" : "Aujourd’hui";
+    else if (diff === 1) label = "Demain";
+    return when.hasTime ? label + " · " + clock(when) : label;
+  }
+  /* "Confirmée le 25 nov. à 14:32" from date_confirmation (Demandes,
+     "yyyy-MM-dd HH:mm", Africa/Casablanca). No text when the script does
+     not send it. */
+  function confirmedText(item) {
+    if (item.status !== "Confirmée") return "";
+    var m = String(item.date_confirmation || "").match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+    if (!m) return "";
+    var month = (isEn() ? MONTHS_EN : MONTHS)[Number(m[2]) - 1];
+    if (!month) return "";
+    var day = Number(m[3]) + "\u00A0" + month;
+    if (isEn()) return "Confirmed on " + day + (m[4] ? " at " + m[4] + ":" + m[5] : "");
+    return "Confirmée le " + day + (m[4] ? " à " + m[4] + ":" + m[5] : "");
   }
   function stayDates(stay) {
     if (!stay || !stay.arrival) return "";
@@ -109,7 +143,7 @@
       return "lunch";
     }
     if (item.service === "activites") return item.activity === "quad" || item.sous_type === "quad" ? "quad" : "quad";
-    if (item.service === "transfert") return "car";
+    if (item.service === "transfert" || item.service === "course" || item.service === "location_voiture") return "car";
     if (item.service === "massage") return "flower";
     if (item.service === "piscine") return "pool";
     return "menage";
@@ -125,6 +159,8 @@
       return item.activity_label || "Activité";
     }
     if (item.service === "transfert") return item.trip_type === "city" ? "Trajet en ville" : "Transfert aéroport";
+    if (item.service === "course") return "Trajet en ville";
+    if (item.service === "location_voiture") return "Location de voiture";
     if (item.service === "massage") return "Massage";
     if (item.service === "piscine") return "Piscine";
     if (item.service === "menage") return "Ménage";
@@ -172,8 +208,11 @@
         jacuzzi: { days: 3, rate: 35, offert: true }
       },
       items: [
+        { service: "transfert", trip_type: "arrival", total: 350, unit: "dh", status: "Confirmée", when_date: "2026-11-27", when_time: "15:30", date_creation: "2026-11-24T10:00:00", date_confirmation: "2026-11-25 14:32" },
+        { service: "location_voiture", total: "", status: "Envoyée", start_date: "2026-11-23", pickup_time: "10:00", date_creation: "2026-11-21T13:00:00" },
         { service: "restauration", meal: "breakfast", people: 2, dish: "", total: 20, unit: "eur", status: "Envoyée", when_date: "2026-11-22", when_time: "10:00", date_creation: "2026-11-21T12:00:00" },
-        { service: "restauration", meal: "dinner", people: 4, dish: "Tajine d’agneau aux pruneaux", total: 80, unit: "eur", status: "Confirmée", when_date: "2026-11-21", when_time: "20:00", date_creation: "2026-11-21T09:00:00" },
+        { service: "restauration", meal: "dinner", people: 4, dish: "Tajine d’agneau aux pruneaux", total: 80, unit: "eur", status: "Confirmée", when_date: "2026-11-21", when_time: "20:00", date_creation: "2026-11-21T09:00:00", date_confirmation: "2026-11-21 10:05" },
+        { service: "piscine", total: "", status: "Envoyée", when_date: "2026-11-24", when_time: "", date_creation: "2026-11-21T08:30:00" },
         { service: "restauration", meal: "lunch", people: 4, dish: "Tajine d’agneau aux pruneaux", total: 80, unit: "eur", status: "Terminée", when_date: "2026-11-15", when_time: "13:00", date_creation: "2026-11-14T18:00:00" },
         { service: "activites", activity: "quad", sous_type: "quad", activity_label: "1 quad · 1 personne", total: 300, unit: "dh", status: "Terminée", when_date: "2026-11-14", when_time: "14:30", date_creation: "2026-11-13T16:00:00" },
         { service: "menage", scope: "maison", total: "", status: "Annulée", when_date: "2026-11-16", when_time: "11:00", date_creation: "2026-11-15T08:00:00" }
@@ -311,6 +350,7 @@
         + '<span class="status-chip ' + chip + '">' + esc(status) + '</span>'
         + '<p class="demand-detail">' + esc(detailLine(item)) + '</p>'
         + '<p class="demand-when">' + esc(whenText(item)) + '</p>'
+        + (confirmedText(item) ? '<p class="demand-confirmed">' + esc(confirmedText(item)) + '</p>' : '')
         + priceHtml
         + '</li>';
     }).join("");

@@ -3,7 +3,7 @@
  * doPost logs a guest request. doGet confirms one request.
  */
 var SHEET_ID = "1bd3xmrdjz7_Ae8xiu__OuxKUliQUWCvYg8i7J1ugMj8";
-var ADMIN_TEST_MODE = true;
+var ADMIN_TEST_MODE = false;
 // Fallback until the Script Property ADMIN_EMAILS (comma-separated) is set.
 var ADMIN_ALLOWLIST = ["jalil.moumni@gmail.com", "villazeno.marrakech@gmail.com"];
 // Public OAuth web client ID used by the admin front-end (GIS). Token aud must match.
@@ -41,7 +41,7 @@ var WA_TEMPLATE = "nouvelle_demande";
 var WA_LANG = "ar_MA";
 var WA_TEST_TO = "33614675789"; // Jedy
 var WA_STAFF = {
-  restauration: "212767202011", // Fouzia
+  restauration: ["212767202011", "212630415956"], // Fouzia + Khalid (courses)
   menage: "212639474843", // Nadera
   piscine: "212630415956", // Khalid
   activites: "212630415956" // Khalid
@@ -798,6 +798,61 @@ function adminPost_(data) {
   return jsonOut({ ok: false });
 }
 
+
+// Staff display names for WhatsApp numbers (digits only).
+var WA_STAFF_NAMES = {
+  "212767202011": "Fouzia",
+  "212639474843": "Nadera",
+  "212630415956": "Khalid",
+  "33614675789": "Jedy"
+};
+
+function waStaffName_(phone) {
+  var d = waDigits_(phone);
+  return WA_STAFF_NAMES[d] || d;
+}
+
+// Per-demande staff confirmation from WhatsApp_log: envoi rows list
+// recipients; bouton rows with resultat "confirmée" / "déjà confirmée"
+// mark that number as confirmed. Read-only (never creates the tab).
+function demandeStaffConfirmMap_() {
+  var out = {};
+  var sheet;
+  try {
+    sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName("WhatsApp_log");
+  } catch (err) {
+    return out;
+  }
+  if (!sheet || sheet.getLastRow() < 2) return out;
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, WA_LOG_HEADERS.length).getValues();
+  var i, j, k;
+  for (i = 0; i < values.length; i++) {
+    if (String(values[i][1] || "") !== "envoi") continue;
+    var demandeId = String(values[i][11] || "");
+    var phone = waDigits_(values[i][4]);
+    if (!demandeId || !phone) continue;
+    if (!out[demandeId]) out[demandeId] = [];
+    var seen = false;
+    for (k = 0; k < out[demandeId].length; k++) {
+      if (out[demandeId][k].phone === phone) { seen = true; break; }
+    }
+    if (!seen) out[demandeId].push({ name: waStaffName_(phone), phone: phone, confirmed: false });
+  }
+  for (j = 0; j < values.length; j++) {
+    if (String(values[j][1] || "") !== "bouton") continue;
+    var id = String(values[j][11] || "");
+    if (!id || !out[id]) continue;
+    var resultat = String(values[j][12] || "").toLowerCase();
+    if (resultat.indexOf("confirm") < 0) continue;
+    if (resultat.indexOf("num") >= 0 || resultat.indexOf("non reli") >= 0) continue;
+    var from = waDigits_(values[j][4]);
+    for (k = 0; k < out[id].length; k++) {
+      if (out[id][k].phone === from) out[id][k].confirmed = true;
+    }
+  }
+  return out;
+}
+
 function adminDemandes_(params, onlyTest) {
   var sheet = getDemandesSheet_();
   var map = ensureDemandes_(sheet);
@@ -805,6 +860,7 @@ function adminDemandes_(params, onlyTest) {
   var items = [];
   var confirmer = 0;
   var testIds = onlyTest ? testStayIdSet_() : null;
+  var confirmMap = demandeStaffConfirmMap_();
   if (last >= 2) {
     var values = sheet.getRange(2, 1, last - 1, sheet.getLastColumn()).getValues();
     var today = Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd");
@@ -831,7 +887,10 @@ function adminDemandes_(params, onlyTest) {
         meal: String(details.meal || ""),
         trip: String(details.trip_type || ""),
         token: String(details.token || ""),
-        stay: String(details.booking_id || "")
+        stay: String(details.booking_id || ""),
+        staff_confirm: (confirmMap[String(values[i][0] || "")] || []).map(function (row) {
+          return { name: row.name, confirmed: !!row.confirmed };
+        })
       };
       if (onlyTest && !testIds[item.stay]) continue;
       if (status === "Envoy\u00e9e" && when && when >= today) confirmer += 1;
@@ -1319,6 +1378,8 @@ function saveReglages_(data) {
 
 function notifyNewDemande_(data) {
   try {
+    // Jedy 2026-11-25: WhatsApp only, no email on a new demande.
+    return;
     if (ADMIN_TEST_MODE) return;
     var reg = readReglages_();
     if (!reg.notif_email_on) return;
@@ -1592,10 +1653,18 @@ function logWhatsAppEnvoi_(wamid, demandeId, destinataire, extra) {
 
 // ---------- WhatsApp Cloud API sending ----------
 
-// Hard rule: while ADMIN_TEST_MODE is on, only the test number ever receives.
+// Hard rule: while ADMIN_TEST_MODE is on, only the test number ever receives
+// (once, even if the service has several staff).
+function waRecipients_(service) {
+  if (ADMIN_TEST_MODE) return WA_TEST_TO ? [WA_TEST_TO] : [];
+  var raw = WA_STAFF[service];
+  if (raw == null || raw === "") return [];
+  return Object.prototype.toString.call(raw) === "[object Array]" ? raw.slice() : [raw];
+}
+
 function waRecipient_(service) {
-  if (ADMIN_TEST_MODE) return WA_TEST_TO;
-  return WA_STAFF[service] || "";
+  var list = waRecipients_(service);
+  return list.length ? list[0] : "";
 }
 
 function waToken_() {
@@ -2042,18 +2111,24 @@ function waNotifyStaff_(data) {
   try {
     var service = String(data.service || "");
     if (!WA_STAFF.hasOwnProperty(service)) return;
-    var to = waRecipient_(service);
-    if (!to) return;
+    var list = waRecipients_(service);
+    if (!list.length) return;
     var demandeId = String(data.id);
     if (!waToken_()) {
-      logWhatsAppEnvoi_("", demandeId, to, { statut: "non envoyé", resultat: "jeton absent" });
+      for (var i = 0; i < list.length; i++) {
+        logWhatsAppEnvoi_("", demandeId, list[i], { statut: "non envoyé", resultat: "jeton absent" });
+      }
       return;
     }
-    var r = waSendTemplate_(to, waTemplateParams_(data, { guestName: waGuestName_(data) }));
-    if (r.ok) {
-      logWhatsAppEnvoi_(r.wamid, demandeId, to);
-    } else {
-      logWhatsAppEnvoi_("", demandeId, to, { statut: "erreur", code: r.code, titre: r.title });
+    var params = waTemplateParams_(data, { guestName: waGuestName_(data) });
+    for (var j = 0; j < list.length; j++) {
+      var to = list[j];
+      var r = waSendTemplate_(to, params);
+      if (r.ok) {
+        logWhatsAppEnvoi_(r.wamid, demandeId, to);
+      } else {
+        logWhatsAppEnvoi_("", demandeId, to, { statut: "erreur", code: r.code, titre: r.title });
+      }
     }
   } catch (err) {
     try {

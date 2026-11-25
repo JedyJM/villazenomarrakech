@@ -48,7 +48,52 @@
   function examples() {
     return window.AdminSample ? window.AdminSample.requests() : [];
   }
+  function staffConfirmDemo() {
+    try {
+      var host = location.hostname;
+      var preview = host === "localhost" || host === "127.0.0.1" || /\.vercel\.app$/.test(host);
+      return preview && new URLSearchParams(location.search).get("demo") === "confirm-staff";
+    } catch (e) { return false; }
+  }
+  function staffConfirmText(item) {
+    var list = item.staff_confirm || [];
+    if (!list.length) return "";
+    return list.map(function (row) {
+      return (row.name || "") + (row.confirmed ? " ✓" : " en attente");
+    }).filter(Boolean).join(" · ");
+  }
+  function demoStaffItems() {
+    var now = new Date();
+    function row(id, confirm) {
+      return {
+        id: id,
+        kind: "breakfast",
+        label: "restauration",
+        adults: 2,
+        children: 0,
+        extra: "Petit-déjeuner",
+        guest: "Démo",
+        stay: "Démo",
+        stay_id: "DEMO-STAFF",
+        staff: "Fouzia",
+        status: "Confirmée",
+        when: now,
+        created: Date.now(),
+        price: "",
+        dh: "",
+        token: "",
+        offert: false,
+        staff_confirm: confirm
+      };
+    }
+    return [
+      row("demo-pending", [{ name: "Fouzia", confirmed: true }, { name: "Khalid", confirmed: false }]),
+      row("demo-done", [{ name: "Fouzia", confirmed: true }, { name: "Khalid", confirmed: true }])
+    ];
+  }
   function allItems() {
+    if (staffConfirmDemo()) return demoStaffItems();
+
     var patches = readPatches();
     var source = shell.TEST_MODE ? examples() : (remoteItems || []);
     return source.map(function (item) {
@@ -101,7 +146,8 @@
       price: price,
       dh: price && raw.total ? (Math.round(Number(raw.total)) + "\u00A0DH") : "",
       token: raw.token || "",
-      offert: !!raw.offert
+      offert: !!raw.offert,
+      staff_confirm: Array.isArray(raw.staff_confirm) ? raw.staff_confirm : []
     };
   }
   function dayKey(item) { return isoDay(item.when); }
@@ -144,7 +190,8 @@
     return '<span class="req-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[kind] || ICONS.menage) + "</svg></span>";
   }
   function confirmUrl(item) {
-    return "https://villazenomarrakech.com/c?r=" + encodeURIComponent(item.id) + "&k=" + encodeURIComponent(item.token);
+    if (!item.id || !item.token) return "https://villazenomarrakech.com/c?r=" + encodeURIComponent(item.id || "") + "&k=" + encodeURIComponent(item.token || "");
+    return "https://villazenomarrakech.com/c/" + encodeURIComponent(item.id) + "-" + encodeURIComponent(item.token);
   }
   function relanceHref(item) {
     var number = String(STAFF_WA[item.staff] || "").replace(/\D/g, "");
@@ -183,7 +230,7 @@
     return '<div data-id="' + esc(item.id) + '"><button type="button" class="req-row" data-open="' + esc(item.id) + '" aria-expanded="' + (open ? "true" : "false") + '">'
       + icon(item.kind)
       + '<span class="req-title">' + esc(titleOf(item)) + '</span>'
-      + '<span class="req-staff">' + esc(item.staff) + '</span>'
+      + '<span class="req-staff">' + esc(item.staff) + (staffConfirmText(item) ? '<em class="req-staff-confirm">' + esc(staffConfirmText(item)) + '</em>' : '') + '</span>'
       + '<span class="req-meta">' + esc(metaOf(item)) + '</span>'
       + price
       + '<span class="req-chip status-chip ' + chipClass(item.status) + '">' + esc(item.status) + '</span>'

@@ -790,3 +790,5 @@ body.page-today .mini { min-height: 72px; }
 .sk-mini { width: 58%; height: 13px; margin: 4px 0 6px; }
 @keyframes sk-sheen { 0% { background-position: 100% 0; } 100% { background-position: -120% 0; } }
 @media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
+
+.req-staff-confirm{display:block;font-style:normal;font-weight:500;margin-top:0.15rem;color:#5e554c;}

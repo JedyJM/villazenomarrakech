@@ -8,11 +8,21 @@
 <script>
 (function () {
   var apps = "https://script.google.com/macros/s/AKfycbwrmyFtKdhIovJAh2A-DjYfIYNwGWz7s-r_yKz8TDj29J1OcbnBPA7tIBV1qRJbtFcwlw/exec";
-  var query = new URLSearchParams(location.search);
-  var id = query.get("r") || "";
-  var token = query.get("k") || "";
-  if (!id || !token) return;
-  location.replace(apps + "?action=confirm&id=" + encodeURIComponent(id) + "&t=" + encodeURIComponent(token));
+  function parts() {
+    var query = new URLSearchParams(location.search);
+    var id = query.get("r") || "";
+    var token = query.get("k") || "";
+    if (id && token) return { id: id, token: token };
+    var path = (location.pathname || "").replace(/\/+$/, "");
+    var m = path.match(/\/c\/([^/?#]+)$/);
+    if (!m) return { id: "", token: "" };
+    var bits = decodeURIComponent(m[1]).split("-");
+    if (bits.length === 2 && bits[0] && bits[1]) return { id: bits[0], token: bits[1] };
+    return { id: "", token: "" };
+  }
+  var found = parts();
+  if (!found.id || !found.token) return;
+  location.replace(apps + "?action=confirm&id=" + encodeURIComponent(found.id) + "&t=" + encodeURIComponent(found.token));
 })();
 </script>
 </head>
@@ -22,6 +32,12 @@
 (function () {
   var query = new URLSearchParams(location.search);
   if (query.get("r") && query.get("k")) return;
+  var path = (location.pathname || "").replace(/\/+$/, "");
+  var m = path.match(/\/c\/([^/?#]+)$/);
+  if (m) {
+    var bits = decodeURIComponent(m[1]).split("-");
+    if (bits.length === 2 && bits[0] && bits[1]) return;
+  }
   document.getElementById("missing").hidden = false;
 })();
 </script>

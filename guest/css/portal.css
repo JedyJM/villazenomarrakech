@@ -1983,6 +1983,11 @@ a.guide-row .ext { margin-left: auto; width: 13px; height: 13px; color: var(--mu
 }
 .page-demandes .demand-detail { grid-column: 2 / span 2; grid-row: 2; }
 .page-demandes .demand-when { grid-column: 2; grid-row: 3; color: var(--ink); }
+/* Confirmed row: a 4th line, the card grows by one row (15px). */
+.page-demandes .demand-card.has-confirmed {
+  grid-template-rows: 16px 15px 15px 15px;
+  height: 78px;
+}
 .page-demandes .demand-confirmed {
   grid-column: 2 / span 2;
   grid-row: 4;

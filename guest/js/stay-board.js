@@ -345,12 +345,13 @@
       var chip = status === "Annulée" ? "status-annulee" : status === "Confirmée" ? "status-confirmee" : status === "Terminée" ? "status-terminee" : "status-envoyee";
       var price = eurosOf(item);
       var priceHtml = price == null ? "" : "<b>" + esc(euros(price)) + "</b>";
-      return '<li class="demand-card">' + iconSvg(kindOf(item))
+      var confirmed = confirmedText(item);
+      return '<li class="demand-card' + (confirmed ? " has-confirmed" : "") + '">' + iconSvg(kindOf(item))
         + '<strong>' + esc(guestName(item)) + '</strong>'
         + '<span class="status-chip ' + chip + '">' + esc(status) + '</span>'
         + '<p class="demand-detail">' + esc(detailLine(item)) + '</p>'
         + '<p class="demand-when">' + esc(whenText(item)) + '</p>'
-        + (confirmedText(item) ? '<p class="demand-confirmed">' + esc(confirmedText(item)) + '</p>' : '')
+        + (confirmed ? '<p class="demand-confirmed">' + esc(confirmed) + '</p>' : '')
         + priceHtml
         + '</li>';
     }).join("");

@@ -100,23 +100,14 @@
       return ra - rb || (a < b ? -1 : (a > b ? 1 : 0));
     });
   }
-  // "1 875 € · 17 952 DH": one figure per currency, never summed.
+  // Everything is in euros (MAD converted at 1 € = 10 DH in apiStay); a
+  // currency other than EUR / MAD would still show on its own, never summed.
   function perCur(roll, field, whole) {
     return curList(roll).map(function (c) {
       var v = roll.cur && roll.cur[c] ? roll.cur[c][field] : 0;
       if (whole) v = Math.round((Number(v) || 0) / 100) * 100;
       return moneyIn(v, c);
     }).join(" · ");
-  }
-  function dirhams(cents) {
-    var n = Math.round((Number(cents) || 0) * RATE);
-    var neg = n < 0;
-    n = Math.abs(n);
-    var whole = String(Math.floor(n / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");
-    var frac = n % 100;
-    var text = whole;
-    if (frac) text += "," + (frac < 10 ? "0" : "") + frac;
-    return (neg ? "−" : "") + text + "\u00A0DH";
   }
   function dayText(iso) {
     var p = String(iso || "").split("-");
@@ -395,8 +386,17 @@
     var avail = roll.nights + " nuits / " + roll.available + (roll.units > 1 ? " (" + roll.units + " biens)" : "");
     var notes = [];
     if (roll.todo) notes.push(plural(roll.todo, "séjour") + " Booking à compléter (montants ou départ manquants).");
+    var zenoList = list.filter(function (st) { return st.bien === ZENO && !cancelled(st); });
+    var absent = zenoList.filter(function (st) { return st.brutSource === "absent"; }).length;
+    // Direct / agences: tarif is what the guest pays; Booking: montant. Only
+    // Airbnb differs (room − reduction leaves out the guest fees).
+    var vide = zenoList.filter(function (st) { return st.brutSource === "vide" && st.source === "Airbnb"; }).length;
+    var warn = "";
+    if (absent && (state.bien === "Tous" || state.bien === ZENO)) warn = "Brut Zen’O provisoire (chambre − réduction) : le script Apps Script en ligne n’envoie pas total_voyageur. À republier, puis Actualiser.";
+    else if (vide && (state.bien === "Tous" || state.bien === ZENO)) notes.push(plural(vide, "séjour") + " Airbnb Zen’O sans total_voyageur dans le Sheet : brut = chambre − réduction pour ce" + (vide > 1 ? "s" : "") + " séjour" + (vide > 1 ? "s" : "") + ".");
     if (roll.other && state.bien === "Tous") notes.push(plural(roll.other, "séjour") + " d’un bien inconnu non compté" + (roll.other > 1 ? "s" : "") + ".");
     return bienSegment()
+      + (warn ? '<p class="stat-warn" role="status">' + esc(warn) + "</p>" : "")
       + '<div class="stat-3">' + tile("Brut", esc(perCur(roll, "brut"))) + tile("Frais plateformes", esc(perCur(roll, "frais"))) + tile("Net (versé)", esc(perCur(roll, "net"))) + "</div>"
       + '<div class="stat-3">' + tile("Occupation", esc(pct(roll)), esc(avail), "is-detail") + tile("ADR", esc(perCur(roll, "adr")), "brut / nuit") + tile("RevPAR", esc(perCur(roll, "revpar")), "brut / nuit dispo.") + "</div>"
       + '<div class="stat-3">' + tile("Séjours", esc(String(roll.count)), esc("moy. " + String(roll.avgStay).replace(".", ",") + " nuits")) + tile("Arrivées", esc(String(roll.arrivals))) + tile("Départs", esc(String(roll.departures))) + "</div>"
@@ -404,7 +404,7 @@
       + (sel.length > 1 ? bienCard(list, period) : "")
       + (state.sMonth ? "" : monthCard(list, sel))
       + (notes.length ? '<p class="stat-note">' + esc(notes.join(" ")) + "</p>" : "")
-      + '<p class="stat-note">Nuits réparties par mois, futures comprises ; séjours annulés exclus. Montants par devise (€ et DH) : jamais additionnés, aucune conversion. Occupation = nuits / (jours × biens). ADR = brut / nuits, RevPAR = brut / nuits disponibles. Brut = total payé par le voyageur (total_voyageur) ; à défaut, frais de chambre − réduction (Airbnb), montant (Booking), tarif (direct). Frais plateformes = brut − net versé (Airbnb : frais voyageur et hôte), commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net.</p>';
+      + '<p class="stat-note">Nuits réparties par mois, futures comprises ; séjours annulés exclus. Tous les montants en euros ; dirhams convertis à 1\u00A0€ = 10\u00A0DH. Occupation = nuits / (jours × biens). ADR = brut / nuits, RevPAR = brut / nuits disponibles. Brut = total payé par le voyageur (total_voyageur) ; à défaut, frais de chambre − réduction (Airbnb), montant (Booking), tarif (direct). Frais plateformes = brut − net versé (Airbnb : frais voyageur et hôte), commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net.</p>';
   }
   function serviceSums(book) {
     var repas = book.repas.reduce(function (s, n) { return s + n; }, 0);
@@ -467,10 +467,10 @@
         : '<span class="bill-link">Sans facture</span>';
       return '<a class="exp" href="depense.html?id=' + encodeURIComponent(item.id) + '">' + icon(item.categorie)
         + '<span class="exp-title">' + esc(expenseTitle(item)) + '</span>'
-        + '<span class="exp-sub">' + esc(dayText(item.date) + " · " + dirhams(Math.round(item.montant_eur * 100)).replace("\u00A0DH", "\u00A0DH")) + "</span>"
+        + '<span class="exp-sub">' + esc(dayText(item.date)) + "</span>"
         + '<b>' + esc(money(Math.round(item.montant_eur * 100))) + "</b>" + facture + "</a>";
     }).join("");
-    return '<div class="stat-2">' + tile("Dépenses du mois", esc(money(monthEur)), esc(dirhams(monthEur) + " · " + monthItems.length + " écriture" + (monthItems.length > 1 ? "s" : "")))
+    return '<div class="stat-2">' + tile("Dépenses du mois", esc(money(monthEur)), esc(monthItems.length + " écriture" + (monthItems.length > 1 ? "s" : "")))
       + tile("Marge " + state.year, esc(money(marge)), "Net séjours + services − dépenses") + "</div>"
       + '<section class="block exp-list">' + (rows || '<p class="empty">Aucune dépense ce mois.</p>') + "</section>";
   }
@@ -494,14 +494,21 @@
     if (state.view === "depenses") return depensesHtml();
     return sejoursHtml();
   }
+  var REFRESH_ICO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v4.5h-4.5"/></svg>';
+  function syncLine() {
+    var text = state.refreshing ? "Mise à jour…" : (shell.stampText ? shell.stampText(state.at) : "");
+    return '<p class="sync"><span data-stamp>' + esc(text) + '</span><button type="button" data-refresh' + (state.refreshing ? " disabled" : "") + ">Actualiser</button></p>";
+  }
   function paint() {
     var root = document.querySelector("[data-stats]");
-    root.innerHTML = '<div class="stats-top"><h1>Stats</h1><div class="stats-tools">' + tools() + "</div></div>"
+    root.innerHTML = '<div class="stats-top"><h1>Stats</h1><div class="stats-tools">' + tools()
+      + '<button type="button" class="refresh-ico" data-refresh aria-label="Actualiser les données"' + (state.refreshing ? " disabled" : "") + ">" + REFRESH_ICO + "</button></div></div>"
       + '<div class="segment" role="group" aria-label="Vue">' + VIEWS.map(function (item) {
         var on = item[0] === state.view;
         return '<button type="button" data-view="' + item[0] + '" aria-pressed="' + (on ? "true" : "false") + '">' + item[1] + "</button>";
       }).join("") + "</div>"
-      + '<div class="stats-panel">' + panel() + "</div>";
+      + '<div class="stats-panel">' + panel() + "</div>"
+      + syncLine();
   }
   function openPeriod() {
     var sheet = document.querySelector("[data-sheet]");
@@ -553,6 +560,7 @@
       var row = event.target.closest("tr[data-smonth]");
       if (row) { state.sMonth = row.getAttribute("data-smonth"); paint(); return; }
       if (event.target.closest("[data-open-period]")) { openPeriod(); return; }
+      if (event.target.closest("[data-refresh]")) { if (!state.refreshing) refresh(); return; }
       var facture = event.target.closest("[data-facture]");
       if (facture) { event.preventDefault(); showPhoto(facture.getAttribute("data-facture")); }
     });
@@ -567,41 +575,52 @@
       if (event.target.closest("[data-photo-close]") || event.target.hasAttribute("data-photo")) document.querySelector("[data-photo]").hidden = true;
     });
     paint();
-    loadStatsStays();
-    if (shell.SCRIPT_URL && window.fetch) {
-      var token = encodeURIComponent(shell.session());
-      var base = shell.SCRIPT_URL + "?token=" + token + (shell.TEST_MODE ? "&test=1" : "");
-      var json = function (res) { return res.json(); };
-      var none = function () { return {}; };
-      Promise.all([
-        window.fetch(base + "&action=stays&year=" + state.year).then(json).catch(none),
-        window.fetch(base + "&action=demandes").then(json).catch(none),
-        window.fetch(base + "&action=depenses&year=" + state.year).then(json).catch(none)
-      ]).then(function (pair) {
-        state.remoteStays = ((pair[0] && pair[0].stays) || []).map(apiStay);
-        state.remoteDemandes = (pair[1] && pair[1].items) || [];
-        state.remoteExpenses = (pair[2] && pair[2].depenses) || [];
-        settle();
-      });
-    } else {
-      state.loading = 0;
-      paint();
-    }
+    load(false);
   }
-  // Two loads (stats feed + stays/demandes/dépenses); paint once each lands.
-  function settle() {
-    state.loading = Math.max(0, state.loading - 1);
+  /* Data from the daily cache (AdminShell.cachedGet): four feeds, shown at
+     once from the cache, refreshed over the network once a day or on
+     « Actualiser ». stays-stats = all properties (also in TEST_MODE so the
+     preview shows imported data); stays = Zen'O portal stays (services
+     chauffage, fallback); demandes; dépenses of the year. */
+  var FEEDS = [
+    ["stays-stats", function () { return "action=stays-stats"; }, function (data) { if (data && data.ok && data.stays) state.statsStays = data.stays.map(apiStay); }],
+    ["stays", function () { return "action=stays"; }, function (data) { if (data && data.ok) state.remoteStays = (data.stays || []).map(apiStay); }],
+    ["demandes", function () { return "action=demandes"; }, function (data) { if (data && data.ok) state.remoteDemandes = data.items || []; }],
+    ["depenses-" + state.year, function () { return "action=depenses&year=" + state.year; }, function (data) { if (data && data.ok) state.remoteExpenses = data.depenses || []; }]
+  ];
+  function load(force) {
+    if (!shell.cachedGet) { state.loading = 0; paint(); return; }
+    state.loading = FEEDS.length;
+    var first = {};
+    FEEDS.forEach(function (feed) {
+      shell.cachedGet(feed[0], feed[1](), function (data, meta) {
+        feed[2](data);
+        if (meta && meta.at) stampFeed(feed[0], meta.at);
+        if (!first[feed[0]]) { first[feed[0]] = true; state.loading = Math.max(0, state.loading - 1); }
+        paint();
+      }, { force: force });
+    });
+  }
+  // Oldest update among the feeds (what the stamp shows).
+  function stampFeed(name, at) {
+    state.ats = state.ats || {};
+    state.ats[name] = at;
+    var list = Object.keys(state.ats).map(function (k) { return state.ats[k]; });
+    state.at = Math.min.apply(Math, list);
+  }
+  function refresh() {
+    state.refreshing = true;
     paint();
-  }
-  // All properties (action=stays-stats), also in TEST_MODE so the preview
-  // shows imported data. Nothing back: « Aucune donnée réelle ».
-  function loadStatsStays() {
-    if (!shell.SCRIPT_URL || !window.fetch) return;
-    var url = shell.SCRIPT_URL + "?action=stays-stats&token=" + encodeURIComponent(shell.session()) + (shell.TEST_MODE ? "&test=1" : "");
-    window.fetch(url).then(function (res) { return res.json(); }).then(function (data) {
-      if (data && data.ok && data.stays) state.statsStays = data.stays.map(apiStay);
-      settle();
-    }).catch(settle);
+    var left = FEEDS.length;
+    FEEDS.forEach(function (feed) {
+      shell.cachedGet(feed[0], feed[1](), function (data, meta) {
+        feed[2](data);
+        if (meta && meta.at) stampFeed(feed[0], meta.at);
+        left -= 1;
+        if (!left) state.refreshing = false;
+        paint();
+      }, { force: true });
+    });
   }
   function apiStay(stay) {
     var source = sourceKey(stay.source, stay.agency);
@@ -631,9 +650,21 @@
       brut = Number(stay.totalVoyageur);
       frais = brut - net;
     }
+    // Stats are in euros only: dirham amounts (La tour, MAD / DH / Dhs)
+    // are converted at 1 € = 10 DH. Cents stay integers.
+    var devise = stay.devise ? curOf(stay) : "";
+    if (devise === "MAD") {
+      brut = Math.round((Number(brut) || 0) / RATE);
+      frais = Math.round((Number(frais) || 0) / RATE);
+      net = Math.round((Number(net) || 0) / RATE);
+      devise = "EUR";
+    }
     return {
       source: source, arrival: stay.arrival, departure: stay.departure, brut: brut, frais: frais, net: net,
-      bien: stay.portal === false ? String(stay.bien || "Autre") : ZENO, devise: stay.devise ? curOf(stay) : "", statut: stay.statut || "", a_completer: stay.a_completer || "", confirmed: true,
+      bien: stay.portal === false ? String(stay.bien || "Autre") : ZENO, devise: devise,
+      // Zen'O brut check: the live script sends totalVoyageur (0 when the
+      // Sheet cell is empty); an older deployment does not send it at all.
+      brutSource: stay.portal === false ? "" : (!("totalVoyageur" in stay) ? "absent" : (Number(stay.totalVoyageur) > 0 ? "total" : "vide")), statut: stay.statut || "", a_completer: stay.a_completer || "", confirmed: true,
       poolDays: stay.poolDays || 0, poolRate: stay.poolRate || 0, jacuzziDays: stay.jacuzziDays || 0, jacuzziRate: stay.jacuzziRate || 0,
       encaisse_le: stay.encaisse_le || "", offerts: stay.offerts || "", origine: String(stay.origine || "")
     };

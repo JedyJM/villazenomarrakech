@@ -575,10 +575,19 @@
     return rows;
   }
 
+  // Rows hold guest-typed text (comment, flight, destination): text nodes only.
   function renderRows(node, rows) {
-    node.innerHTML = rows.map(function (row) {
-      return "<div><dt>" + row[0] + "</dt><dd>" + row[1] + "</dd></div>";
-    }).join("");
+    node.textContent = "";
+    rows.forEach(function (row) {
+      var line = document.createElement("div");
+      var dt = document.createElement("dt");
+      var dd = document.createElement("dd");
+      dt.textContent = String(row[0] == null ? "" : row[0]);
+      dd.textContent = String(row[1] == null ? "" : row[1]);
+      line.appendChild(dt);
+      line.appendChild(dd);
+      node.appendChild(line);
+    });
   }
 
   function showReceived(root, rows) {

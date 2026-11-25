@@ -86,17 +86,19 @@ function doPost(e) {
     data.details = details;
     var sheet = getDemandesSheet_();
     if (findRow_(sheet, String(data.id)) > 0) return jsonOut({ ok: true, duplicate: true });
+    if (!guestRateOk_(stayId)) return jsonOut({ ok: false, error: "rate_limited" });
     if (data.token && !details.token) details.token = data.token;
     ensureDemandes_(sheet);
+    // Guest text is never a formula (sheetSafe_).
     sheet.appendRow([
-      String(data.id),
-      data.date_creation || new Date().toISOString(),
-      data.service || "",
-      data.sous_type || "",
-      data.nom_client || "",
+      sheetSafe_(String(data.id)),
+      sheetSafe_(String(data.date_creation || new Date().toISOString())),
+      sheetSafe_(String(data.service || "")),
+      sheetSafe_(String(data.sous_type || "")),
+      sheetSafe_(String(data.nom_client || "")),
       JSON.stringify(details),
-      data.total_dh === 0 ? 0 : (data.total_dh || ""),
-      data.destinataire || "",
+      sheetSafe_(data.total_dh === 0 ? 0 : (data.total_dh || "")),
+      sheetSafe_(String(data.destinataire || "")),
       "Envoy\u00e9e",
       "",
       false
@@ -129,12 +131,13 @@ function doGet(e) {
     } catch (err) {
       return htmlPage_("Ce lien n\u2019est pas valable.");
     }
-    if (!details.token || String(details.token) !== String(params.t)) {
+    if (!details.token || !safeEqual_(String(details.token), String(params.t))) {
       return htmlPage_("Ce lien n\u2019est pas valable.");
     }
-    var status = String(sheet.getRange(row, 9).getValue() || "");
-    var summary = details.resume || "";
+    var status = canonStatus_(sheet.getRange(row, 9).getValue());
     if (status === "Confirm\u00e9e" || status === "Termin\u00e9e") return htmlPage_("Demande confirm\u00e9e", confirmLine_(details), true);
+    // A cancelled demande is never turned back into Confirmée by an old link.
+    if (status === "Annul\u00e9e") return htmlPage_("Cette demande a \u00e9t\u00e9 annul\u00e9e.");
     sheet.getRange(row, 9).setValue("Confirm\u00e9e");
     sheet.getRange(row, 10).setValue(Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd HH:mm"));
     return htmlPage_("Demande confirm\u00e9e", confirmLine_(details), true);
@@ -213,6 +216,33 @@ function safeEqual_(a, b) {
     diff |= (i < a.length ? a.charCodeAt(i) : 0) ^ (i < b.length ? b.charCodeAt(i) : 0);
   }
   return diff === 0;
+}
+
+// Text that Sheets would read as a formula (= + - @, tab, CR first) gets a
+// leading apostrophe, so it is stored as plain text. Plain numbers
+// ("-12", "+3.5") and non-strings are left as they are.
+function sheetSafe_(value) {
+  if (typeof value !== "string") return value;
+  if (/^[=+\-@\t\r]/.test(value) && !/^[+\-]?\d+(?:[.,]\d+)?$/.test(value)) return "'" + value;
+  return value;
+}
+
+// Guest POST throttle per stay: GUEST_POST_LIMIT new demandes, counter kept
+// in the script cache for GUEST_POST_WINDOW seconds after the last one.
+// Caps the staff WhatsApp / e-mail a leaked link can trigger.
+var GUEST_POST_LIMIT = 30;
+var GUEST_POST_WINDOW = 3600;
+
+function guestRateOk_(stayId) {
+  try {
+    var cache = CacheService.getScriptCache();
+    var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(stayId), Utilities.Charset.UTF_8);
+    var key = "rl_dem_" + Utilities.base64EncodeWebSafe(digest);
+    var n = Number(cache.get(key) || 0) || 0;
+    if (n >= GUEST_POST_LIMIT) return false;
+    cache.put(key, String(n + 1), GUEST_POST_WINDOW);
+  } catch (err) {}
+  return true;
 }
 
 // Ids still open without k (Script property LINK_LEGACY_OPEN), see above.
@@ -1033,7 +1063,7 @@ function saveStay_(stay, origine, onlyTest) {
     var column = 0;
     for (var n = 0; n < names.length && !column; n++) if (map[names[n]]) column = map[names[n]];
     if (!column) continue;
-    sheet.getRange(row, column).setValue(values[keys[i]]);
+    sheet.getRange(row, column).setValue(sheetSafe_(values[keys[i]]));
   }
   return jsonOut({ ok: true, id: id });
 }
@@ -1199,13 +1229,13 @@ function saveDepense_(data) {
   var url = saveFacture_(data) || String(item.facture_url || "");
   sheet.getRange(row, 1, 1, DEPENSE_HEADERS.length).setValues([[
     id,
-    item.date || "",
-    item.categorie || "",
-    item.detail || "",
-    item.fournisseur || "",
+    sheetSafe_(String(item.date || "")),
+    sheetSafe_(String(item.categorie || "")),
+    sheetSafe_(String(item.detail || "")),
+    sheetSafe_(String(item.fournisseur || "")),
     dh,
     eur,
-    item.devise_saisie || "",
+    sheetSafe_(String(item.devise_saisie || "")),
     url,
     item.cree_le || Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd")
   ]]);
@@ -2799,7 +2829,7 @@ function importUpsert_(sheet, map, list, valuesOf, keep, fresh) {
         }
       }
       if (dirty) {
-        sheet.getRange(idx + 2, 1, 1, width).setValues([row]);
+        sheet.getRange(idx + 2, 1, 1, width).setValues([row.map(sheetSafe_)]);
         updated += 1;
       }
       continue;
@@ -2814,7 +2844,7 @@ function importUpsert_(sheet, map, list, valuesOf, keep, fresh) {
   if (added.length) {
     var need = used + 1 + added.length - sheet.getMaxRows();
     if (need > 0) sheet.insertRowsAfter(sheet.getMaxRows(), need);
-    sheet.getRange(used + 2, 1, added.length, width).setValues(added);
+    sheet.getRange(used + 2, 1, added.length, width).setValues(added.map(function (r) { return r.map(sheetSafe_); }));
   }
   return { added: added.length, updated: updated };
 }

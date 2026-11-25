@@ -231,6 +231,15 @@ a { color: inherit; }
 .wa { background: #1f7a45; color: #fff; }
 .form-error { color: var(--terracotta); font-size: 13px; min-height: 0; }
 .form-error:empty { display: none; }
+.form-error a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.primary:disabled { opacity: 0.72; cursor: progress; }
+.quiet-link {
+  justify-self: center; color: var(--muted); font-size: 13.5px; line-height: 1.2;
+  text-decoration: underline; text-decoration-color: rgba(28, 25, 22, 0.25); text-underline-offset: 3px;
+  white-space: nowrap; padding: 4px 0;
+}
+.link-actions button:disabled { opacity: 0.5; }
+.link-error { text-align: right; }
 
 .who { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .who h1 { font-size: 1.35rem; min-width: 0; overflow-wrap: anywhere; }

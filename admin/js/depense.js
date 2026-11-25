@@ -116,7 +116,7 @@
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
           action: "save-depense",
-          test: shell.TEST_MODE ? "1" : "",
+          test: shell.TEST_ALLOWED ? "1" : "",
           token: shell.session(),
           depense: record,
           facture_base64: model.facture_url && model.facture_url.indexOf("base64,") > 0 ? model.facture_url : "",
@@ -137,7 +137,7 @@
       window.fetch(shell.SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "delete-depense", test: shell.TEST_MODE ? "1" : "", token: shell.session(), id: model.id })
+        body: JSON.stringify({ action: "delete-depense", test: shell.TEST_ALLOWED ? "1" : "", token: shell.session(), id: model.id })
       }).catch(function () {});
     }
     window.location.href = "stats.html?vue=depenses&test=1";

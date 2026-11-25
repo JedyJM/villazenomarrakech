@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/admin.css?v=20261125h">
+<link rel="stylesheet" href="css/admin.css?v=20261125i">
 </head>
 <body data-page="nouveau" data-tab="sejours">
 <header class="site-header">
@@ -20,7 +20,6 @@
 <a class="back" href="sejours.html">‹ Séjours</a>
 <h1>Nouvelle réservation</h1>
 <form class="stack" data-stay-form novalidate>
-<p class="form-error" data-error></p>
 <section class="block">
 <label class="field"><span>Nom</span><input name="nom" autocomplete="name" required></label>
 <label class="field"><span>Téléphone WhatsApp</span><input name="telephone" type="tel" autocomplete="tel" required></label>
@@ -48,11 +47,12 @@
 <section class="block">
 <label class="field"><span>Notes</span><textarea name="notes"></textarea></label>
 </section>
+<p class="form-error" data-error role="alert"></p>
 <button type="submit" class="primary" data-save>Enregistrer le séjour</button>
 </form>
 </main>
-<script src="js/calc.js?v=20261125h"></script>
-<script src="js/shell.js?v=20261125h"></script>
-<script src="js/stays.js?v=20261125h"></script>
+<script src="js/calc.js?v=20261125i"></script>
+<script src="js/shell.js?v=20261125i"></script>
+<script src="js/stays.js?v=20261125i"></script>
 </body>
 </html>

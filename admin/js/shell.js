@@ -429,6 +429,7 @@
     SCRIPT_URL: SCRIPT_URL,
     GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID,
     session: session,
+    clearSession: clearSession,
     email: function () { try { return sessionStorage.getItem(EMAIL_KEY) || ""; } catch (e) { return ""; } },
     signOut: signOut
   };

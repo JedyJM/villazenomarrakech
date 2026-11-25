@@ -74,7 +74,7 @@
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({
         action: "save-reglages",
-        test: shell.TEST_MODE ? "1" : "",
+        test: shell.TEST_ALLOWED ? "1" : "",
         token: shell.session(),
         reglages: model
       })

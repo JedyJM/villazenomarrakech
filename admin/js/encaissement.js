@@ -170,10 +170,19 @@
     document.querySelector("[data-pay-back]").hidden = false;
   }
   function closeSheet() {
+    if (saving) return;
+    var note = document.querySelector("[data-pay-error]");
+    if (note) note.textContent = "";
     document.querySelector("[data-pay-sheet]").hidden = true;
     document.querySelector("[data-pay-back]").hidden = true;
   }
+  // « Confirmer »: waits for the script; paid state (local copy, chip,
+  // screen) only after ok:true. Failure: message in the sheet, retry.
+  var saving = false;
   function persist() {
+    if (saving) return;
+    var confirm = document.querySelector("[data-pay-confirm]");
+    var note = document.querySelector("[data-pay-error]");
     var due = dueOf(state.lines);
     var amount = state.mode === "paypal" ? paypalCents(due) : due;
     var record = {
@@ -182,21 +191,39 @@
       encaisse_le: state.stay.departure,
       offerts: state.lines.filter(function (line) { return line.offert; }).map(function (line) { return line.id; })
     };
-    var bag = readPay();
-    bag[state.stay.id] = record;
-    try { localStorage.setItem(PAY_KEY, JSON.stringify(bag)); } catch (e) {}
-    state.paid = record;
-    if (window.AdminStays && window.AdminStays.sheet && window.AdminStays.post) {
-      var copy = Object.assign({}, state.stay, record, { offerts: record.offerts.join(",") });
-      window.AdminStays.post({
-        action: "save-stay",
-        test: shell.TEST_MODE ? "1" : "",
-        token: shell.session(),
-        stay: window.AdminStays.sheet(copy)
-      });
+    var stays = window.AdminStays;
+    if (!stays || !stays.sheet || !stays.post) {
+      if (note) note.textContent = "Pas de réponse. Vérifiez le réseau, puis réessayez.";
+      return;
     }
-    closeSheet();
-    paint();
+    saving = true;
+    confirm.disabled = true;
+    confirm.setAttribute("aria-busy", "true");
+    confirm.textContent = "Enregistrement…";
+    if (note) note.textContent = "";
+    var copy = Object.assign({}, state.stay, record, { offerts: record.offerts.join(",") });
+    stays.post({
+      action: "save-stay",
+      test: stays.testFlag ? stays.testFlag() : "",
+      token: shell.session(),
+      stay: stays.sheet(copy)
+    }).then(function (result) {
+      saving = false;
+      confirm.disabled = false;
+      confirm.removeAttribute("aria-busy");
+      if (!result.ok) {
+        confirm.textContent = result.kind === "session" ? "Confirmer" : "Réessayer";
+        if (stays.showFailure) stays.showFailure(note, result);
+        return;
+      }
+      confirm.textContent = "Confirmer";
+      var bag = readPay();
+      bag[state.stay.id] = record;
+      try { localStorage.setItem(PAY_KEY, JSON.stringify(bag)); } catch (e) {}
+      state.paid = record;
+      closeSheet();
+      paint();
+    });
   }
   function bind(root) {
     root.addEventListener("click", function (event) {

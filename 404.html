@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="referrer" content="no-referrer">
+<script>
+/* Compact confirm links /c/<id>-<token> (GitHub Pages has no rewrites):
+   hand them to /c/ with the legacy query that c/index.html already parses.
+   Same-origin only, nothing logged. Every other path falls through to the page below. */
+(function () {
+  var m = (location.pathname || "").match(/^\/c\/([0-9a-z]+)-([0-9a-z]+)\/?$/i);
+  if (!m) return;
+  location.replace("/c/?r=" + encodeURIComponent(m[1]) + "&k=" + encodeURIComponent(m[2]));
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#8C3F2A">
+<title>Page introuvable | Villa Zen&#x27;O</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f6f1ea;
+    color: #1c1916;
+    font-family: Georgia, "Times New Roman", serif;
+    text-align: center;
+    padding: 2rem 1.25rem;
+    box-sizing: border-box;
+  }
+  main { max-width: 34rem; }
+  .brand { letter-spacing: .18em; text-transform: uppercase; font-size: .8rem; color: #8c3f2a; margin: 0 0 1.5rem; }
+  h1 { font-weight: 400; font-size: clamp(1.8rem, 5vw, 2.6rem); margin: 0 0 .75rem; }
+  p { color: #5e554c; line-height: 1.6; margin: 0 0 1.25rem; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .en { font-size: .95rem; }
+  a.btn { display: inline-block; margin: .25rem; padding: .75rem 1.4rem; border-radius: 999px; background: #8c3f2a; color: #fffaf3; text-decoration: none; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a.btn.alt { background: transparent; color: #8c3f2a; border: 1px solid #8c3f2a; }
+  a.btn:hover { background: #6b3022; color: #fffaf3; }
+</style>
+</head>
+<body>
+<main>
+  <p class="brand">Villa Zen&#x27;O · Marrakech</p>
+  <h1>Page introuvable</h1>
+  <p>La page que vous cherchez n’existe pas ou a été déplacée.</p>
+  <p class="en">Page not found. The page you are looking for does not exist or has moved.</p>
+  <a class="btn" href="/">Retour à l’accueil</a>
+  <a class="btn alt" href="/en/">Home (English)</a>
+</main>
+</body>
+</html>

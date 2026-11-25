@@ -3,29 +3,56 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=()"
+        }
       ]
     },
     {
       "source": "/admin/(.*)",
       "headers": [
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" }
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'none'"
+        }
       ]
     },
     {
       "source": "/guest/(.*)",
       "headers": [
-        { "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" }
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'none'"
+        }
       ]
     },
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/c/:code",
+      "destination": "/c/index.html"
     }
   ]
 }

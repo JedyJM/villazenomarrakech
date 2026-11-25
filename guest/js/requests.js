@@ -16,7 +16,7 @@
 
   /* While TEST_MODE is true, every staff WhatsApp opens the villa test number.
      Flip TEST_MODE to false to open the real recipients. Nothing is sent from this file. */
-  var TEST_MODE = true;
+  var TEST_MODE = false;
   var TEST_WHATSAPP = "212661147610";
   var RECIPIENTS = {
     hicham: "212661775422",
@@ -29,7 +29,7 @@
 
   function requestWhatsApp(realNumber, message) {
     var number = TEST_MODE ? TEST_WHATSAPP : realNumber;
-    return "https://api.whatsapp.com/send?phone=" + number + "&text=" + encodeURIComponent(message);
+    return "https://wa.me/" + number + "?text=" + encodeURIComponent(message);
   }
 
   function villaWhatsApp(message) {
@@ -54,7 +54,10 @@
   }
 
   function confirmLink(id, token) {
-    return window.location.origin + "/c?r=" + encodeURIComponent(id) + "&k=" + encodeURIComponent(token);
+    // Compact path /c/<id>-<token>. Id and token are base36 (no hyphen).
+    // The legacy query /c?r=&k= still works (c/index.html).
+    if (!id || !token) return "";
+    return window.location.origin + "/c/" + encodeURIComponent(id) + "-" + encodeURIComponent(token);
   }
 
   function withStaffConfirm(message, id, token) {

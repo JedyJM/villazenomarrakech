@@ -251,6 +251,14 @@
     });
   }
 
+  function staffConfirmDemo() {
+    try {
+      var host = window.location.hostname;
+      var preview = host === "localhost" || host === "127.0.0.1" || /\.vercel\.app$/.test(host);
+      return preview && query("demo") === "confirm-staff";
+    } catch (e) { return false; }
+  }
+
   if (TEST_ALLOWED && query("test") === "1") setSession("test");
   if (!TEST_ALLOWED && session() === "test") clearSession();
   if (session() && session() !== "test" && tokenExpired(session())) clearSession();
@@ -259,6 +267,8 @@
   if (page === "gate") {
     if (session()) window.location.replace("aujourdhui.html");
     else bindGate(document);
+  } else if (staffConfirmDemo()) {
+    paintNav();
   } else if (!session()) {
     document.body.classList.add("is-locked");
     document.body.insertAdjacentHTML("beforeend", gateHtml());
@@ -411,6 +421,7 @@
     localDay: localDay,
     TEST_MODE: TEST_MODE,
     TEST_ALLOWED: TEST_ALLOWED,
+    staffConfirmDemo: staffConfirmDemo,
     testData: testData,
     setTestData: setTestData,
     isTestRow: isTestRow,

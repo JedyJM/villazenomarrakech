@@ -24,7 +24,7 @@
   var MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
   var STATUSES = ["Envoyée", "Confirmée", "Terminée", "Annulée"];
   var openId = "";
-  var filter = "confirmer";
+  var filter = staffConfirmDemo() ? "toutes" : "confirmer"; // demo rows are Confirmée
   var remoteItems = null;
   var remoteCurrentIds = null;
   try {
@@ -48,7 +48,58 @@
   function examples() {
     return window.AdminSample ? window.AdminSample.requests() : [];
   }
+  function staffConfirmDemo() {
+    try {
+      var host = location.hostname;
+      var preview = host === "localhost" || host === "127.0.0.1" || /\.vercel\.app$/.test(host);
+      return preview && new URLSearchParams(location.search).get("demo") === "confirm-staff";
+    } catch (e) { return false; }
+  }
+  function staffConfirmText(item) {
+    var list = item.staff_confirm || [];
+    if (!list.length) return "";
+    return list.map(function (row) {
+      return (row.name || "") + (row.confirmed ? " ✓" : " en attente");
+    }).filter(Boolean).join(" · ");
+  }
+  // French sentence case for service labels: « restauration » → « Restauration »,
+  // « location voiture » → « Location voiture ». Only the first letter changes.
+  function serviceLabel(value) {
+    var text = String(value || "").trim();
+    return text ? text.charAt(0).toLocaleUpperCase("fr-FR") + text.slice(1) : text;
+  }
+  function demoStaffItems() {
+    var now = new Date();
+    function row(id, confirm) {
+      return {
+        id: id,
+        kind: "breakfast",
+        label: serviceLabel("restauration"),
+        adults: 2,
+        children: 0,
+        extra: "Petit-déjeuner",
+        guest: "Démo",
+        stay: "Démo",
+        stay_id: "DEMO-STAFF",
+        staff: "Fouzia",
+        status: "Confirmée",
+        when: now,
+        created: Date.now(),
+        price: "",
+        dh: "",
+        token: "",
+        offert: false,
+        staff_confirm: confirm
+      };
+    }
+    return [
+      row("demo-pending", [{ name: "Fouzia", confirmed: true }, { name: "Khalid", confirmed: false }]),
+      row("demo-done", [{ name: "Fouzia", confirmed: true }, { name: "Khalid", confirmed: true }])
+    ];
+  }
   function allItems() {
+    if (staffConfirmDemo()) return demoStaffItems();
+
     var patches = readPatches();
     var source = shell.TEST_MODE ? examples() : (remoteItems || []);
     return source.map(function (item) {
@@ -73,7 +124,7 @@
     var date = String(raw.date || "1970-01-01").split("-");
     var time = String(raw.time || "0:0").split(":");
     var when = new Date(Number(date[0]), (Number(date[1]) || 1) - 1, Number(date[2]) || 1, Number(time[0]) || 0, Number(time[1]) || 0);
-    var service = String(raw.service || "Demande");
+    var service = serviceLabel(raw.service) || "Demande";
     var key = service.toLowerCase();
     var kind = "menage";
     if (key.indexOf("petit") >= 0) kind = "breakfast";
@@ -101,7 +152,8 @@
       price: price,
       dh: price && raw.total ? (Math.round(Number(raw.total)) + "\u00A0DH") : "",
       token: raw.token || "",
-      offert: !!raw.offert
+      offert: !!raw.offert,
+      staff_confirm: Array.isArray(raw.staff_confirm) ? raw.staff_confirm : []
     };
   }
   function dayKey(item) { return isoDay(item.when); }
@@ -110,12 +162,22 @@
   function toConfirm(items) {
     return items.filter(function (item) { return item.status === "Envoyée" && isFutureDay(item); });
   }
-  function titleOf(item) {
+  function paxOf(item) {
     var bits = [];
     if (item.adults) bits.push(item.adults + " ad.");
     if (item.children) bits.push(item.children + " enf.");
+    return bits;
+  }
+  // Full title, used in the WhatsApp relance text.
+  function titleOf(item) {
+    var bits = paxOf(item);
     if (item.extra) bits.push(item.extra);
     return bits.length ? item.label + " · " + bits.join(" · ") : item.label;
+  }
+  // Row title: service + sous-type only, so it fits on one line at iPhone width.
+  // Guests count moves to the subtitle (metaOf).
+  function rowTitleOf(item) {
+    return item.extra ? item.label + " · " + item.extra : item.label;
   }
   function whenLabel(item) {
     var date = item.when;
@@ -130,7 +192,7 @@
     return "depuis " + Math.round(hours / 24) + "\u00A0j";
   }
   function metaOf(item) {
-    var text = item.guest + " · " + whenLabel(item);
+    var text = [item.guest].concat(paxOf(item)).filter(Boolean).join(" · ") + " · " + whenLabel(item);
     if (item.status === "Envoyée") text += " · " + since(item);
     return text;
   }
@@ -144,7 +206,8 @@
     return '<span class="req-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[kind] || ICONS.menage) + "</svg></span>";
   }
   function confirmUrl(item) {
-    return "https://villazenomarrakech.com/c?r=" + encodeURIComponent(item.id) + "&k=" + encodeURIComponent(item.token);
+    if (!item.id || !item.token) return "https://villazenomarrakech.com/c?r=" + encodeURIComponent(item.id || "") + "&k=" + encodeURIComponent(item.token || "");
+    return "https://villazenomarrakech.com/c/" + encodeURIComponent(item.id) + "-" + encodeURIComponent(item.token);
   }
   function relanceHref(item) {
     var number = String(STAFF_WA[item.staff] || "").replace(/\D/g, "");
@@ -173,6 +236,10 @@
     var price = item.price
       ? '<span class="req-price">' + esc(item.price) + (item.dh ? '<span class="req-dh"> · ' + esc(item.dh) + '</span>' : '') + '</span>'
       : '<span class="req-price">\u00A0</span>';
+    var confirmText = staffConfirmText(item);
+    var staff = confirmText
+      ? '<span class="req-staff req-staff-confirm">' + esc(confirmText) + '</span>'
+      : '<span class="req-staff">' + esc(item.staff) + '</span>';
     var href = relanceHref(item);
     var relance = href
       ? '<a href="' + esc(href) + '" target="_blank" rel="noopener">Relancer</a>'
@@ -182,10 +249,9 @@
       : "";
     return '<div data-id="' + esc(item.id) + '"><button type="button" class="req-row" data-open="' + esc(item.id) + '" aria-expanded="' + (open ? "true" : "false") + '">'
       + icon(item.kind)
-      + '<span class="req-title">' + esc(titleOf(item)) + '</span>'
-      + '<span class="req-staff">' + esc(item.staff) + '</span>'
+      + '<span class="req-title">' + esc(rowTitleOf(item)) + '</span>'
       + '<span class="req-meta">' + esc(metaOf(item)) + '</span>'
-      + price
+      + '<span class="req-foot">' + price + staff + '</span>'
       + '<span class="req-chip status-chip ' + chipClass(item.status) + '">' + esc(item.status) + '</span>'
       + '</button>' + actions + '</div>';
   }

@@ -178,3 +178,78 @@ test("guest POST for a legacy-open id without k is accepted", () => {
 });
 
 module.exports = { sandbox, keyOf, list, post, demande, NEUTRAL, RES_HEADERS };
+
+// ---------- Point 4: lien_actif / lien_expire_le on the server ----------
+function oneStay(row, now) {
+  return sandbox({ now: now || "2026-11-25T10:00:00Z", stays: [row] });
+}
+const EXPIRED = { ok: false, error: "expired" };
+
+test("active link (departure in the future): OK", () => {
+  const box = oneStay(["S1", "A B", "2026-11-20", "2026-11-28", "", "", true, "", 2]);
+  assert.equal(list(box, "S1", keyOf("S1")).ok, true);
+});
+
+test("lien_actif false / 'non' / 0: expired, no data, POST refused", () => {
+  for (const off of [false, "non", "false", 0, "0"]) {
+    const box = oneStay(["S1", "A B", "2026-11-20", "2026-11-28", "", "", off, "", 2]);
+    assert.deepEqual(list(box, "S1", keyOf("S1")), EXPIRED, String(off));
+    assert.deepEqual(post(box, demande({ stay: "S1", k: keyOf("S1"), details: { booking_id: "S1" } })), EXPIRED);
+    assert.equal(box.wa, 0);
+  }
+});
+
+test("lien_actif empty = active (rows from before the column)", () => {
+  const box = oneStay(["S1", "A B", "2026-11-20", "2026-11-28", "", "", "", "", 2]);
+  assert.equal(list(box, "S1", keyOf("S1")).ok, true);
+});
+
+test("past lien_expire_le: expired; wrong key on an expired link stays neutral", () => {
+  const box = oneStay(["S1", "A B", "2026-11-01", "2026-11-05", "", "", true, "2026-11-24", 2]);
+  assert.deepEqual(list(box, "S1", keyOf("S1")), EXPIRED);
+  assert.deepEqual(list(box, "S1", "bad"), NEUTRAL);
+});
+
+test("lien_expire_le overrides departure + 3 (prolonged link)", () => {
+  const box = oneStay(["S1", "A B", "2026-11-01", "2026-11-05", "", "", true, "2026-12-01", 2]);
+  assert.equal(list(box, "S1", keyOf("S1")).ok, true);
+});
+
+test("no lien_expire_le: departure + 3 days, limit day included", () => {
+  // departure 2026-11-22 -> open through 2026-11-25 (today), closed on the 26th.
+  const row = ["S1", "A B", "2026-11-18", "2026-11-22", "", "", true, "", 2];
+  // "Today" comes from Utilities.formatDate(now, "Africa/Casablanca").
+  assert.equal(list(oneStay(row, "2026-11-25T21:00:00Z"), "S1", keyOf("S1")).ok, true, "evening of the last day");
+  assert.deepEqual(list(oneStay(row, "2026-11-26T03:00:00Z"), "S1", keyOf("S1")), EXPIRED, "early morning, next day");
+  assert.deepEqual(list(oneStay(row, "2026-11-27T10:00:00Z"), "S1", keyOf("S1")), EXPIRED);
+});
+
+test("explicit lien_expire_le limit day included (Date cell)", () => {
+  const row = ["S1", "A B", "2026-11-18", "2026-11-22", "", "", true, new Date("2026-11-25T12:00:00Z"), 2];
+  assert.equal(list(oneStay(row, "2026-11-25T20:00:00Z"), "S1", keyOf("S1")).ok, true);
+  assert.deepEqual(list(oneStay(row, "2026-11-26T08:00:00Z"), "S1", keyOf("S1")), EXPIRED);
+});
+
+test("departure day itself (portal 'closed'): server still open", () => {
+  const box = oneStay(["S1", "A B", "2026-11-20", "2026-11-25", "", "", true, "", 2]);
+  assert.equal(list(box, "S1", keyOf("S1")).ok, true);
+});
+
+test("no dates at all: open (same as the portal)", () => {
+  const box = oneStay(["S1", "A B", "", "", "", "", "", "", 2]);
+  assert.equal(list(box, "S1", keyOf("S1")).ok, true);
+});
+
+test("legacy-open id still obeys expiry", () => {
+  const box = sandbox({ props: { LINK_LEGACY_OPEN: "S1" }, stays: [["S1", "A B", "2026-11-01", "2026-11-05", "", "", true, "", 2]] });
+  assert.deepEqual(list(box, "S1"), EXPIRED);
+});
+
+test("linkExpired_ pure helper", () => {
+  const { ctx } = makeSandbox({ sheets: {} });
+  assert.equal(ctx.linkExpired_({ departure: "2026-12-30", lien_actif: true }, "2027-01-02"), false);
+  assert.equal(ctx.linkExpired_({ departure: "2026-12-30", lien_actif: true }, "2027-01-03"), true);
+  assert.equal(ctx.linkExpired_({ departure: "2028-02-27" }, "2028-03-01"), false, "leap year");
+  assert.equal(ctx.linkExpired_({ departure: "2028-02-27" }, "2028-03-02"), true);
+  assert.equal(ctx.linkExpired_({ departure: "27/11/2026", lien_expire_le: "" }, "2030-01-01"), false, "unreadable date = open");
+});

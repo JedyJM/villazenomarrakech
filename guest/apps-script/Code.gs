@@ -152,7 +152,9 @@ function doGet(e) {
 // Every guest route (action=list, guest POST of a demande) goes through
 // guestAccess_. Without a valid key the answer is always
 // { ok: false, error: "invalid_link" } with no data, the same for an
-// unknown id, a wrong key or no key (no oracle).
+// unknown id, a wrong key or no key (no oracle). With a valid key, a
+// disabled or past link answers { ok: false, error: "expired" } (see
+// linkExpired_), still without any stay data.
 //
 // Transition, Script property LINK_LEGACY_OPEN (comma-separated stay ids,
 // e.g. "FAM-SK-2611"): for those ids only, the old link without k (or with
@@ -237,7 +239,41 @@ function guestAccess_(stayId, k) {
   if (!linkKeyOk_(id, k)) return { ok: false, error: "invalid_link" };
   var stay = stayRecord_(id);
   if (!stay) return { ok: false, error: "invalid_link" };
+  // Only after a valid key, so "expired" never reveals an unknown id.
+  if (linkExpired_(stay, Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd"))) {
+    return { ok: false, error: "expired" };
+  }
   return { ok: true, stay: stay };
+}
+
+// Server side of the portal rule (requests.js stayAccess): the link is
+// refused when lien_actif is off, or when today (Africa/Casablanca) is
+// after lien_expire_le (default: departure + 3 days; the last day is
+// still open). The "closed" state (from the departure day) only blocks
+// the service buttons in the portal, never the server. Pure.
+function linkExpired_(stay, todayIso) {
+  if (!stay) return true;
+  if (stay.lien_actif === false) return true;
+  var expire = isoDay_(stay.lien_expire_le);
+  if (!expire) {
+    var depart = isoDay_(stay.departure);
+    if (!depart) return false;
+    expire = addDaysIso_(depart, 3);
+  }
+  return String(todayIso) > expire;
+}
+
+function isoDay_(value) {
+  var text = String(value == null ? "" : value).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+}
+
+function addDaysIso_(iso, days) {
+  var p = iso.split("-");
+  var d = new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + days));
+  var m = d.getUTCMonth() + 1;
+  var day = d.getUTCDate();
+  return d.getUTCFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
 }
 
 // Admin: adds the guest link key. Google session: every stay. Test

@@ -2108,6 +2108,8 @@
     listDemandes(id).then(function (data) {
       // Refused link: neutral example card, no error shown.
       welcomeDone(id, data && data.stay, !!(data && data.error));
+      // The script enforces lien_actif / lien_expire_le itself ("expired").
+      if (data && data.error === "expired") { run("expired"); return; }
       run(stayAccess(data && data.stay));
     }).catch(function () { welcomeDone(id, null); });
   }

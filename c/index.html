@@ -4,10 +4,44 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Confirmation</title>
+<meta name="referrer" content="no-referrer">
+<title>Confirmation | Villa Zen’O</title>
+<style>
+  html, body { margin: 0; }
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f6f1ea; color: #1c1916; font-family: Georgia, "Times New Roman", serif; touch-action: manipulation; }
+  main { width: min(22rem, calc(100% - 2.5rem)); text-align: center; }
+  .brand { margin: 0; font-size: 1.35rem; }
+  .mark { width: 52px; height: 52px; margin: 24px auto 0; border-radius: 50%; background: #e3f2e6; color: #1d6b3a; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; line-height: 1; }
+  .mark[hidden] { display: none; }
+  h1 { margin: 20px 0 0; font-weight: 500; font-size: 1.7rem; line-height: 1.25; }
+  .summary, .note, .status { margin: 8px 0 0; color: #5e554c; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 0.9rem; line-height: 1.4; }
+  .note { margin-top: 6px; color: #8a8076; font-size: 0.85rem; }
+  .thanks { margin: 16px 0 0; font-style: italic; font-size: 1.15rem; }
+  .api-retry { margin-top: 14px; min-height: 40px; padding: 0 1.1rem; border: 1px solid #8c3f2a; border-radius: 999px; background: transparent; color: #8c3f2a; font: inherit; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 0.95rem; touch-action: manipulation; }
+  [hidden] { display: none !important; }
+</style>
+<script src="/js/vz-api.js?v=20261125k"></script>
+</head>
+<body>
+<main data-confirm-page>
+  <p class="brand">Villa Zen’O</p>
+  <div class="mark" data-mark hidden>✓</div>
+  <h1 data-title>Confirmation en cours…</h1>
+  <p class="summary" data-summary hidden></p>
+  <p class="note" data-note hidden></p>
+  <p class="status" data-status role="status" aria-live="polite"></p>
+  <p class="thanks" data-thanks hidden>Merci</p>
+</main>
+<noscript><p style="text-align:center">Activez JavaScript pour confirmer la demande.</p></noscript>
 <script>
+/* Provider « Confirmer » link: /c/<id>-<token> (Vercel rewrite) or
+   /c/?r=<id>&k=<token> (GitHub Pages, via 404.html). The confirmation is
+   asked through the shared client (action=confirm&format=json) and shown
+   HERE, on our domain: no Google page, so no Google account / Drive error.
+   Opening the link again shows « Demande déjà confirmée » + its time.
+   Script v18 (before v19 is published) answers an HTML page, not JSON:
+   the page then falls back to the old redirect to the script. */
 (function () {
-  var apps = "https://script.google.com/macros/s/AKfycbwrmyFtKdhIovJAh2A-DjYfIYNwGWz7s-r_yKz8TDj29J1OcbnBPA7tIBV1qRJbtFcwlw/exec";
   function parts() {
     var query = new URLSearchParams(location.search);
     var id = query.get("r") || "";
@@ -16,29 +50,54 @@
     var path = (location.pathname || "").replace(/\/+$/, "");
     var m = path.match(/\/c\/([^/?#]+)$/);
     if (!m) return { id: "", token: "" };
-    var bits = decodeURIComponent(m[1]).split("-");
-    if (bits.length === 2 && bits[0] && bits[1]) return { id: bits[0], token: bits[1] };
+    var bits = decodeURIComponent(m[1]).replace(/[^0-9a-z-]/gi, "").split("-");
+    if (bits.length === 2 && bits[0] && bits[1]) return { id: bits[0], token: bits[1].toLowerCase() };
     return { id: "", token: "" };
   }
-  var found = parts();
-  if (!found.id || !found.token) return;
-  location.replace(apps + "?action=confirm&id=" + encodeURIComponent(found.id) + "&t=" + encodeURIComponent(found.token));
-})();
-</script>
-</head>
-<body style="margin:0;background:#f6f1ea;color:#1c1916;font-family:Georgia,'Times New Roman',serif">
-<p id="missing" hidden style="text-align:center;padding:3rem 1rem">Ce lien n’est pas valable.</p>
-<script>
-(function () {
-  var query = new URLSearchParams(location.search);
-  if (query.get("r") && query.get("k")) return;
-  var path = (location.pathname || "").replace(/\/+$/, "");
-  var m = path.match(/\/c\/([^/?#]+)$/);
-  if (m) {
-    var bits = decodeURIComponent(m[1]).split("-");
-    if (bits.length === 2 && bits[0] && bits[1]) return;
+  function $(name) { return document.querySelector("[data-" + name + "]"); }
+  function show(title, summary, note, ok) {
+    $("title").textContent = title;
+    $("summary").textContent = summary || "";
+    $("summary").hidden = !summary;
+    $("note").textContent = note || "";
+    $("note").hidden = !note;
+    $("mark").hidden = !ok;
+    $("thanks").hidden = !ok;
+    $("status").textContent = "";
+    document.body.setAttribute("data-state", ok ? "ok" : "message");
   }
-  document.getElementById("missing").hidden = false;
+  function legacy(found) {
+    location.replace(window.VZApi.URL + "?action=confirm&id=" + encodeURIComponent(found.id) + "&t=" + encodeURIComponent(found.token));
+  }
+  var found = parts();
+  if (!found.id || !found.token || !window.VZApi) {
+    show("Ce lien n’est pas valable.", "", "", false);
+    return;
+  }
+  function ask() {
+    $("title").textContent = "Confirmation en cours…";
+    $("status").textContent = "";
+    window.VZApi.get({ action: "confirm", id: found.id, t: found.token, format: "json" }, { retries: 0, timeout: 20000 }).then(function (result) {
+      var data = result.data;
+      if (result.ok && data && data.state) {
+        show(data.title, data.summary, data.note, true);
+        document.body.setAttribute("data-confirm-state", data.state);
+        return;
+      }
+      var raw = result.kind === "server" && result.data && result.data.state ? result.data : null;
+      if (raw) {
+        show(raw.title, "", "", false);
+        document.body.setAttribute("data-confirm-state", raw.state);
+        if (raw.state === "busy") window.VZApi.showError($("status"), { kind: "busy" }, ask, { text: " " });
+        return;
+      }
+      // No JSON answer (script v18 HTML page, CORS): old path.
+      if (result.kind === "network" || result.error === "not_json") { legacy(found); return; }
+      show("Confirmation impossible pour le moment.", "", "", false);
+      window.VZApi.showError($("status"), result, ask);
+    });
+  }
+  ask();
 })();
 </script>
 </body>

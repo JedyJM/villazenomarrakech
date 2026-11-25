@@ -114,7 +114,9 @@ test("guest POST without k / wrong k / unknown id: refused, no row, no WhatsApp,
 test("guest POST with valid k: row written for the checked stay, WhatsApp called once", () => {
   const box = sandbox();
   const r = post(box, demande({ id: "okreq01", stay: "HMABC123", k: keyOf("HMABC123"), details: { booking_id: "FAM-SK-2611" } }));
-  assert.deepEqual(r, { ok: true });
+  assert.equal(r.ok, true);
+  // v19 also answers the id and the real guest name it wrote (never "Invité").
+  if ("nom_client" in r) assert.equal(r.nom_client, "Jean Dupont");
   const last = box.sheets.Demandes.rows[box.sheets.Demandes.rows.length - 1];
   assert.equal(last[0], "okreq01");
   assert.equal(JSON.parse(last[5]).booking_id, "HMABC123", "booking_id forced to the checked stay");
@@ -123,7 +125,9 @@ test("guest POST with valid k: row written for the checked stay, WhatsApp called
 
 test("guest POST for a legacy-open id without k is accepted", () => {
   const box = sandbox({ props: { LINK_LEGACY_OPEN: "FAM-SK-2611" } });
-  assert.deepEqual(post(box, demande({ id: "legacy1", details: { booking_id: "FAM-SK-2611" } })), { ok: true });
+  const r = post(box, demande({ id: "legacy1", details: { booking_id: "FAM-SK-2611" } }));
+  assert.equal(r.ok, true);
+  if ("nom_client" in r) assert.equal(r.nom_client, "Samiya Kabbaj");
   assert.equal(box.wa, 1);
 });
 

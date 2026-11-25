@@ -27,18 +27,10 @@
   // cached answer, then with the network one. meta: { at, cached, stale }.
   var loadMeta = { at: 0 };
   function loadStays(done, force) {
-    if (!shell.cachedGet) {
-      if (remote || !shell.SCRIPT_URL || !window.fetch) { remote = remote || []; done(loadMeta); return; }
-      var url = shell.SCRIPT_URL + "?action=stays&token=" + encodeURIComponent(shell.session()) + (shell.TEST_MODE ? "&test=1" : "");
-      window.fetch(url).then(function (res) { return res.json(); }).then(function (data) {
-        remote = (data && data.ok && data.stays) || [];
-        done(loadMeta);
-      }).catch(function () { remote = []; done(loadMeta); });
-      return;
-    }
     shell.cachedGet("stays", "action=stays", function (data, meta) {
       remote = (data && data.ok && data.stays) || remote || [];
       if (meta && meta.at) loadMeta = meta;
+      if (shell.loadError) shell.loadError(meta && meta.error ? meta.result : null, function () { loadStays(done, true); });
       done(loadMeta);
     }, { force: !!force, valid: hasKeys });
   }
@@ -207,47 +199,14 @@
     return shell.TEST_ALLOWED ? "1" : "";
   }
 
-  /* Admin write to the script. Always resolves (never rejects) with:
-     { ok: true, data }                         script answered ok:true
-     { ok: false, kind: "session" }             forbidden / invalid_token / unauthorized / expired
-     { ok: false, kind: "network" }             no answer, timeout, non-JSON
-     { ok: false, kind: "server", error }       any other ok:false
-     text/plain body (no CORS preflight); the /exec redirect is followed and
-     the answer read. The stays cache is dropped only after ok:true. */
-  var WRITE_TIMEOUT_MS = 25000;
-  var SESSION_ERRORS = { forbidden: 1, invalid_token: 1, unauthorized: 1, expired: 1 };
+  /* Admin write through the shared client (AdminShell.api.post ->
+     js/vz-api.js). Always resolves (never rejects) with { ok: true, data }
+     or { ok: false, kind: session | network | timeout | busy | server }.
+     The stays cache is dropped only after ok:true. */
   function postScript(payload) {
-    if (!shell.SCRIPT_URL || !window.fetch) return Promise.resolve({ ok: false, kind: "network" });
-    var controller = window.AbortController ? new window.AbortController() : null;
-    var timer = 0;
-    var timeout = new Promise(function (resolve) {
-      timer = window.setTimeout(function () {
-        if (controller) controller.abort();
-        resolve({ ok: false, kind: "network" });
-      }, WRITE_TIMEOUT_MS);
-    });
-    var request = window.fetch(shell.SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload),
-      signal: controller ? controller.signal : undefined
-    }).then(function (res) {
-      return res.text();
-    }).then(function (text) {
-      var data = null;
-      try { data = JSON.parse(text); } catch (e) { return { ok: false, kind: "network" }; }
-      if (data && data.ok === true) {
-        if (shell.invalidate) shell.invalidate("stays");
-        return { ok: true, data: data };
-      }
-      var error = String((data && data.error) || "");
-      if (SESSION_ERRORS[error]) return { ok: false, kind: "session", error: error };
-      return { ok: false, kind: "server", error: error };
-    }, function () {
-      return { ok: false, kind: "network" };
-    });
-    return Promise.race([request, timeout]).then(function (result) {
-      window.clearTimeout(timer);
+    if (!shell.api) return Promise.resolve({ ok: false, kind: "network" });
+    return shell.api.post(payload).then(function (result) {
+      if (result.ok && shell.invalidate) shell.invalidate("stays");
       return result;
     });
   }
@@ -258,8 +217,9 @@
   var MSG_SERVER = "Le serveur a refusé l’enregistrement. Réessayez ou prévenez Jedy.";
   function failureText(result) {
     if (result.kind === "session") return MSG_SESSION;
-    if (result.kind === "network") return MSG_NETWORK;
-    return MSG_SERVER;
+    if (result.kind === "server") return MSG_SERVER;
+    if (result.kind === "busy" && window.VZApi) return window.VZApi.message(result);
+    return MSG_NETWORK;
   }
   // Fills a role="alert" node with the failure; a session failure adds a
   // link to the Google gate (index.html) without leaving the page.
@@ -322,16 +282,20 @@
     return "https://villazenomarrakech.com/guest/?stay=" + encodeURIComponent(stay.id) + "&k=" + encodeURIComponent(k);
   }
   function askKey(stay, done) {
-    if (!stay || !stay.id || linkKey(stay) || askingKey[stay.id] || !shell.SCRIPT_URL || !window.fetch) return;
+    if (!stay || !stay.id || linkKey(stay) || askingKey[stay.id] || !shell.api) return;
     askingKey[stay.id] = true;
-    var url = shell.SCRIPT_URL + "?action=stay&id=" + encodeURIComponent(stay.id) + "&token=" + encodeURIComponent(shell.session()) + (shell.TEST_MODE ? "&test=1" : "");
-    window.fetch(url).then(function (res) { return res.json(); }).then(function (data) {
+    shell.api.get({ action: "stay", id: stay.id }).then(function (result) {
+      var data = result.ok ? result.data : null;
       var k = data && data.ok && data.stay && data.stay.k;
       if (k) {
         linkKeys[stay.id] = String(k);
         done();
+        return;
       }
-    }).catch(function () {});
+      askingKey[stay.id] = false;
+      var node = document.querySelector("[data-link-error]");
+      if (node && shell.showError) shell.showError(node, result.ok ? { ok: false, kind: "server" } : result, function () { askKey(stay, done); });
+    });
   }
 
   function firstName(nom) {
@@ -621,10 +585,12 @@
     };
   }
 
-  function bootForm() {
+  // existing: the stay being edited (fiche « Modifier »), else a new stay.
+  function bootForm(existing) {
     var form = document.querySelector("[data-stay-form]");
     if (!form) return;
     var model = blank();
+    if (existing) Object.keys(model).forEach(function (key) { if (existing[key] !== undefined) model[key] = existing[key]; });
     var agesBox = form.querySelector("[data-ages]");
     var price = form.querySelector("[data-price]");
     var save = form.querySelector("[data-save]");
@@ -635,12 +601,19 @@
     // every retry and double tap (saveStay_ updates by booking_id).
     var stayId = "";
     var pending = false;
-    var LABEL_SAVE = "Enregistrer le séjour";
+    // One label for every source (Direct included): the button saves.
+    var LABEL_SAVE = "Enregistrer";
     var LABEL_BUSY = "Enregistrement…";
     var LABEL_RETRY = "Réessayer d’enregistrer";
     // Unsaved draft (sessionStorage): kept until the Sheet confirms, so a
     // re-login (session expirée) brings back everything typed.
     var draft = readJson(DRAFT);
+    if (existing) {
+      stayId = existing.id;
+      if (!draft || draft.id !== existing.id) draft = null;
+      var heading = document.querySelector("main h1");
+      if (heading) heading.textContent = "Modifier la réservation";
+    } else if (draft && draft.id && findStay(draft.id)) draft = null;
     if (draft && draft.model) {
       Object.keys(blank()).forEach(function (key) { if (key in draft.model) model[key] = draft.model[key]; });
       stayId = String(draft.id || "");
@@ -982,18 +955,29 @@
       error.textContent = "";
       if (!stayId) stayId = calc.newId();
       keepDraft();
-      var stay = withDerived(Object.assign({}, model, {
+      // Editing keeps what the form does not show (link, encaissement).
+      var stay = withDerived(Object.assign({}, existing || {}, model, {
         id: stayId,
-        lien_actif: true,
-        lien_expire_le: calc.addDays(model.departure, 3)
+        lien_actif: existing ? existing.lien_actif !== false : true,
+        lien_expire_le: existing && existing.lien_expire_le && existing.departure === model.departure ? existing.lien_expire_le : calc.addDays(model.departure, 3)
       }));
       setBusy(true, LABEL_BUSY);
       persist(stay).then(function (result) {
         if (result.ok) {
+          // Saved (the Sheet answered ok:true): say so, then open the fiche.
           try { sessionStorage.removeItem(DRAFT); } catch (e) {}
-          window.location.href = (stay.source === "Direct" ? "email.html?id=" : "sejour.html?id=") + encodeURIComponent(stay.id);
+          save.textContent = "Enregistré ✓";
+          save.setAttribute("data-saved", "");
+          error.className = "form-ok";
+          error.setAttribute("role", "status");
+          error.textContent = "Séjour enregistré.";
+          window.setTimeout(function () {
+            window.location.href = (stay.source === "Direct" ? "email.html?id=" : "sejour.html?id=") + encodeURIComponent(stay.id);
+          }, 1200);
           return;
         }
+        error.className = "form-error";
+        error.setAttribute("role", "alert");
         setBusy(false, result.kind === "session" ? LABEL_SAVE : LABEL_RETRY);
         showFailure(error, result);
       });
@@ -1099,6 +1083,7 @@
       + priceBlock(stay)
       + heatBlock(stay)
       + '<a class="primary" href="encaissement.html?sejour=' + encodeURIComponent(stay.id) + '">Encaisser</a>'
+      + '<a class="quiet-link" data-edit-link href="nouveau.html?id=' + encodeURIComponent(stay.id) + '">Modifier</a>'
       + (stay.source === "Direct" ? '<a class="quiet-link" data-email-link href="email.html?id=' + encodeURIComponent(stay.id) + '">E-mail de confirmation</a>' : '')
       + (stay.notes ? '<section class="block"><p class="kicker">Notes</p><p>' + esc(stay.notes) + '</p></section>' : '')
       + '<section class="block" data-link-card><p class="kicker">Lien du portail invité</p>'
@@ -1213,7 +1198,20 @@
     if (document.body.classList.contains("is-locked")) return;
     var page = document.body.getAttribute("data-page");
     if (page === "liste") bootList();
-    if (page === "nouveau") bootForm();
+    if (page === "nouveau") {
+      var editId = "";
+      try { editId = new URLSearchParams(window.location.search).get("id") || ""; } catch (e) {}
+      if (!editId) bootForm();
+      else {
+        var started = false;
+        loadStays(function () {
+          var found = findStay(editId);
+          if (started || (!found && !remote)) return;
+          started = true;
+          bootForm(found);
+        });
+      }
+    }
     if (page === "fiche") loadStays(bootFiche);
     if (page === "email") loadStays(bootEmail);
   }

@@ -19,9 +19,17 @@
   function patches() {
     try { return JSON.parse(sessionStorage.getItem("vz.admin.demandes") || "{}"); } catch (e) { return {}; }
   }
-  function requests() {
+  // Real demandes (daily cache feed "demandes", same as Demandes/Stats).
+  function requestsFrom(data) {
     var extra = patches();
-    return sample.requests().map(function (item) { return Object.assign({}, item, extra[item.id] || {}); });
+    var shell = window.AdminShell;
+    return ((data && data.items) || []).map(function (raw) {
+      var item = shell.demandeFromApi(raw);
+      return Object.assign(item, extra[item.id] || {});
+    }).filter(function (item) { return item.hasDate; });
+  }
+  function clockOf(item) {
+    return item.hasTime === false ? "" : pad(item.when.getHours()) + ":" + pad(item.when.getMinutes());
   }
   function since(item) {
     var min = Math.round((Date.now() - item.created) / 60000);
@@ -155,7 +163,6 @@
     if (!root || document.body.classList.contains("is-locked") || !sample) return;
     var day = sample.today();
     var empty = query("vide") === "1";
-    var items = empty ? [] : requests();
     var todayKey = isoDay(day);
 
     root.querySelector("[data-date]").textContent = WEEK[day.getDay()] + " " + day.getDate() + "\u00A0" + MONTHS[day.getMonth()] + "\u00A0" + day.getFullYear();
@@ -171,6 +178,7 @@
       });
     }
 
+    function paintRequests(items) {
     var alerts = items.filter(function (item) {
       return item.status === "Envoyée" && isoDay(item.when) >= todayKey;
     }).sort(function (a, b) { return a.when - b.when; });
@@ -181,14 +189,22 @@
     if (nav) nav.classList.toggle("has-dot", alerts.length > 0);
     alertBox.innerHTML = alerts.length ? alerts.map(function (item) {
       var when = isoDay(item.when) === todayKey ? "aujourd’hui" : dayText(item.when);
-      return '<a class="alert-row" href="demandes.html?open=' + encodeURIComponent(item.id) + '"><span class="alert-ico">' + BELL + '</span><span><strong>' + esc(item.label) + " · " + esc(when) + " · " + pad(item.when.getHours()) + ":" + pad(item.when.getMinutes()) + '</strong><em><b>Envoyée</b> ' + esc(since(item)) + " · " + esc(item.staff) + "</em></span></a>";
+      return '<a class="alert-row" href="demandes.html?open=' + encodeURIComponent(item.id) + '"><span class="alert-ico">' + BELL + '</span><span><strong>' + esc(item.label) + " · " + esc(when) + (clockOf(item) ? " · " + clockOf(item) : "") + '</strong><em><b>Envoyée</b> ' + esc(since(item)) + " · " + esc(item.staff) + "</em></span></a>";
     }).join("") : '<p class="today-empty">Aucune alerte</p>';
 
     var services = items.filter(function (item) { return isoDay(item.when) === todayKey; }).sort(function (a, b) { return a.when - b.when; });
     var serviceBox = root.querySelector("[data-services]");
     serviceBox.innerHTML = services.length ? services.map(function (item) {
-      return '<p class="svc-row"><span class="svc-time">' + pad(item.when.getHours()) + ":" + pad(item.when.getMinutes()) + '</span><span class="svc-dot ' + dotClass(item.status) + '"></span><span class="svc-name">' + esc(item.label) + " · " + esc(item.staff) + '</span><span class="req-chip ' + chipClass(item.status) + '">' + esc(item.status) + "</span></p>";
+      return '<p class="svc-row"><span class="svc-time">' + (clockOf(item) || "—") + '</span><span class="svc-dot ' + dotClass(item.status) + '"></span><span class="svc-name">' + esc(item.label) + " · " + esc(item.staff) + '</span><span class="req-chip ' + chipClass(item.status) + '">' + esc(item.status) + "</span></p>";
     }).join("") : '<p class="today-empty">Aucun service</p>';
+    }
+    paintRequests([]);
+    if (!empty && window.AdminShell && window.AdminShell.cachedGet) {
+      window.AdminShell.cachedGet("demandes", "action=demandes", function (data, meta) {
+        paintRequests(requestsFrom(data));
+        window.AdminShell.loadError(meta && meta.error ? meta.result : null, function () { boot(); });
+      });
+    }
   }
   function chipClass(status) {
     if (status === "Confirmée") return "status-confirmee";

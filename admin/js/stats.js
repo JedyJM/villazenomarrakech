@@ -607,6 +607,7 @@
       shell.cachedGet(feed[0], feed[1](), function (data, meta) {
         feed[2](data);
         if (meta && meta.at) stampFeed(feed[0], meta.at);
+        if (shell.loadError) shell.loadError(meta && meta.error ? meta.result : null, function () { load(true); });
         if (!first[feed[0]]) { first[feed[0]] = true; state.loading = Math.max(0, state.loading - 1); }
         paint();
       }, { force: force, valid: feed[0].indexOf("stays") === 0 ? hasTotals : null });

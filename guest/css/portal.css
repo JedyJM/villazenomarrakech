@@ -2947,3 +2947,10 @@ body.is-stay-closed [data-request-page] [data-panel] { display: none !important;
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body, a, button, label, summary, output, [role="button"], .stepper, .stepper * { touch-action: manipulation; }
 input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px !important; touch-action: manipulation; }
+
+/* Shared Apps Script states (js/vz-api.js, guest-stay.js): loading line,
+   error with « Réessayer », send status on the received panel. */
+.demand-state, .send-status { margin: 0.6rem 0; font-family: var(--sans, system-ui, sans-serif); font-size: 0.9rem; line-height: 1.4; color: var(--muted, #5e554c); }
+.demand-state[data-api-error], .send-status.is-error { color: #8c3f2a; }
+.send-status.is-ok { color: #1d6b3a; }
+.api-retry { display: inline-block; margin-left: 0.5rem; min-height: 36px; padding: 0 0.9rem; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font: inherit; font-size: 0.9rem; white-space: nowrap; cursor: pointer; touch-action: manipulation; }

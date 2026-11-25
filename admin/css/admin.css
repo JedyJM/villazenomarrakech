@@ -813,3 +813,8 @@ body.page-today .mini { min-height: 72px; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body, a, button, label, summary, output, [role="button"], .stepper, .stepper * { touch-action: manipulation; }
 input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px !important; touch-action: manipulation; }
+
+/* Shared Apps Script error / success lines (js/vz-api.js). */
+.api-retry { display: inline-block; margin-left: 8px; min-height: 32px; padding: 0 12px; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font-size: 14px; white-space: nowrap; touch-action: manipulation; }
+.form-ok { color: #1d6b3a; font-size: 13px; }
+.load-error { color: var(--terracotta); font-size: 14px; padding: 12px 4px; }

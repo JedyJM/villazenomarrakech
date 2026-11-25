@@ -11,7 +11,7 @@ Compte : villazeno.marrakech@gmail.com. Projet autonome sur script.google.com (i
 7. Version : Nouvelle version. Laissez « Exécuter en tant que : Moi » et « Qui a accès : Tout le monde ».
 8. Cliquez sur Déployer. L’adresse /exec ne change pas. Elle est déjà dans guest/js/requests.js (APPS_SCRIPT_URL).
 
-La page Mes demandes lit `?action=list&stay=…`. Il faut republier le script pour que cette lecture fonctionne. Sans identifiant de séjour, la page reste vide.
+La page Mes demandes lit `?action=list&stay=…&k=…` (clé du lien invité, voir `guest/README-requests.md`). Propriétés de script : `LINK_SECRET` (créée toute seule au premier usage, ne pas la changer : cela casse tous les liens envoyés) et `LINK_LEGACY_OPEN` (ids dont l'ancien lien sans `k` reste ouvert pendant la transition). Il faut republier le script pour que cette lecture fonctionne. Sans identifiant de séjour, la page reste vide.
 
 ## Statuts et récapitulatif
 
@@ -70,6 +70,11 @@ WhatsApp (Meta) prévient la villa quand un message est envoyé, reçu, lu ou en
      Si l’aperçu Vercel est protégé par mot de passe ou connexion, ajoutez à la fin le paramètre de contournement donné par Vercel (Settings → Deployment Protection → Protection Bypass for Automation), par exemple `?x-vercel-protection-bypass=VOTRE_CODE`.
    - Jeton de vérification (Verify token) : `vzo-wh-7f3c9a1e5b2d48c6a0e4f9b1d3c7e852`
 3. Cliquez sur Vérifier et enregistrer. Puis, dans la liste des champs du webhook, abonnez-vous (Subscribe) au champ `messages`.
+
+Sécurité du relais (fail-closed) :
+- Variables d'environnement Vercel (noms seulement, jamais de valeur dans le dépôt) : `META_APP_SECRET` (ou `WHATSAPP_APP_SECRET`, les deux noms sont lus) = clé secrète de l'application Meta ; `WA_FORWARD_SECRET` = secret de relais partagé ; `WA_FORWARD_URL` (facultatif).
+- Sans `META_APP_SECRET`/`WHATSAPP_APP_SECRET`, chaque POST reçoit 503 « not configured » et rien n'est transmis. Sinon l'en-tête `X-Hub-Signature-256` (`sha256=<64 hex>`, HMAC-SHA256 du corps brut) est obligatoire : 401 s'il manque ou ne correspond pas. Corps limité à 256 Ko (413). Les journaux ne contiennent que des comptes.
+- Propriété de script `WA_FWD_SECRET` = même valeur que `WA_FORWARD_SECRET`. `doPost` refuse `action=wa-webhook` si le champ `fwd` ne correspond pas, et refuse tout tant que la propriété n'est pas posée.
 
 Onglet `WhatsApp_log` (créé tout seul au premier événement) :
 - une ligne par événement : `envoi` (message parti), `statut` (sent, delivered, read, failed avec le code et le détail de l’erreur), `bouton` (appui sur un bouton) ou `message` (texte reçu) ;

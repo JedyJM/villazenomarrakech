@@ -67,25 +67,38 @@ function doPost(e) {
       return adminPost_(data);
     }
     // WhatsApp Cloud API events relayed by the Vercel function api/wa-webhook.js.
+    // /exec is public: only the relay knows the shared secret (body field
+    // "fwd" = Vercel env WA_FORWARD_SECRET = Script property WA_FWD_SECRET).
+    // Fail-closed: without the property, every event is refused.
     if (data.action === "wa-webhook") {
+      if (!waForwardOk_(data.fwd)) return jsonOut({ ok: false, error: "forbidden" });
       var counts = waWebhook_(data.payload || {});
       return jsonOut({ ok: true, statuts: counts.statuts, messages: counts.messages, confirmees: counts.confirmees });
     }
+    // Guest request: only with a valid guest link (stay + k), see guestAccess_.
+    // Refused before any Sheet write, e-mail or staff WhatsApp.
+    var details = data.details || {};
+    var stayId = String(data.stay || details.booking_id || "");
+    var access = guestAccess_(stayId, data.k);
+    if (!access.ok) return jsonOut({ ok: false, error: access.error });
     if (!data.id) return jsonOut({ ok: false });
+    details.booking_id = stayId; // the checked stay, never another one
+    data.details = details;
     var sheet = getDemandesSheet_();
     if (findRow_(sheet, String(data.id)) > 0) return jsonOut({ ok: true, duplicate: true });
-    var details = data.details || {};
+    if (!guestRateOk_(stayId)) return jsonOut({ ok: false, error: "rate_limited" });
     if (data.token && !details.token) details.token = data.token;
     ensureDemandes_(sheet);
+    // Guest text is never a formula (sheetSafe_).
     sheet.appendRow([
-      String(data.id),
-      data.date_creation || new Date().toISOString(),
-      data.service || "",
-      data.sous_type || "",
-      data.nom_client || "",
+      sheetSafe_(String(data.id)),
+      sheetSafe_(String(data.date_creation || new Date().toISOString())),
+      sheetSafe_(String(data.service || "")),
+      sheetSafe_(String(data.sous_type || "")),
+      sheetSafe_(String(data.nom_client || "")),
       JSON.stringify(details),
-      data.total_dh === 0 ? 0 : (data.total_dh || ""),
-      data.destinataire || "",
+      sheetSafe_(data.total_dh === 0 ? 0 : (data.total_dh || "")),
+      sheetSafe_(String(data.destinataire || "")),
       "Envoy\u00e9e",
       "",
       false
@@ -100,7 +113,7 @@ function doPost(e) {
 
 function doGet(e) {
   var params = (e && e.parameter) || {};
-  if (params.action === "list") return listDemandes_(params.stay || "");
+  if (params.action === "list") return listDemandes_(params.stay || "", params.k || "");
   if (params.action === "stays" || params.action === "stays-stats" || params.action === "stay" || params.action === "demandes" || params.action === "depenses" || params.action === "get-reglages") return adminGet_(params);
   if (params.action !== "confirm" || !params.id || !params.t) {
     return htmlPage_("Ce lien n\u2019est pas valable.");
@@ -118,18 +131,192 @@ function doGet(e) {
     } catch (err) {
       return htmlPage_("Ce lien n\u2019est pas valable.");
     }
-    if (!details.token || String(details.token) !== String(params.t)) {
+    if (!details.token || !safeEqual_(String(details.token), String(params.t))) {
       return htmlPage_("Ce lien n\u2019est pas valable.");
     }
-    var status = String(sheet.getRange(row, 9).getValue() || "");
-    var summary = details.resume || "";
+    var status = canonStatus_(sheet.getRange(row, 9).getValue());
     if (status === "Confirm\u00e9e" || status === "Termin\u00e9e") return htmlPage_("Demande confirm\u00e9e", confirmLine_(details), true);
+    // A cancelled demande is never turned back into Confirmée by an old link.
+    if (status === "Annul\u00e9e") return htmlPage_("Cette demande a \u00e9t\u00e9 annul\u00e9e.");
     sheet.getRange(row, 9).setValue("Confirm\u00e9e");
     sheet.getRange(row, 10).setValue(Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd HH:mm"));
     return htmlPage_("Demande confirm\u00e9e", confirmLine_(details), true);
   } finally {
     lock.releaseLock();
   }
+}
+
+// ---------- Guest link key (stateless, no Sheet column) ----------
+// Guest link = /guest/?stay=<id>&k=<key>.
+// key = first LINK_KEY_HEX hex chars of HMAC-SHA256(stayId, LINK_SECRET).
+// LINK_SECRET lives in Script properties. When missing, it is generated
+// (two random UUIDs, 244 random bits) and stored there on first use: no
+// Sheet write. Changing or deleting LINK_SECRET invalidates every link.
+// 16 hex chars = 64 bits: the secret never leaves the server, so the only
+// attack is guessing online through /exec, one request at a time
+// (2^63 tries on average for one stay id): far out of reach.
+//
+// Every guest route (action=list, guest POST of a demande) goes through
+// guestAccess_. Without a valid key the answer is always
+// { ok: false, error: "invalid_link" } with no data, the same for an
+// unknown id, a wrong key or no key (no oracle). With a valid key, a
+// disabled or past link answers { ok: false, error: "expired" } (see
+// linkExpired_), still without any stay data.
+//
+// Transition, Script property LINK_LEGACY_OPEN (comma-separated stay ids,
+// e.g. "FAM-SK-2611"): for those ids only, the old link without k (or with
+// any k) is still accepted. Strict by default for every other id. Once the
+// guest has received the new link with &k=, remove the id from the
+// property (or delete the property) to close the old link.
+var LINK_KEY_HEX = 16;
+
+function linkSecret_() {
+  var props = PropertiesService.getScriptProperties();
+  var secret = props.getProperty("LINK_SECRET");
+  if (secret) return secret;
+  // User lock (the script runs as one account): distinct from the script
+  // lock doPost already holds, so no self-wait. Re-read after the lock so
+  // two first calls never end with two different secrets.
+  var lock = LockService.getUserLock();
+  lock.waitLock(10000);
+  try {
+    secret = props.getProperty("LINK_SECRET");
+    if (!secret) {
+      secret = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "");
+      props.setProperty("LINK_SECRET", secret);
+    }
+    return secret;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function bytesHex_(bytes) {
+  var out = "";
+  for (var i = 0; i < bytes.length; i++) {
+    var b = bytes[i] & 0xff;
+    out += (b < 16 ? "0" : "") + b.toString(16);
+  }
+  return out;
+}
+
+// Guest link key of a stay id. Admin answers only, never public ones.
+function linkKey_(stayId) {
+  var sig = Utilities.computeHmacSha256Signature(String(stayId), linkSecret_(), Utilities.Charset.UTF_8);
+  return bytesHex_(sig).slice(0, LINK_KEY_HEX);
+}
+
+// Constant-time string comparison (XOR over the longer length).
+function safeEqual_(a, b) {
+  a = String(a == null ? "" : a);
+  b = String(b == null ? "" : b);
+  var len = Math.max(a.length, b.length);
+  var diff = a.length ^ b.length;
+  for (var i = 0; i < len; i++) {
+    diff |= (i < a.length ? a.charCodeAt(i) : 0) ^ (i < b.length ? b.charCodeAt(i) : 0);
+  }
+  return diff === 0;
+}
+
+// Text that Sheets would read as a formula (= + - @, tab, CR first) gets a
+// leading apostrophe, so it is stored as plain text. Plain numbers
+// ("-12", "+3.5") and non-strings are left as they are.
+function sheetSafe_(value) {
+  if (typeof value !== "string") return value;
+  if (/^[=+\-@\t\r]/.test(value) && !/^[+\-]?\d+(?:[.,]\d+)?$/.test(value)) return "'" + value;
+  return value;
+}
+
+// Guest POST throttle per stay: GUEST_POST_LIMIT new demandes, counter kept
+// in the script cache for GUEST_POST_WINDOW seconds after the last one.
+// Caps the staff WhatsApp / e-mail a leaked link can trigger.
+var GUEST_POST_LIMIT = 30;
+var GUEST_POST_WINDOW = 3600;
+
+function guestRateOk_(stayId) {
+  try {
+    var cache = CacheService.getScriptCache();
+    var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(stayId), Utilities.Charset.UTF_8);
+    var key = "rl_dem_" + Utilities.base64EncodeWebSafe(digest);
+    var n = Number(cache.get(key) || 0) || 0;
+    if (n >= GUEST_POST_LIMIT) return false;
+    cache.put(key, String(n + 1), GUEST_POST_WINDOW);
+  } catch (err) {}
+  return true;
+}
+
+// Ids still open without k (Script property LINK_LEGACY_OPEN), see above.
+function linkLegacyOpen_(stayId) {
+  var raw = "";
+  try { raw = String(PropertiesService.getScriptProperties().getProperty("LINK_LEGACY_OPEN") || ""); } catch (err) {}
+  if (!raw || !stayId) return false;
+  var list = raw.split(",");
+  for (var i = 0; i < list.length; i++) {
+    if (String(list[i]).replace(/^\s+|\s+$/g, "") === stayId) return true;
+  }
+  return false;
+}
+
+// True when k is the key of stayId, or stayId is listed in LINK_LEGACY_OPEN.
+function linkKeyOk_(stayId, k) {
+  stayId = String(stayId == null ? "" : stayId).replace(/^\s+|\s+$/g, "");
+  if (!stayId) return false;
+  var given = String(k == null ? "" : k).toLowerCase();
+  var good = given !== "" && safeEqual_(given, linkKey_(stayId));
+  return good || linkLegacyOpen_(stayId);
+}
+
+// Gate of every guest route. Returns { ok: true, stay } or
+// { ok: false, error: "invalid_link" } (never any stay data).
+function guestAccess_(stayId, k) {
+  var id = String(stayId == null ? "" : stayId).replace(/^\s+|\s+$/g, "");
+  if (!linkKeyOk_(id, k)) return { ok: false, error: "invalid_link" };
+  var stay = stayRecord_(id);
+  if (!stay) return { ok: false, error: "invalid_link" };
+  // Only after a valid key, so "expired" never reveals an unknown id.
+  if (linkExpired_(stay, Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd"))) {
+    return { ok: false, error: "expired" };
+  }
+  return { ok: true, stay: stay };
+}
+
+// Server side of the portal rule (requests.js stayAccess): the link is
+// refused when lien_actif is off, or when today (Africa/Casablanca) is
+// after lien_expire_le (default: departure + 3 days; the last day is
+// still open). The "closed" state (from the departure day) only blocks
+// the service buttons in the portal, never the server. Pure.
+function linkExpired_(stay, todayIso) {
+  if (!stay) return true;
+  if (stay.lien_actif === false) return true;
+  var expire = isoDay_(stay.lien_expire_le);
+  if (!expire) {
+    var depart = isoDay_(stay.departure);
+    if (!depart) return false;
+    expire = addDaysIso_(depart, 3);
+  }
+  return String(todayIso) > expire;
+}
+
+function isoDay_(value) {
+  var text = String(value == null ? "" : value).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+}
+
+function addDaysIso_(iso, days) {
+  var p = iso.split("-");
+  var d = new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + days));
+  var m = d.getUTCMonth() + 1;
+  var day = d.getUTCDate();
+  return d.getUTCFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
+}
+
+// Admin: adds the guest link key. Google session: every stay. Test
+// session (token=test, ADMIN_TEST_MODE): it only ever sees origine=test
+// rows, and only those get a key, so the preview can open test stays.
+function withLinkKey_(stay, session) {
+  if (!stay || !stay.id) return stay;
+  if (session === "google" || (session === "test" && stay.origine === "test")) stay.k = linkKey_(stay.id);
+  return stay;
 }
 
 function getDemandesSheet_() {
@@ -148,11 +335,12 @@ function getDemandesSheet_() {
   return sheet;
 }
 
-function listDemandes_(stay) {
+function listDemandes_(stay, k) {
+  var access = guestAccess_(stay, k);
+  if (!access.ok) return jsonOut({ ok: false, error: access.error });
+  var stayInfo = access.stay;
   var sheet = getDemandesSheet_();
   var map = ensureDemandes_(sheet);
-  var stayInfo = stayRecord_(stay);
-  if (!stay) return jsonOut({ ok: true, items: [], stay: stayInfo });
   var last = sheet.getLastRow();
   if (last < 2) return jsonOut({ ok: true, items: [], stay: stayInfo });
   var width = sheet.getLastColumn();
@@ -259,8 +447,10 @@ function rowIsTest_(row, map) {
   return map.origine != null && String(row[map.origine] || "").trim().toLowerCase() === "test";
 }
 
+// Stay info for the guest portal, or null when the id is unknown or not
+// Villa Zen'O. Only reached through guestAccess_ (valid guest link).
 function stayRecord_(stay) {
-  var empty = { arrival: "", departure: "", lien_actif: true, lien_expire_le: "", pool: null, jacuzzi: null, source: "", adults: 0, children: 0, prenom: "" };
+  var empty = null;
   if (!stay) return empty;
   var ss = SpreadsheetApp.openById(SHEET_ID);
   var sheet = ss.getSheetByName("R\u00e9servations");
@@ -580,12 +770,14 @@ function adminGet_(params) {
   if (!session) return jsonOut({ ok: false, error: "forbidden" });
   var onlyTest = session === "test";
   var withTest = session === "google" && ADMIN_TEST_MODE && String(params.test || "") === "1";
-  if (params.action === "stay") return jsonOut({ ok: true, stay: adminStay_(params.id || "", withTest, onlyTest) });
+  if (params.action === "stay") return jsonOut({ ok: true, stay: withLinkKey_(adminStay_(params.id || "", withTest, onlyTest), session) });
   if (params.action === "demandes") return adminDemandes_(params, onlyTest);
   if (params.action === "depenses") return jsonOut({ ok: true, depenses: onlyTest ? [] : adminDepenses_(params.year || "") });
   if (params.action === "get-reglages") return jsonOut({ ok: true, reglages: onlyTest ? { notif_email_on: false, notif_email_to: "", recap_8h_on: false } : readReglages_() });
   if (params.action === "stays-stats") return jsonOut({ ok: true, stays: onlyTest ? [] : adminStatsStays_() });
-  return jsonOut({ ok: true, stays: adminStays_(params.year || "", withTest, onlyTest) });
+  var stays = adminStays_(params.year || "", withTest, onlyTest);
+  for (var i = 0; i < stays.length; i++) withLinkKey_(stays[i], session);
+  return jsonOut({ ok: true, stays: stays });
 }
 
 function adminPost_(data) {
@@ -871,7 +1063,7 @@ function saveStay_(stay, origine, onlyTest) {
     var column = 0;
     for (var n = 0; n < names.length && !column; n++) if (map[names[n]]) column = map[names[n]];
     if (!column) continue;
-    sheet.getRange(row, column).setValue(values[keys[i]]);
+    sheet.getRange(row, column).setValue(sheetSafe_(values[keys[i]]));
   }
   return jsonOut({ ok: true, id: id });
 }
@@ -1037,13 +1229,13 @@ function saveDepense_(data) {
   var url = saveFacture_(data) || String(item.facture_url || "");
   sheet.getRange(row, 1, 1, DEPENSE_HEADERS.length).setValues([[
     id,
-    item.date || "",
-    item.categorie || "",
-    item.detail || "",
-    item.fournisseur || "",
+    sheetSafe_(String(item.date || "")),
+    sheetSafe_(String(item.categorie || "")),
+    sheetSafe_(String(item.detail || "")),
+    sheetSafe_(String(item.fournisseur || "")),
     dh,
     eur,
-    item.devise_saisie || "",
+    sheetSafe_(String(item.devise_saisie || "")),
     url,
     item.cree_le || Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd")
   ]]);
@@ -1295,6 +1487,15 @@ function waConfirmDemande_(demandeId) {
   sheet.getRange(row, 9).setValue("Confirmée");
   sheet.getRange(row, 10).setValue(Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd HH:mm"));
   return "confirmée";
+}
+
+// True when fwd equals the Script property WA_FWD_SECRET (constant time).
+// False when the property is not set: the webhook stays closed until it is.
+function waForwardOk_(fwd) {
+  var secret = "";
+  try { secret = String(PropertiesService.getScriptProperties().getProperty("WA_FWD_SECRET") || ""); } catch (err) {}
+  if (!secret) return false;
+  return safeEqual_(String(fwd == null ? "" : fwd), secret);
 }
 
 // Handles one Meta webhook payload. Returns counts of new rows written.
@@ -2628,7 +2829,7 @@ function importUpsert_(sheet, map, list, valuesOf, keep, fresh) {
         }
       }
       if (dirty) {
-        sheet.getRange(idx + 2, 1, 1, width).setValues([row]);
+        sheet.getRange(idx + 2, 1, 1, width).setValues([row.map(sheetSafe_)]);
         updated += 1;
       }
       continue;
@@ -2643,7 +2844,7 @@ function importUpsert_(sheet, map, list, valuesOf, keep, fresh) {
   if (added.length) {
     var need = used + 1 + added.length - sheet.getMaxRows();
     if (need > 0) sheet.insertRowsAfter(sheet.getMaxRows(), need);
-    sheet.getRange(used + 2, 1, added.length, width).setValues(added);
+    sheet.getRange(used + 2, 1, added.length, width).setValues(added.map(function (r) { return r.map(sheetSafe_); }));
   }
   return { added: added.length, updated: updated };
 }

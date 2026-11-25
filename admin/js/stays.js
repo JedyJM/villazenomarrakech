@@ -39,13 +39,20 @@
       remote = (data && data.ok && data.stays) || remote || [];
       if (meta && meta.at) loadMeta = meta;
       done(loadMeta);
-    }, { force: !!force, valid: hasTotals });
+    }, { force: !!force, valid: hasKeys });
   }
   // Zen'O rows must carry totalVoyageur (Stats brut); a cached answer from
   // a script version without it is never reused.
   function hasTotals(data) {
     var list = (data && data.stays) || [];
     for (var i = 0; i < list.length; i++) if (list[i] && list[i].portal !== false && !("totalVoyageur" in list[i])) return false;
+    return true;
+  }
+  // Séjours also needs the guest link key (k) on every Zen'O row.
+  function hasKeys(data) {
+    if (!hasTotals(data)) return false;
+    var list = (data && data.stays) || [];
+    for (var i = 0; i < list.length; i++) if (list[i] && list[i].portal !== false && !list[i].k) return false;
     return true;
   }
   // Other properties (M avenue, La tour): stats rows (action=stays-stats),
@@ -220,8 +227,32 @@
     return "À venir";
   }
 
-  function portalUrl(id) {
-    return "https://villazenomarrakech.com/guest/?stay=" + encodeURIComponent(id);
+  /* Guest link = ?stay=<id>&k=<key>. The key is computed by the script
+     (HMAC, LINK_SECRET) and only sent to a signed-in admin: action=stays
+     gives it on every stay; a stay without it (just created here, or an
+     answer from an older script) asks action=stay&id= once. No key: no
+     link is shown, copied or sent (a link without k is refused). */
+  var linkKeys = {};
+  var askingKey = {};
+  function linkKey(stay) {
+    return (stay && (stay.k || linkKeys[stay.id])) || "";
+  }
+  function portalUrl(stay) {
+    var k = linkKey(stay);
+    if (!stay || !stay.id || !k) return "";
+    return "https://villazenomarrakech.com/guest/?stay=" + encodeURIComponent(stay.id) + "&k=" + encodeURIComponent(k);
+  }
+  function askKey(stay, done) {
+    if (!stay || !stay.id || linkKey(stay) || askingKey[stay.id] || !shell.SCRIPT_URL || !window.fetch) return;
+    askingKey[stay.id] = true;
+    var url = shell.SCRIPT_URL + "?action=stay&id=" + encodeURIComponent(stay.id) + "&token=" + encodeURIComponent(shell.session()) + (shell.TEST_MODE ? "&test=1" : "");
+    window.fetch(url).then(function (res) { return res.json(); }).then(function (data) {
+      var k = data && data.ok && data.stay && data.stay.k;
+      if (k) {
+        linkKeys[stay.id] = String(k);
+        done();
+      }
+    }).catch(function () {});
   }
 
   function firstName(nom) {
@@ -230,7 +261,7 @@
 
   function waHref(stay) {
     var digits = String(stay.telephone || "").replace(/\D/g, "");
-    var text = "Bonjour " + firstName(stay.nom) + ", votre espace invité Villa Zen’O : " + portalUrl(stay.id);
+    var text = "Bonjour " + firstName(stay.nom) + ", votre espace invité Villa Zen’O : " + portalUrl(stay);
     return "https://wa.me/" + digits + "?text=" + encodeURIComponent(text);
   }
 
@@ -923,6 +954,8 @@
     }
     var status = calc.statusOf(stay.arrival, stay.departure, calc.todayIso());
     var active = stay.lien_actif !== false;
+    var url = portalUrl(stay);
+    if (!url) askKey(stay, bootFiche);
     root.innerHTML = '<a class="back" href="sejours.html">‹ Séjours</a>'
       + '<div class="who"><h1>' + esc(stay.nom) + '</h1><span class="chips"><span class="chip ' + chipClass(status) + '">' + chipLabel(status) + '</span><span class="chip is-source">' + esc(sourceLabel(stay)) + '</span></span></div>'
       + '<p class="meta-line">' + esc(calc.dayText(stay.arrival, true) + " → " + calc.dayText(stay.departure, true)) + '</p>'
@@ -932,11 +965,15 @@
       + '<a class="primary" href="encaissement.html?sejour=' + encodeURIComponent(stay.id) + '">Encaisser</a>'
       + (stay.notes ? '<section class="block"><p class="kicker">Notes</p><p>' + esc(stay.notes) + '</p></section>' : '')
       + '<section class="block" data-link-card><p class="kicker">Lien du portail invité</p>'
-      + '<p class="link-url">' + esc(portalUrl(stay.id)).replace("?stay=", "<wbr>?stay=") + '</p>'
+      + (url
+        ? '<p class="link-url">' + esc(url).replace("?stay=", "<wbr>?stay=").replace("&amp;k=", "<wbr>&amp;k=") + '</p>'
+        : '<p class="link-url">Lien en préparation…</p>')
       + '<p class="link-until">' + (active ? ("Lien actif jusqu’au " + esc(calc.dayText(stay.lien_expire_le, true))) : "Lien désactivé") + '</p>'
       + '<div class="link-actions"><button type="button" data-prolong>Prolonger</button><button type="button" class="is-quiet" data-stop>Désactiver</button></div>'
-      + '<button type="button" class="ghost" data-copy>Copier le lien</button>'
-      + '<a class="wa" data-wa href="' + esc(waHref(stay)) + '">Envoyer par WhatsApp</a>'
+      + (url
+        ? '<button type="button" class="ghost" data-copy>Copier le lien</button>'
+          + '<a class="wa" data-wa href="' + esc(waHref(stay)) + '">Envoyer par WhatsApp</a>'
+        : '')
       + '</section>'
       + finishedBlock(stay);
 
@@ -955,7 +992,6 @@
       bootFiche();
     });
     if (copy) copy.addEventListener("click", function () {
-      var url = portalUrl(stay.id);
       var done = function () { copy.textContent = "Lien copié"; };
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(done).catch(function () { fallbackCopy(url); done(); });
@@ -988,7 +1024,7 @@
       "Reste à payer : " + calc.money(stay.due) + ", soit " + calc.dirhams(stay.due) + ", en espèces (euros ou dirhams) ou par PayPal."
     ];
     if (offers.length) lines.push("", "Offert pour votre séjour : " + offers.join(", ") + ".");
-    lines.push("", "Votre espace invité :", portalUrl(stay.id), "Lien actif jusqu’au " + calc.dayText(stay.lien_expire_le, true) + ".", "", "Mehdi · Villa Zen’O");
+    lines.push("", "Votre espace invité :", portalUrl(stay) || "(lien en préparation…)", "Lien actif jusqu’au " + calc.dayText(stay.lien_expire_le, true) + ".", "", "Mehdi · Villa Zen’O");
     return lines.join("\n");
   }
 
@@ -1002,6 +1038,7 @@
       root.innerHTML = '<p class="empty">Cet e-mail concerne une réservation directe.</p>';
       return;
     }
+    if (!portalUrl(stay)) askKey(stay, bootEmail);
     var body = emailBody(stay);
     var gmail = "https://mail.google.com/mail/?view=cm&fs=1&su="
       + encodeURIComponent("Votre séjour à la Villa Zen’O")

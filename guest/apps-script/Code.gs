@@ -67,7 +67,11 @@ function doPost(e) {
       return adminPost_(data);
     }
     // WhatsApp Cloud API events relayed by the Vercel function api/wa-webhook.js.
+    // /exec is public: only the relay knows the shared secret (body field
+    // "fwd" = Vercel env WA_FORWARD_SECRET = Script property WA_FWD_SECRET).
+    // Fail-closed: without the property, every event is refused.
     if (data.action === "wa-webhook") {
+      if (!waForwardOk_(data.fwd)) return jsonOut({ ok: false, error: "forbidden" });
       var counts = waWebhook_(data.payload || {});
       return jsonOut({ ok: true, statuts: counts.statuts, messages: counts.messages, confirmees: counts.confirmees });
     }
@@ -1453,6 +1457,15 @@ function waConfirmDemande_(demandeId) {
   sheet.getRange(row, 9).setValue("Confirmée");
   sheet.getRange(row, 10).setValue(Utilities.formatDate(new Date(), "Africa/Casablanca", "yyyy-MM-dd HH:mm"));
   return "confirmée";
+}
+
+// True when fwd equals the Script property WA_FWD_SECRET (constant time).
+// False when the property is not set: the webhook stays closed until it is.
+function waForwardOk_(fwd) {
+  var secret = "";
+  try { secret = String(PropertiesService.getScriptProperties().getProperty("WA_FWD_SECRET") || ""); } catch (err) {}
+  if (!secret) return false;
+  return safeEqual_(String(fwd == null ? "" : fwd), secret);
 }
 
 // Handles one Meta webhook payload. Returns counts of new rows written.

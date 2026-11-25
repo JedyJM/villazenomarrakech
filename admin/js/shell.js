@@ -45,6 +45,7 @@
     }
   }
   function signOut() {
+    clearCache();
     clearSession();
     try {
       if (window.google && window.google.accounts && window.google.accounts.id) window.google.accounts.id.disableAutoSelect();
@@ -269,7 +270,96 @@
     return testData() ? all.slice() : all.filter(function (row) { return !isTestRow(row); });
   }
 
+  /* Daily data cache (Séjours, Stats, Aujourd'hui). Raw API answers are
+     kept in localStorage per session kind (test / Google account) and
+     per local day: one network update per day, or on « Actualiser ».
+     An answer from an earlier day is shown at once, then refreshed in
+     the background. Filters (origine test, Jeu de test) apply at render
+     time, never in the cache. Signing out clears it. */
+  var CACHE_PREFIX = "vz.admin.cache.v2.";
+  var inflight = {};
+  function localDay(d) {
+    d = d || new Date();
+    var m = d.getMonth() + 1;
+    var day = d.getDate();
+    return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
+  }
+  function cacheScope() {
+    var s = session();
+    if (!s) return "";
+    if (s === "test") return "test";
+    var mail = "";
+    try { mail = sessionStorage.getItem(EMAIL_KEY) || ""; } catch (e) {}
+    return "google:" + mail + (TEST_MODE ? ":t" : "");
+  }
+  function readCache(name) {
+    try {
+      var entry = JSON.parse(localStorage.getItem(CACHE_PREFIX + name) || "null");
+      return entry && entry.scope === cacheScope() ? entry : null;
+    } catch (e) { return null; }
+  }
+  function writeCache(name, data) {
+    var entry = { scope: cacheScope(), day: localDay(), at: Date.now(), data: data };
+    try { localStorage.setItem(CACHE_PREFIX + name, JSON.stringify(entry)); } catch (e) {}
+    return entry;
+  }
+  function invalidate(prefix) {
+    try {
+      for (var i = localStorage.length - 1; i >= 0; i--) {
+        var key = localStorage.key(i);
+        if (key && key.indexOf(CACHE_PREFIX + (prefix || "")) === 0) localStorage.removeItem(key);
+      }
+    } catch (e) {}
+  }
+  function clearCache() { invalidate(""); }
+  // name: cache key. params: query string after the token ("action=stays").
+  // done(data, meta) runs once with the cached answer (meta.cached) and
+  // again if a network answer follows; data is null when nothing is known.
+  // opts.force: skip today's cache (« Actualiser »).
+  function cachedGet(name, params, done, opts) {
+    opts = opts || {};
+    var entry = opts.force ? null : readCache(name);
+    // A cached answer the page can no longer use (e.g. saved before a field
+    // existed) is dropped and refetched at once.
+    if (entry && opts.valid && !opts.valid(entry.data)) entry = null;
+    var fresh = entry && entry.day === localDay();
+    if (entry) done(entry.data, { cached: true, at: entry.at, stale: !fresh });
+    if (fresh) return;
+    if (!SCRIPT_URL || !window.fetch || !session()) { if (!entry) done(null, { at: 0, error: true }); return; }
+    var url = SCRIPT_URL + "?" + params + "&token=" + encodeURIComponent(session()) + (TEST_MODE ? "&test=1" : "");
+    var job = inflight[url];
+    if (!job) {
+      job = inflight[url] = window.fetch(url).then(function (res) { return res.json(); });
+      job.then(function () { delete inflight[url]; }, function () { delete inflight[url]; });
+    }
+    job.then(function (data) {
+      if (data && data.ok) {
+        var saved = writeCache(name, data);
+        done(data, { at: saved.at });
+      } else if (!entry) done(data || null, { at: 0, error: true });
+    }).catch(function () {
+      if (!entry) done(null, { at: 0, error: true });
+    });
+  }
+  // "Mis à jour aujourd’hui à 08:12" / "hier à 21:40" / "le 22 nov. à 09:05".
+  function stampText(at) {
+    if (!at) return "Données non chargées";
+    var d = new Date(at);
+    var hm = (d.getHours() < 10 ? "0" : "") + d.getHours() + ":" + (d.getMinutes() < 10 ? "0" : "") + d.getMinutes();
+    var day = localDay(d);
+    var y = new Date();
+    y.setDate(y.getDate() - 1);
+    if (day === localDay()) return "Mis à jour aujourd’hui à " + hm;
+    if (day === localDay(y)) return "Mis à jour hier à " + hm;
+    var months = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+    return "Mis à jour le " + d.getDate() + "\u00A0" + months[d.getMonth()] + " à " + hm;
+  }
+
   window.AdminShell = {
+    cachedGet: cachedGet,
+    invalidate: invalidate,
+    stampText: stampText,
+    localDay: localDay,
     TEST_MODE: TEST_MODE,
     testData: testData,
     setTestData: setTestData,

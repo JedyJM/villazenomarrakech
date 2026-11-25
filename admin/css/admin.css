@@ -671,3 +671,108 @@ body.page-reglages .reg-access .kicker,
 body.page-reglages .reg-access .reg-title,
 body.page-reglages .reg-access .reg-text { margin: 0; }
 body.page-reglages .reg-foot { margin-top: 2px; }
+
+/* Séjours: Airbnb-style month calendar, one colour per channel. */
+:root {
+  --ch-airbnb: #FF5A5F;
+  --ch-booking: #003580;
+  --ch-direct: #B5835A;
+  --ch-agences: #7A8B6F;
+  --ch-famille: #C46F4E;
+  --ch-autre: #9A8F84;
+}
+body.page-sejours { padding-bottom: calc(var(--nav) + 8px); }
+body.page-sejours .page { gap: 8px; padding: 4px 0 8px; }
+body.page-sejours .page-head { min-height: 38px; }
+body.page-sejours .page-head h1 { font-size: 1.35rem; margin-right: auto; }
+.view-switch {
+  display: inline-grid; grid-template-columns: 1fr 1fr; padding: 2px; gap: 2px;
+  border-radius: 999px; background: #efe8de;
+}
+.view-switch button {
+  height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent;
+  font-size: 12px; font-weight: 500; color: var(--muted); white-space: nowrap; line-height: 1;
+}
+.view-switch button[aria-pressed="true"] { background: #fff; color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(28, 25, 22, 0.12); }
+.cal-view, .list-view { display: grid; gap: 8px; min-width: 0; }
+.cal-view[hidden], .list-view[hidden] { display: none; }
+body.page-sejours .segment button { height: 30px; font-size: 12.5px; background: #fbf7f1; }
+body.page-sejours .segment button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fffaf3; }
+.cal-nav { display: grid; grid-template-columns: 36px 1fr 36px; align-items: center; height: 32px; }
+.cal-arrow {
+  display: grid; place-items: center; width: 36px; height: 32px; border: 0; background: transparent;
+  color: var(--ink); padding: 0;
+}
+.cal-arrow svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.cal-title {
+  border: 0; background: transparent; padding: 0; text-align: center;
+  font-family: var(--serif); font-size: 1.12rem; font-weight: 500; letter-spacing: -0.01em; white-space: nowrap; color: var(--ink);
+}
+.cal {
+  background: #fff; border: 1px solid rgba(28, 25, 22, 0.08); border-radius: 14px;
+  padding: 4px 0 2px; overflow: hidden; touch-action: pan-y;
+}
+.cal-head, .cal-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cal-head span {
+  text-align: center; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; color: var(--muted);
+  line-height: 18px;
+}
+.cal-week { position: relative; border-top: 1px solid rgba(28, 25, 22, 0.06); }
+.cal-days { position: absolute; inset: 0; }
+.cal-day { display: flex; justify-content: center; padding-top: 3px; }
+.cal-day + .cal-day { border-left: 1px solid rgba(28, 25, 22, 0.04); }
+.cal-day b {
+  display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+  font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.cal-day.is-out b { color: #b7aea4; }
+.cal-day.is-today b { background: var(--terracotta); color: #fffaf3; font-weight: 600; }
+.band {
+  position: absolute; z-index: 1; height: 19px; display: flex; align-items: center;
+  padding: 0 7px; border-radius: 10px; overflow: hidden; text-decoration: none;
+  font-size: 11px; font-weight: 600; line-height: 1; letter-spacing: 0.01em;
+  box-shadow: 0 1px 1.5px rgba(28, 25, 22, 0.14);
+}
+.band span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.band.is-cont-l { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.band.is-cont-r { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+/* Ink picked per colour for contrast (WCAG AA ≥ 4.5:1): white on the dark
+   Booking blue, deep ink on the lighter tones. */
+.ch-airbnb { background: var(--ch-airbnb); color: #1c1916; }
+.ch-booking { background: var(--ch-booking); color: #fff; }
+.ch-direct { background: var(--ch-direct); color: #1c1916; }
+.ch-agences { background: var(--ch-agences); color: #1c1916; }
+.ch-famille { background: var(--ch-famille); color: #1c1916; }
+.ch-autre { background: var(--ch-autre); color: #1c1916; }
+.cal-legend {
+  list-style: none; margin: 0; padding: 0 2px;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 8px;
+}
+.cal-legend li { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.cal-legend i { flex: none; width: 14px; height: 8px; border-radius: 4px; }
+.list-view .year { margin: 0; gap: 8px; color: var(--muted); font-size: 13px; }
+.list-view .year select { color: var(--ink); }
+.sync {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 11.5px; color: var(--muted); white-space: nowrap;
+}
+.sync button {
+  border: 0; background: transparent; padding: 4px 2px; font-size: 11.5px; font-weight: 600;
+  color: var(--terracotta); text-decoration: underline; text-underline-offset: 2px;
+}
+.sync button:disabled { opacity: 0.5; }
+.refresh-ico {
+  display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border-radius: 50%;
+  border: 1px solid rgba(28, 25, 22, 0.14); background: #fff; color: var(--terracotta);
+}
+.refresh-ico svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.refresh-ico:disabled { opacity: 0.5; }
+.stat-warn {
+  margin: 0; padding: 7px 10px; border-radius: 10px; background: #f6e4dc; color: var(--terracotta-dark);
+  font-size: 11.5px; line-height: 1.35;
+}
+/* Aujourd'hui: « Séjour en cours » and « Prochain séjour » share one size. */
+body.page-today .stay-card { min-height: 98px; align-content: start; }
+.stay-bar.is-idle { visibility: hidden; }
+.stay-who .chip { align-self: center; }
+.stay-who span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }

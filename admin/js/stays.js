@@ -22,13 +22,41 @@
   function realOnly(list) {
     return shell.realOnly ? shell.realOnly(list || []) : (list || []).filter(function (row) { return String((row && row.origine) || "").toLowerCase() !== "test"; });
   }
-  function loadStays(done) {
-    if (remote || !shell.SCRIPT_URL || !window.fetch) { remote = remote || []; done(); return; }
-    var url = shell.SCRIPT_URL + "?action=stays&token=" + encodeURIComponent(shell.session()) + (shell.TEST_MODE ? "&test=1" : "");
-    window.fetch(url).then(function (res) { return res.json(); }).then(function (data) {
-      remote = (data && data.ok && data.stays) || [];
+  // Daily cache (AdminShell.cachedGet): done may run twice, first with the
+  // cached answer, then with the network one. meta: { at, cached, stale }.
+  var loadMeta = { at: 0 };
+  function loadStays(done, force) {
+    if (!shell.cachedGet) {
+      if (remote || !shell.SCRIPT_URL || !window.fetch) { remote = remote || []; done(loadMeta); return; }
+      var url = shell.SCRIPT_URL + "?action=stays&token=" + encodeURIComponent(shell.session()) + (shell.TEST_MODE ? "&test=1" : "");
+      window.fetch(url).then(function (res) { return res.json(); }).then(function (data) {
+        remote = (data && data.ok && data.stays) || [];
+        done(loadMeta);
+      }).catch(function () { remote = []; done(loadMeta); });
+      return;
+    }
+    shell.cachedGet("stays", "action=stays", function (data, meta) {
+      remote = (data && data.ok && data.stays) || remote || [];
+      if (meta && meta.at) loadMeta = meta;
+      done(loadMeta);
+    }, { force: !!force, valid: hasTotals });
+  }
+  // Zen'O rows must carry totalVoyageur (Stats brut); a cached answer from
+  // a script version without it is never reused.
+  function hasTotals(data) {
+    var list = (data && data.stays) || [];
+    for (var i = 0; i < list.length; i++) if (list[i] && list[i].portal !== false && !("totalVoyageur" in list[i])) return false;
+    return true;
+  }
+  // Other properties (M avenue, La tour): stats rows (action=stays-stats),
+  // no guest name by design. Same cache key as Stats.
+  var others = null;
+  function loadOthers(done, force) {
+    if (!shell.cachedGet) { others = others || []; done(); return; }
+    shell.cachedGet("stays-stats", "action=stays-stats", function (data) {
+      others = (data && data.ok && data.stays) || others || [];
       done();
-    }).catch(function () { remote = []; done(); });
+    }, { force: !!force, valid: hasTotals });
   }
 
   /* Booking sources (new stay form, lists, stay card). kind picks the price
@@ -154,6 +182,8 @@
   }
 
   function postScript(payload) {
+    // A write makes the cached stays stale: the next open refetches.
+    if (shell.invalidate) shell.invalidate("stays");
     if (!shell.SCRIPT_URL || !window.fetch) return;
     window.fetch(shell.SCRIPT_URL, {
       method: "POST",
@@ -212,12 +242,90 @@
     return names;
   }
 
+  /* Calendar channels (Séjours calendar and legend). Text colour is set in
+     admin.css per channel for contrast (white on Booking, ink elsewhere). */
+  var CHANNELS = [
+    ["airbnb", "Airbnb"],
+    ["booking", "Booking.com"],
+    ["direct", "Direct"],
+    ["agences", "Agences"],
+    ["famille", "Famille"],
+    ["autre", "Autre"]
+  ];
+  var CHANNEL_LABEL = {};
+  CHANNELS.forEach(function (c) { CHANNEL_LABEL[c[0]] = c[1]; });
+  function channelOf(source, agency) {
+    var s = String(source || "").trim().toLowerCase();
+    var a = String(agency || "").trim().toLowerCase();
+    if (/famil/.test(s + " " + a)) return "famille";
+    if (s.indexOf("airbnb") >= 0) return "airbnb";
+    if (s.indexOf("booking") >= 0) return "booking";
+    if (!s || s === "direct") return "direct";
+    if (/villanovo|best of|agence|agency/.test(s)) return "agences";
+    return "autre";
+  }
+
+  var ZENO = "Villa Zen'O";
+  var BIENS = [[ZENO, "Zen’O"], ["M avenue", "M avenue"], ["Villa la tour", "La tour"]];
+  var MONTH_FULL = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+  var WEEKDAYS = ["L", "M", "M", "J", "V", "S", "D"];
+  var VIEW_KEY = "vz.admin.sejours.vue";
+
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function isoOf(y, m, d) { return y + "-" + pad2(m) + "-" + pad2(d); }
+  function dim(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
+
+  // Bands for one property. Zen'O: portal stays (first name, fiche link).
+  // Others: stats rows, no guest data: the band shows the channel.
+  function calendarStays(bien) {
+    if (bien === ZENO) {
+      return allStays().filter(function (stay) {
+        return !stay.hidden && stay.arrival && stay.departure && stay.departure > stay.arrival;
+      }).map(function (stay) {
+        return {
+          arrival: stay.arrival, departure: stay.departure,
+          channel: channelOf(stay.source, stay.agency),
+          label: firstName(stay.nom) || sourceLabel(stay),
+          href: "sejour.html?id=" + encodeURIComponent(stay.id),
+          title: (stay.nom || "") + " · " + sourceLabel(stay) + " · " + calc.rangeLabel(stay.arrival, stay.departure)
+        };
+      });
+    }
+    return realOnly(others || []).filter(function (row) {
+      return String(row.bien || "") === bien && row.arrival && row.departure && row.departure > row.arrival
+        && !/annul|cancel/i.test(String(row.statut || ""));
+    }).map(function (row) {
+      var channel = channelOf(row.source, "");
+      return {
+        arrival: row.arrival, departure: row.departure, channel: channel,
+        label: CHANNEL_LABEL[channel] === "Booking.com" ? "Booking" : CHANNEL_LABEL[channel],
+        href: "",
+        title: CHANNEL_LABEL[channel] + " · " + calc.rangeLabel(row.arrival, row.departure)
+      };
+    });
+  }
+
   function bootList() {
-    var list = document.querySelector("[data-list]");
-    var year = document.querySelector("[data-year]");
-    var empty = document.querySelector("[data-empty]");
-    if (!list || !year) return;
-    var current = calc.todayIso().slice(0, 4);
+    var root = document.querySelector("[data-sejours]");
+    if (!root) return;
+    var list = root.querySelector("[data-list]");
+    var year = root.querySelector("[data-year]");
+    var empty = root.querySelector("[data-empty]");
+    var cal = root.querySelector("[data-cal]");
+    var title = root.querySelector("[data-cal-title]");
+    var biensBox = root.querySelector("[data-biens]");
+    var legend = root.querySelector("[data-legend]");
+    var stamp = root.querySelector("[data-stamp]");
+    var refresh = root.querySelector("[data-refresh]");
+    var today = calc.todayIso();
+    var state = { view: "cal", bien: ZENO, y: Number(today.slice(0, 4)), m: Number(today.slice(5, 7)) };
+    try {
+      var saved = JSON.parse(sessionStorage.getItem(VIEW_KEY) || "null");
+      if (saved && saved.view) state = Object.assign(state, saved);
+    } catch (e) {}
+    function save() { try { sessionStorage.setItem(VIEW_KEY, JSON.stringify(state)); } catch (e) {} }
+
+    var current = today.slice(0, 4);
     [String(Number(current) - 1), current, String(Number(current) + 1)].forEach(function (value) {
       var option = document.createElement("option");
       option.value = value;
@@ -225,15 +333,22 @@
       if (value === current) option.selected = true;
       year.appendChild(option);
     });
-    function paint() {
+    biensBox.innerHTML = BIENS.map(function (b) {
+      return '<button type="button" data-bien="' + esc(b[0]) + '" aria-pressed="false">' + esc(b[1]) + "</button>";
+    }).join("");
+    legend.innerHTML = CHANNELS.map(function (c) {
+      return '<li><i class="ch-' + c[0] + '" aria-hidden="true"></i>' + esc(c[1]) + "</li>";
+    }).join("");
+
+    function paintList() {
       var selected = year.value;
       var rows = allStays().filter(function (stay) {
         return !stay.hidden && String(stay.arrival || "").slice(0, 4) === selected;
       });
       var order = { cours: 0, venir: 1, fini: 2 };
       rows.sort(function (a, b) {
-        var sa = calc.statusOf(a.arrival, a.departure, calc.todayIso());
-        var sb = calc.statusOf(b.arrival, b.departure, calc.todayIso());
+        var sa = calc.statusOf(a.arrival, a.departure, today);
+        var sb = calc.statusOf(b.arrival, b.departure, today);
         if (order[sa] !== order[sb]) return order[sa] - order[sb];
         return String(a.arrival).localeCompare(String(b.arrival));
       });
@@ -242,7 +357,7 @@
       empty.textContent = remote === null ? "Chargement des séjours…" : (any ? "Aucun séjour en " + selected + "." : "Aucune donnée réelle");
       list.hidden = !rows.length;
       list.innerHTML = rows.map(function (stay) {
-        var status = calc.statusOf(stay.arrival, stay.departure, calc.todayIso());
+        var status = calc.statusOf(stay.arrival, stay.departure, today);
         return '<a class="stay-row" href="sejour.html?id=' + esc(stay.id) + '">'
           + '<span class="stay-top"><span class="stay-name">' + esc(stay.nom) + '</span>'
           + '<span class="chip ' + chipClass(status) + '">' + chipLabel(status) + '</span></span>'
@@ -251,9 +366,134 @@
           + '<span class="chev" aria-hidden="true">›</span></a>';
       }).join("");
     }
+
+    // Airbnb-style month: one band per stay, from the arrival afternoon to
+    // the departure morning (half cells), split per week row.
+    function paintCal() {
+      var y = state.y;
+      var m = state.m;
+      title.textContent = MONTH_FULL[m - 1] + " " + y;
+      var first = isoOf(y, m, 1);
+      var lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
+      var start = calc.addDays(first, -lead);
+      var weeks = Math.ceil((lead + dim(y, m)) / 7);
+      var items = calendarStays(state.bien);
+      var html = '<div class="cal-head">' + WEEKDAYS.map(function (d) { return "<span>" + d + "</span>"; }).join("") + "</div>";
+      for (var w = 0; w < weeks; w++) {
+        var ws = calc.addDays(start, w * 7);
+        var we = calc.addDays(ws, 7);
+        var segs = [];
+        items.forEach(function (it) {
+          if (!(it.arrival < we && it.departure >= ws)) return;
+          var contL = it.arrival < ws;
+          var contR = it.departure >= we;
+          var left = contL ? 0 : calc.nights(ws, it.arrival) + 0.5;
+          var right = contR ? 7 : calc.nights(ws, it.departure) + 0.5;
+          if (right <= left) return;
+          segs.push({ it: it, left: left, right: right, contL: contL, contR: contR });
+        });
+        segs.sort(function (a, b) { return a.left - b.left; });
+        var lanes = [];
+        segs.forEach(function (seg) {
+          var lane = 0;
+          while (lanes[lane] != null && lanes[lane] > seg.left + 0.01) lane++;
+          lanes[lane] = seg.right;
+          seg.lane = lane;
+        });
+        var laneCount = Math.max(1, lanes.length);
+        var days = "";
+        for (var d = 0; d < 7; d++) {
+          var iso = calc.addDays(ws, d);
+          var cls = (iso.slice(0, 7) !== first.slice(0, 7) ? " is-out" : "") + (iso === today ? " is-today" : "");
+          days += '<span class="cal-day' + cls + '"><b>' + Number(iso.slice(8, 10)) + "</b></span>";
+        }
+        var bands = segs.map(function (seg) {
+          var it = seg.it;
+          var width = seg.right - seg.left;
+          var cls = "band ch-" + it.channel + (seg.contL ? " is-cont-l" : "") + (seg.contR ? " is-cont-r" : "");
+          var style = "left:calc(" + (seg.left / 7 * 100).toFixed(4) + "% + 1px);width:calc(" + (width / 7 * 100).toFixed(4) + "% - 2px);top:" + (22 + seg.lane * 21) + "px";
+          var label = width >= 0.9 ? '<span>' + esc(it.label) + "</span>" : "";
+          var attrs = ' class="' + cls + '" style="' + style + '" title="' + esc(it.title) + '" aria-label="' + esc(it.title) + '"';
+          return it.href ? "<a" + attrs + ' href="' + esc(it.href) + '">' + label + "</a>" : "<span" + attrs + ">" + label + "</span>";
+        }).join("");
+        html += '<div class="cal-week" style="height:' + (22 + laneCount * 21 + 5) + 'px"><div class="cal-days">' + days + "</div>" + bands + "</div>";
+      }
+      cal.innerHTML = html;
+      biensBox.querySelectorAll("[data-bien]").forEach(function (b) {
+        b.setAttribute("aria-pressed", b.getAttribute("data-bien") === state.bien ? "true" : "false");
+      });
+    }
+
+    function paintStamp(meta) {
+      if (remote === null) { stamp.textContent = "Chargement des séjours…"; return; }
+      stamp.textContent = shell.stampText ? shell.stampText(meta && meta.at) : "";
+    }
+
+    function paint() {
+      root.querySelector("[data-cal-view]").hidden = state.view !== "cal";
+      root.querySelector("[data-list-view]").hidden = state.view !== "list";
+      root.querySelectorAll("[data-view]").forEach(function (b) {
+        b.setAttribute("aria-pressed", b.getAttribute("data-view") === state.view ? "true" : "false");
+      });
+      if (state.view === "cal") paintCal();
+      else paintList();
+      paintStamp(loadMeta);
+    }
+
+    function shift(dir) {
+      state.m += dir;
+      if (state.m < 1) { state.m = 12; state.y -= 1; }
+      if (state.m > 12) { state.m = 1; state.y += 1; }
+      save();
+      paint();
+    }
+
+    root.addEventListener("click", function (event) {
+      var view = event.target.closest("[data-view]");
+      if (view) { state.view = view.getAttribute("data-view"); save(); paint(); return; }
+      var bien = event.target.closest("[data-bien]");
+      if (bien) { state.bien = bien.getAttribute("data-bien"); save(); paint(); return; }
+      if (event.target.closest("[data-cal-prev]")) { shift(-1); return; }
+      if (event.target.closest("[data-cal-next]")) { shift(1); return; }
+      if (event.target.closest("[data-cal-today]")) {
+        state.y = Number(today.slice(0, 4));
+        state.m = Number(today.slice(5, 7));
+        save();
+        paint();
+      }
+    });
+    var touchX = null;
+    var touchY = 0;
+    cal.addEventListener("touchstart", function (event) {
+      touchX = event.touches[0].clientX;
+      touchY = event.touches[0].clientY;
+    }, { passive: true });
+    cal.addEventListener("touchend", function (event) {
+      if (touchX == null) return;
+      var dx = event.changedTouches[0].clientX - touchX;
+      var dy = event.changedTouches[0].clientY - touchY;
+      touchX = null;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) shift(dx < 0 ? 1 : -1);
+    }, { passive: true });
     year.addEventListener("change", paint);
+    refresh.addEventListener("click", function () {
+      refresh.disabled = true;
+      stamp.textContent = "Mise à jour…";
+      var pending = 2;
+      function one() {
+        pending -= 1;
+        if (pending > 0) return;
+        refresh.disabled = false;
+        paint();
+      }
+      // force: today's cache is skipped, each loader calls back once (network
+      // answer; on failure the cached data stays on screen).
+      loadStays(one, true);
+      loadOthers(one, true);
+    });
     paint();
     loadStays(paint);
+    loadOthers(paint);
   }
 
   function blank() {
@@ -782,7 +1022,7 @@
     if (page === "email") loadStays(bootEmail);
   }
 
-  window.AdminStays = { find: findStay, load: loadStays, sheet: sheetStay, post: postScript };
+  window.AdminStays = { find: findStay, load: loadStays, all: allStays, sourceLabel: sourceLabel, channelOf: channelOf, sheet: sheetStay, post: postScript };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

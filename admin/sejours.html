@@ -10,23 +10,37 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/admin.css">
+<link rel="stylesheet" href="css/admin.css?v=20261125c">
 </head>
-<body data-page="liste" data-tab="sejours">
+<body class="page-sejours" data-page="liste" data-tab="sejours">
 <header class="site-header">
 <div class="wrap header-inner"><a class="logo" href="sejours.html">Villa Zen’O<small>Administration</small></a></div>
 </header>
-<main class="page wrap">
+<main class="page wrap" data-sejours>
 <div class="page-head">
 <h1>Séjours</h1>
-<label class="year"><span class="visually-hidden">Année</span><select data-year></select></label>
+<div class="view-switch" role="group" aria-label="Affichage"><button type="button" data-view="cal" aria-pressed="true">Calendrier</button><button type="button" data-view="list" aria-pressed="false">Liste</button></div>
 <a class="pill" href="nouveau.html">Nouvelle</a>
 </div>
+<section class="cal-view" data-cal-view>
+<div class="segment" role="group" aria-label="Bien" data-biens></div>
+<div class="cal-nav">
+<button type="button" class="cal-arrow" data-cal-prev aria-label="Mois précédent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+<button type="button" class="cal-title" data-cal-today aria-label="Revenir au mois en cours"><span data-cal-title></span></button>
+<button type="button" class="cal-arrow" data-cal-next aria-label="Mois suivant"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+</div>
+<div class="cal" data-cal></div>
+<ul class="cal-legend" data-legend aria-label="Canaux"></ul>
+</section>
+<section class="list-view" data-list-view hidden>
+<label class="year"><span>Année</span><select data-year></select></label>
 <div class="card" data-list></div>
 <p class="empty" data-empty hidden>Aucun séjour.</p>
+</section>
+<p class="sync"><span data-stamp></span><button type="button" data-refresh>Actualiser</button></p>
 </main>
-<script src="js/calc.js"></script>
-<script src="js/shell.js"></script>
-<script src="js/stays.js"></script>
+<script src="js/calc.js?v=20261125c"></script>
+<script src="js/shell.js?v=20261125c"></script>
+<script src="js/stays.js?v=20261125c"></script>
 </body>
 </html>

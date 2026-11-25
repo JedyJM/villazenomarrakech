@@ -321,7 +321,8 @@
     var entry = opts.force ? null : readCache(name);
     // A cached answer the page can no longer use (e.g. saved before a field
     // existed) is dropped and refetched at once.
-    if (entry && opts.valid && !opts.valid(entry.data)) entry = null;
+    var valid = opts.valid || (name.indexOf("stays") === 0 ? hasTotals : null);
+    if (entry && valid && !valid(entry.data)) entry = null;
     var fresh = entry && entry.day === localDay();
     if (entry) done(entry.data, { cached: true, at: entry.at, stale: !fresh });
     if (fresh) return;
@@ -341,6 +342,40 @@
       if (!entry) done(null, { at: 0, error: true });
     });
   }
+  // Zen'O rows must carry totalVoyageur (Stats brut).
+  function hasTotals(data) {
+    var list = (data && data.stays) || [];
+    for (var i = 0; i < list.length; i++) if (list[i] && list[i].portal !== false && !("totalVoyageur" in list[i])) return false;
+    return true;
+  }
+  function isFresh(name) {
+    var entry = readCache(name);
+    return !!(entry && entry.day === localDay() && !(name.indexOf("stays") === 0 && !hasTotals(entry.data)));
+  }
+  // The feeds Aujourd'hui, Séjours and Stats share (one cache key each).
+  function feeds() {
+    var year = new Date().getFullYear();
+    return [
+      ["stays", "action=stays"],
+      ["stays-stats", "action=stays-stats"],
+      ["demandes", "action=demandes"],
+      ["depenses-" + year, "action=depenses&year=" + year]
+    ];
+  }
+  // Fills, in the background and side by side, the shared feeds that have
+  // no answer from today yet, so the next tab opens at once. At most one
+  // call per feed and per day; nothing when everything is fresh.
+  var warming = false;
+  function warm(delay) {
+    if (warming || !session() || !SCRIPT_URL || !window.fetch) return;
+    warming = true;
+    window.setTimeout(function () {
+      feeds().forEach(function (feed) {
+        if (!isFresh(feed[0])) cachedGet(feed[0], feed[1], function () {});
+      });
+    }, delay == null ? 300 : delay);
+  }
+
   // "Mis à jour aujourd’hui à 08:12" / "hier à 21:40" / "le 22 nov. à 09:05".
   function stampText(at) {
     if (!at) return "Données non chargées";
@@ -357,6 +392,8 @@
 
   window.AdminShell = {
     cachedGet: cachedGet,
+    warm: warm,
+    isFresh: isFresh,
     invalidate: invalidate,
     stampText: stampText,
     localDay: localDay,

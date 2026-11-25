@@ -512,10 +512,41 @@ function adminEmails_() {
   return out;
 }
 
+// A verified token is remembered 10 minutes (never past its own expiry) in
+// the script cache, keyed by its SHA-256, so each admin call no longer waits
+// for tokeninfo. Only successes are cached; the allowlist is re-read on
+// every hit, so removing an address takes effect at once.
+var ADMIN_TOKEN_CACHE_SECONDS = 600;
+
+function adminTokenKey_(token) {
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(token), Utilities.Charset.UTF_8);
+  return "admin_tok_" + Utilities.base64EncodeWebSafe(digest);
+}
+
+function adminAllowlisted_(email) {
+  var allowed = adminEmails_();
+  for (var i = 0; i < allowed.length; i++) {
+    if (allowed[i] === email) return true;
+  }
+  return false;
+}
+
 // Verifies a Google ID token with tokeninfo: HTTP 200, our aud, verified email, allowlisted.
 // Returns { email: "...", error: "" } or { email: "", error: "invalid_token" | "unauthorized" }.
 function adminCheck_(token) {
   if (!token || !ADMIN_OAUTH_CLIENT_ID) return { email: "", error: "invalid_token" };
+  var cache = null;
+  var key = "";
+  try {
+    cache = CacheService.getScriptCache();
+    key = adminTokenKey_(token);
+    var hit = cache.get(key);
+    if (hit) {
+      if (adminAllowlisted_(hit)) return { email: hit, error: "" };
+      cache.remove(key);
+      return { email: "", error: "unauthorized" };
+    }
+  } catch (cacheErr) { cache = null; }
   try {
     var res = UrlFetchApp.fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(token), { muteHttpExceptions: true });
     if (res.getResponseCode() !== 200) return { email: "", error: "invalid_token" };
@@ -526,11 +557,16 @@ function adminCheck_(token) {
     var email = String(data.email || "").toLowerCase();
     var verified = data.email_verified === true || String(data.email_verified) === "true";
     if (!verified || !email) return { email: "", error: "unauthorized" };
-    var allowed = adminEmails_();
-    for (var i = 0; i < allowed.length; i++) {
-      if (allowed[i] === email) return { email: email, error: "" };
+    if (!adminAllowlisted_(email)) return { email: "", error: "unauthorized" };
+    if (cache) {
+      var ttl = ADMIN_TOKEN_CACHE_SECONDS;
+      var exp = Number(data.exp) || 0;
+      if (exp) ttl = Math.min(ttl, Math.floor(exp - new Date().getTime() / 1000));
+      if (ttl > 0) {
+        try { cache.put(key, email, ttl); } catch (putErr) {}
+      }
     }
-    return { email: "", error: "unauthorized" };
+    return { email: email, error: "" };
   } catch (err) {}
   return { email: "", error: "invalid_token" };
 }

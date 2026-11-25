@@ -5,7 +5,7 @@
   var shell = window.AdminShell || { TEST_MODE: true, SCRIPT_URL: "", session: function () { return "test"; } };
   var RATE = 10;
   // Shown under the Séjours stats: tells which admin code the phone runs.
-  var BUILD = "2026-11-25 c";
+  var BUILD = "2026-11-25 d";
   var STORE = "vz.admin.depenses";
   var MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
   var MONTH_FULL = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
@@ -38,7 +38,9 @@
   var SOURCES = ["Airbnb", "Booking", "Direct", "Agences", "Famille"];
   var SOURCE_LABELS = { Airbnb: "Airbnb", Booking: "Booking.com", Direct: "Direct", Agences: "Agences", Famille: "Famille" };
   // statsStays: action=stays-stats (all properties), null until loaded.
-  var state = { view: "sejours", year: 2026, month: "2026-12", sMonth: "", bien: "Tous", remoteStays: [], remoteDemandes: [], statsStays: null, loading: 2 };
+  // Year of the shared cache feeds (AdminShell.feeds: depenses-<year>).
+  var THIS_YEAR = new Date().getFullYear();
+  var state = { view: "sejours", year: THIS_YEAR, month: THIS_YEAR + "-12", sMonth: "", bien: "Tous", remoteStays: [], remoteDemandes: [], statsStays: null, loading: 2 };
 
   function esc(value) {
     return String(value == null ? "" : value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

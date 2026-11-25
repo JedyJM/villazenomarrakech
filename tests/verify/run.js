@@ -27,12 +27,13 @@ let pass = 0, fail = 0;
 const rows = [];
 const failed = [];
 for (const [name, files] of groups) {
-  const r = spawnSync(process.execPath, ["--test", "--test-concurrency=1", "--test-reporter=tap"].concat(files), {
+  const r = spawnSync(process.execPath, ["--test", "--test-concurrency=1", "--test-timeout=120000", "--test-reporter=tap"].concat(files), {
     cwd: root, env: Object.assign({}, process.env, { VZ_GAS_CODE: code }), encoding: "utf8", maxBuffer: 64 * 1024 * 1024,
+    timeout: 600000, killSignal: "SIGKILL", // a hung browser or server never blocks the run
   });
-  const out = (r.stdout || "") + (r.stderr || "");
+  const out = (r.stdout || "") + (r.stderr || "") + (r.error ? "\nnot ok 0 - " + name + " group killed: " + r.error.message + "\n" : "");
   const p = Number((out.match(/^# pass (\d+)/m) || [])[1] || 0);
-  const f = Number((out.match(/^# fail (\d+)/m) || [])[1] || 0) + (r.status && !/^# fail/m.test(out) ? 1 : 0);
+  const f = Number((out.match(/^# fail (\d+)/m) || [])[1] || 0) + ((r.status || r.signal) && !/^# fail [1-9]/m.test(out) ? 1 : 0);
   pass += p; fail += f;
   rows.push([name, p, f]);
   for (const m of out.matchAll(/^not ok \d+ - (.+)$/gm)) failed.push(name + ": " + m[1]);

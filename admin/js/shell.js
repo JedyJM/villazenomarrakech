@@ -276,7 +276,7 @@
      An answer from an earlier day is shown at once, then refreshed in
      the background. Filters (origine test, Jeu de test) apply at render
      time, never in the cache. Signing out clears it. */
-  var CACHE_PREFIX = "vz.admin.cache.";
+  var CACHE_PREFIX = "vz.admin.cache.v2.";
   var inflight = {};
   function localDay(d) {
     d = d || new Date();
@@ -319,6 +319,9 @@
   function cachedGet(name, params, done, opts) {
     opts = opts || {};
     var entry = opts.force ? null : readCache(name);
+    // A cached answer the page can no longer use (e.g. saved before a field
+    // existed) is dropped and refetched at once.
+    if (entry && opts.valid && !opts.valid(entry.data)) entry = null;
     var fresh = entry && entry.day === localDay();
     if (entry) done(entry.data, { cached: true, at: entry.at, stale: !fresh });
     if (fresh) return;

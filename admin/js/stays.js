@@ -39,7 +39,14 @@
       remote = (data && data.ok && data.stays) || remote || [];
       if (meta && meta.at) loadMeta = meta;
       done(loadMeta);
-    }, { force: !!force });
+    }, { force: !!force, valid: hasTotals });
+  }
+  // Zen'O rows must carry totalVoyageur (Stats brut); a cached answer from
+  // a script version without it is never reused.
+  function hasTotals(data) {
+    var list = (data && data.stays) || [];
+    for (var i = 0; i < list.length; i++) if (list[i] && list[i].portal !== false && !("totalVoyageur" in list[i])) return false;
+    return true;
   }
   // Other properties (M avenue, La tour): stats rows (action=stays-stats),
   // no guest name by design. Same cache key as Stats.
@@ -49,7 +56,7 @@
     shell.cachedGet("stays-stats", "action=stays-stats", function (data) {
       others = (data && data.ok && data.stays) || others || [];
       done();
-    }, { force: !!force });
+    }, { force: !!force, valid: hasTotals });
   }
 
   /* Booking sources (new stay form, lists, stay card). kind picks the price

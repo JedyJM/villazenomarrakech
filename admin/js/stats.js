@@ -4,6 +4,8 @@
 
   var shell = window.AdminShell || { TEST_MODE: true, SCRIPT_URL: "", session: function () { return "test"; } };
   var RATE = 10;
+  // Shown under the Séjours stats: tells which admin code the phone runs.
+  var BUILD = "2026-11-25 c";
   var STORE = "vz.admin.depenses";
   var MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
   var MONTH_FULL = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
@@ -404,7 +406,7 @@
       + (sel.length > 1 ? bienCard(list, period) : "")
       + (state.sMonth ? "" : monthCard(list, sel))
       + (notes.length ? '<p class="stat-note">' + esc(notes.join(" ")) + "</p>" : "")
-      + '<p class="stat-note">Nuits réparties par mois, futures comprises ; séjours annulés exclus. Tous les montants en euros ; dirhams convertis à 1\u00A0€ = 10\u00A0DH. Occupation = nuits / (jours × biens). ADR = brut / nuits, RevPAR = brut / nuits disponibles. Brut = total payé par le voyageur (total_voyageur) ; à défaut, frais de chambre − réduction (Airbnb), montant (Booking), tarif (direct). Frais plateformes = brut − net versé (Airbnb : frais voyageur et hôte), commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net.</p>';
+      + '<p class="stat-note">Nuits réparties par mois, futures comprises ; séjours annulés exclus. Tous les montants en euros ; dirhams convertis à 1\u00A0€ = 10\u00A0DH. Occupation = nuits / (jours × biens). ADR = brut / nuits, RevPAR = brut / nuits disponibles. Brut = total payé par le voyageur (total_voyageur) ; à défaut, frais de chambre − réduction (Airbnb), montant (Booking), tarif (direct). Frais plateformes = brut − net versé (Airbnb : frais voyageur et hôte), commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net. Version admin ' + esc(BUILD) + ".</p>";
   }
   function serviceSums(book) {
     var repas = book.repas.reduce(function (s, n) { return s + n; }, 0);
@@ -588,6 +590,13 @@
     ["demandes", function () { return "action=demandes"; }, function (data) { if (data && data.ok) state.remoteDemandes = data.items || []; }],
     ["depenses-" + state.year, function () { return "action=depenses&year=" + state.year; }, function (data) { if (data && data.ok) state.remoteExpenses = data.depenses || []; }]
   ];
+  // Zen'O rows must carry totalVoyageur: a cached answer without it (older
+  // script) is refetched instead of reused.
+  function hasTotals(data) {
+    var list = (data && data.stays) || [];
+    for (var i = 0; i < list.length; i++) if (list[i] && list[i].portal !== false && !("totalVoyageur" in list[i])) return false;
+    return true;
+  }
   function load(force) {
     if (!shell.cachedGet) { state.loading = 0; paint(); return; }
     state.loading = FEEDS.length;
@@ -598,7 +607,7 @@
         if (meta && meta.at) stampFeed(feed[0], meta.at);
         if (!first[feed[0]]) { first[feed[0]] = true; state.loading = Math.max(0, state.loading - 1); }
         paint();
-      }, { force: force });
+      }, { force: force, valid: feed[0].indexOf("stays") === 0 ? hasTotals : null });
     });
   }
   // Oldest update among the feeds (what the stamp shows).
@@ -619,7 +628,7 @@
         left -= 1;
         if (!left) state.refreshing = false;
         paint();
-      }, { force: true });
+      }, { force: true, valid: feed[0].indexOf("stays") === 0 ? hasTotals : null });
     });
   }
   function apiStay(stay) {

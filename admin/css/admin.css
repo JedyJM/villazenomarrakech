@@ -175,7 +175,7 @@ a { color: inherit; }
 .amount i { font-style: normal; line-height: 1; }
 .money-row .amount input {
   width: 8.6ch; max-width: 100%; min-width: 0; flex: 0 1 auto;
-  text-align: right; font-variant-numeric: tabular-nums; padding-right: 0; font-size: 15px;
+  text-align: right; font-variant-numeric: tabular-nums; padding-right: 0; font-size: 16px;
 }
 .amount .euro { font-size: 15px; line-height: 1; flex: none; }
 .date-fr { position: relative; display: flex; min-width: 0; max-width: 100%; overflow: hidden; }
@@ -205,7 +205,7 @@ a { color: inherit; }
 .heat-tarif { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; }
 .heat-tarif input {
   width: 3rem; min-width: 0; text-align: right; border: 0;
-  border-bottom: 1px solid rgba(28, 25, 22, 0.16); background: transparent; padding: 4px 0; font-size: 15px;
+  border-bottom: 1px solid rgba(28, 25, 22, 0.16); background: transparent; padding: 4px 0; font-size: 16px;
 }
 .heat-tarif[hidden], .offert-chip[hidden], .field[hidden] { display: none; }
 .offert-chip {
@@ -806,3 +806,10 @@ body.page-today .mini { min-height: 72px; }
 @media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
 
 .req-staff-confirm { font-size: 12px; font-weight: 500; color: #5e554c; }
+
+/* iPhone baseline (shared rule, guest and admin): no double-tap zoom on
+   steppers, buttons and links (touch-action: manipulation), and no focus
+   zoom on fields (iOS zooms into any field under 16px). */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body, a, button, label, summary, output, [role="button"], .stepper, .stepper * { touch-action: manipulation; }
+input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px !important; touch-action: manipulation; }

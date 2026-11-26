@@ -91,7 +91,7 @@
     ".vz-cookie-actions .vz-accept:hover{background:var(--terracotta-dark,#6b3022);border-color:var(--terracotta-dark,#6b3022)}" +
     ".vz-cookie-actions button:focus-visible{outline:2px solid var(--gold,#c4a46a);outline-offset:2px}" +
     /* Mode « docké » (ordinateur) : posé dans la barre du bas, pile sous la vidéo, même largeur */
-    ".vz-cookie.is-docked{left:0;bottom:auto;width:auto;max-width:none;margin:0;padding:6px 12px;border-radius:0;" +
+    ".vz-cookie.is-docked{transition:top .45s ease,height .45s ease,border-radius .45s ease,box-shadow .45s ease;left:0;bottom:auto;width:auto;max-width:none;margin:0;padding:6px 12px;border-radius:0;" +
     "box-shadow:none;border-top:0;border-bottom:0;background:var(--paper,#fffaf3);display:flex;flex-direction:column;" +
     "align-items:center;justify-content:center;gap:6px;text-align:center;animation:vzc-fade .35s ease}" +
     "@keyframes vzc-fade{from{opacity:0}to{opacity:1}}" +
@@ -100,14 +100,11 @@
     ".vz-cookie.is-docked .vz-long{display:none}.vz-cookie:not(.is-docked) .vz-short{display:none}" +
     ".vz-cookie.is-docked .vz-cookie-actions{justify-content:center;gap:8px}" +
     ".vz-cookie.is-docked .vz-cookie-actions button{min-height:26px;padding:0 14px;font-size:.58rem}" +
-    /* Voile : sur ordinateur, la page est assombrie et figée tant qu'aucun choix n'est fait */
-    ".vz-cookie-veil{position:fixed;inset:0;z-index:9998;background:rgba(28,25,22,.45);animation:vzc-fade .35s ease}" +
-    ".vz-cookie-veil[hidden]{display:none}" +
-    "html.vz-cookie-lock,html.vz-cookie-lock body{overflow:hidden}" +
-    ".vz-cookie.is-docked{box-shadow:0 0 0 1px rgba(196,164,106,.5)}" +
+    /* Quand le visiteur fait défiler : le bandeau se détache de la barre et flotte au-dessus du contenu */
+    ".vz-cookie.is-docked.is-floating{border-radius:10px;border:1px solid var(--line,rgba(28,25,22,.12));box-shadow:0 18px 44px rgba(28,25,22,.22)}" +
     "@media (max-width:600px){.vz-cookie{left:12px;right:12px;bottom:76px;width:auto;padding:12px 14px}}";
 
-  var box = null, veil = null;
+  var box = null;
   function openBanner() {
     if (box) { box.hidden = false; place(); return; }
     var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
@@ -121,13 +118,10 @@
       '<div class="vz-cookie-actions">' +
       '<button type="button" class="vz-refuse">' + T.refuse + '</button>' +
       '<button type="button" class="vz-accept">' + T.accept + '</button></div>';
-    veil = document.createElement("div");
-    veil.className = "vz-cookie-veil";
-    veil.hidden = true;
-    document.body.appendChild(veil);
     document.body.appendChild(box);
     place();
     window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, { passive: true });
     window.addEventListener("orientationchange", place);
     box.querySelector(".vz-accept").addEventListener("click", function () { save(true); closeBanner(); loadPixel(); });
     box.querySelector(".vz-refuse").addEventListener("click", function () {
@@ -141,11 +135,7 @@
      La vidéo (1920×1080, object-fit: cover) montre une bande verticale nette au centre
      qui occupe 25,9 % de sa largeur affichée. Sous 300 px de large : carte classique. */
   var BAND = 0.259;
-  function closeBanner() {
-    box.hidden = true;
-    if (veil) veil.hidden = true;
-    document.documentElement.classList.remove("vz-cookie-lock");
-  }
+  function closeBanner() { box.hidden = true; }
   function place() {
     if (!box) return;
     var bar = document.querySelector(".sticky-bar");
@@ -159,15 +149,18 @@
         dock = true;
         box.style.left = Math.round(hr.left + hr.width / 2 - w / 2) + "px";
         box.style.width = w + "px";
-        box.style.top = Math.round(br.top) + "px";
-        box.style.height = Math.round(br.height) + "px";
+        /* Haut de page : posé dans la barre, sous la vidéo.
+           Dès que la page défile : remonte de 40 % de l'écran et flotte au-dessus du site. */
+        var floating = (window.scrollY || window.pageYOffset) > 40;
+        var h = Math.round(br.height);
+        var top = floating ? Math.round(br.top - window.innerHeight * 0.4) : Math.round(br.top);
+        box.style.top = top + "px";
+        box.style.height = h + "px";
+        box.classList.toggle("is-floating", floating);
       }
     }
     box.classList.toggle("is-docked", dock);
-    /* Voile + page figée seulement en mode ordinateur, et seulement tant que le bandeau est ouvert */
-    var lock = dock && !box.hidden;
-    if (veil) veil.hidden = !lock;
-    document.documentElement.classList.toggle("vz-cookie-lock", lock);
+    if (!dock) box.classList.remove("is-floating");
     if (!dock) { box.style.left = box.style.width = box.style.top = box.style.height = ""; }
   }
 

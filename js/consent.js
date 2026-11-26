@@ -18,11 +18,13 @@
 
   var T = en ? {
     text: "With your consent, we use Meta cookies to measure site visits and our ads.",
+    short: "Meta cookies: audience & advertising",
     more: "Learn more",
     accept: "Accept",
     refuse: "Decline"
   } : {
     text: "Avec votre accord, nous utilisons des cookies Meta pour mesurer la fréquentation du site et nos publicités.",
+    short: "Cookies Meta : audience et publicité",
     more: "En savoir plus",
     accept: "Accepter",
     refuse: "Refuser"
@@ -88,11 +90,21 @@
     ".vz-cookie-actions .vz-accept{background:var(--ink,#1c1916);border-color:var(--ink,#1c1916);color:var(--paper,#fffaf3)}" +
     ".vz-cookie-actions .vz-accept:hover{background:var(--terracotta-dark,#6b3022);border-color:var(--terracotta-dark,#6b3022)}" +
     ".vz-cookie-actions button:focus-visible{outline:2px solid var(--gold,#c4a46a);outline-offset:2px}" +
+    /* Mode « docké » (ordinateur) : posé dans la barre du bas, pile sous la vidéo, même largeur */
+    ".vz-cookie.is-docked{left:0;bottom:auto;width:auto;max-width:none;margin:0;padding:6px 12px;border-radius:0;" +
+    "box-shadow:none;border-top:0;border-bottom:0;background:var(--paper,#fffaf3);display:flex;flex-direction:column;" +
+    "align-items:center;justify-content:center;gap:6px;text-align:center;animation:vzc-fade .35s ease}" +
+    "@keyframes vzc-fade{from{opacity:0}to{opacity:1}}" +
+    ".vz-cookie.is-docked[hidden]{display:none}" +
+    ".vz-cookie.is-docked p{margin:0;font-size:.68rem;letter-spacing:.02em;white-space:nowrap;text-align:center}" +
+    ".vz-cookie.is-docked .vz-long{display:none}.vz-cookie:not(.is-docked) .vz-short{display:none}" +
+    ".vz-cookie.is-docked .vz-cookie-actions{justify-content:center;gap:8px}" +
+    ".vz-cookie.is-docked .vz-cookie-actions button{min-height:26px;padding:0 14px;font-size:.58rem}" +
     "@media (max-width:600px){.vz-cookie{left:12px;right:12px;bottom:76px;width:auto;padding:12px 14px}}";
 
   var box = null;
   function openBanner() {
-    if (box) { box.hidden = false; return; }
+    if (box) { box.hidden = false; place(); return; }
     var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
     box = document.createElement("div");
     box.className = "vz-cookie";
@@ -100,17 +112,45 @@
     box.setAttribute("aria-live", "polite");
     box.setAttribute("aria-label", "Cookies");
     box.innerHTML =
-      '<p>' + T.text + ' <a href="' + legalHref + '#cookies">' + T.more + '</a></p>' +
+      '<p><span class="vz-long">' + T.text + '</span><span class="vz-short">' + T.short + ' ·</span> <a href="' + legalHref + '#cookies">' + T.more + '</a></p>' +
       '<div class="vz-cookie-actions">' +
       '<button type="button" class="vz-refuse">' + T.refuse + '</button>' +
       '<button type="button" class="vz-accept">' + T.accept + '</button></div>';
     document.body.appendChild(box);
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("orientationchange", place);
     box.querySelector(".vz-accept").addEventListener("click", function () { save(true); box.hidden = true; loadPixel(); });
     box.querySelector(".vz-refuse").addEventListener("click", function () {
       var wasOn = pixelLoaded;
       save(false); box.hidden = true;
       if (wasOn) location.reload(); // décharge le pixel déjà actif
     });
+  }
+
+  /* Place le bandeau dans la barre du bas, aligné sur la bande nette de la vidéo d'accueil.
+     La vidéo (1920×1080, object-fit: cover) montre une bande verticale nette au centre
+     qui occupe 25,9 % de sa largeur affichée. Sous 300 px de large : carte classique. */
+  var BAND = 0.259;
+  function place() {
+    if (!box) return;
+    var bar = document.querySelector(".sticky-bar");
+    var hero = document.querySelector(".hero-media") || document.querySelector(".hero");
+    var dock = false;
+    if (bar && hero && window.innerWidth >= 900) {
+      var hr = hero.getBoundingClientRect(), br = bar.getBoundingClientRect();
+      var shownW = Math.max(hr.width, hr.height * 16 / 9);
+      var w = Math.round(shownW * BAND);
+      if (w >= 300 && br.height >= 48) {
+        dock = true;
+        box.style.left = Math.round(hr.left + hr.width / 2 - w / 2) + "px";
+        box.style.width = w + "px";
+        box.style.top = Math.round(br.top) + "px";
+        box.style.height = Math.round(br.height) + "px";
+      }
+    }
+    box.classList.toggle("is-docked", dock);
+    if (!dock) { box.style.left = box.style.width = box.style.top = box.style.height = ""; }
   }
 
   function init() {

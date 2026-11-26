@@ -100,9 +100,14 @@
     ".vz-cookie.is-docked .vz-long{display:none}.vz-cookie:not(.is-docked) .vz-short{display:none}" +
     ".vz-cookie.is-docked .vz-cookie-actions{justify-content:center;gap:8px}" +
     ".vz-cookie.is-docked .vz-cookie-actions button{min-height:26px;padding:0 14px;font-size:.58rem}" +
+    /* Voile : sur ordinateur, la page est assombrie et figée tant qu'aucun choix n'est fait */
+    ".vz-cookie-veil{position:fixed;inset:0;z-index:9998;background:rgba(28,25,22,.45);animation:vzc-fade .35s ease}" +
+    ".vz-cookie-veil[hidden]{display:none}" +
+    "html.vz-cookie-lock,html.vz-cookie-lock body{overflow:hidden}" +
+    ".vz-cookie.is-docked{box-shadow:0 0 0 1px rgba(196,164,106,.5)}" +
     "@media (max-width:600px){.vz-cookie{left:12px;right:12px;bottom:76px;width:auto;padding:12px 14px}}";
 
-  var box = null;
+  var box = null, veil = null;
   function openBanner() {
     if (box) { box.hidden = false; place(); return; }
     var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
@@ -116,14 +121,18 @@
       '<div class="vz-cookie-actions">' +
       '<button type="button" class="vz-refuse">' + T.refuse + '</button>' +
       '<button type="button" class="vz-accept">' + T.accept + '</button></div>';
+    veil = document.createElement("div");
+    veil.className = "vz-cookie-veil";
+    veil.hidden = true;
+    document.body.appendChild(veil);
     document.body.appendChild(box);
     place();
     window.addEventListener("resize", place);
     window.addEventListener("orientationchange", place);
-    box.querySelector(".vz-accept").addEventListener("click", function () { save(true); box.hidden = true; loadPixel(); });
+    box.querySelector(".vz-accept").addEventListener("click", function () { save(true); closeBanner(); loadPixel(); });
     box.querySelector(".vz-refuse").addEventListener("click", function () {
       var wasOn = pixelLoaded;
-      save(false); box.hidden = true;
+      save(false); closeBanner();
       if (wasOn) location.reload(); // décharge le pixel déjà actif
     });
   }
@@ -132,6 +141,11 @@
      La vidéo (1920×1080, object-fit: cover) montre une bande verticale nette au centre
      qui occupe 25,9 % de sa largeur affichée. Sous 300 px de large : carte classique. */
   var BAND = 0.259;
+  function closeBanner() {
+    box.hidden = true;
+    if (veil) veil.hidden = true;
+    document.documentElement.classList.remove("vz-cookie-lock");
+  }
   function place() {
     if (!box) return;
     var bar = document.querySelector(".sticky-bar");
@@ -150,6 +164,10 @@
       }
     }
     box.classList.toggle("is-docked", dock);
+    /* Voile + page figée seulement en mode ordinateur, et seulement tant que le bandeau est ouvert */
+    var lock = dock && !box.hidden;
+    if (veil) veil.hidden = !lock;
+    document.documentElement.classList.toggle("vz-cookie-lock", lock);
     if (!dock) { box.style.left = box.style.width = box.style.top = box.style.height = ""; }
   }
 

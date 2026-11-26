@@ -17,14 +17,12 @@
   var legalHref = document.querySelector(".footer-legal a") ? document.querySelector(".footer-legal a").getAttribute("href") : (en ? "legal-notice.html" : "mentions-legales.html");
 
   var T = en ? {
-    title: "Cookies",
-    text: "With your consent, we use the Meta (Facebook / Instagram) pixel to measure visits and show our ads to people who may be interested in the villa. You can change your mind at any time via “Cookie settings” at the bottom of the page.",
+    text: "With your consent, we use Meta cookies to measure site visits and our ads.",
     more: "Learn more",
     accept: "Accept",
     refuse: "Decline"
   } : {
-    title: "Cookies",
-    text: "Avec votre accord, nous utilisons le pixel Meta (Facebook / Instagram) pour mesurer les visites et montrer nos publicités aux personnes susceptibles d’être intéressées par la villa. Vous pouvez changer d’avis à tout moment via « Gestion des cookies » en bas de page.",
+    text: "Avec votre accord, nous utilisons des cookies Meta pour mesurer la fréquentation du site et nos publicités.",
     more: "En savoir plus",
     accept: "Accepter",
     refuse: "Refuser"
@@ -73,31 +71,35 @@
 
   /* ---------- Bandeau ---------- */
   var css = "" +
-    ".vz-cookie{position:fixed;left:16px;right:16px;bottom:16px;z-index:9999;max-width:560px;margin:0 auto;" +
-    "background:var(--paper,#fffaf3);color:var(--ink,#1c1916);border:1px solid var(--line,rgba(28,25,22,.12));" +
-    "border-radius:var(--radius,18px);box-shadow:var(--shadow,0 16px 40px rgba(28,25,22,.12));padding:20px 22px;" +
-    "font-family:var(--sans,system-ui,sans-serif);font-size:.92rem;line-height:1.5}" +
-    ".vz-cookie h2{font-family:var(--serif,serif);font-weight:500;font-size:1.2rem;margin:0 0 .4rem}" +
-    ".vz-cookie p{margin:0 0 .9rem;color:var(--muted,#5e554c);text-align:left;hyphens:none}" +
-    ".vz-cookie p a{color:inherit}" +
-    ".vz-cookie-actions{display:flex;gap:10px;flex-wrap:wrap}" +
-    ".vz-cookie-actions button{flex:1 1 140px;min-height:44px;border-radius:999px;font:inherit;font-weight:500;cursor:pointer;" +
-    "border:1px solid var(--ink,#1c1916);padding:.6rem 1rem}" +
-    ".vz-cookie-actions .vz-refuse{background:transparent;color:var(--ink,#1c1916)}" +
-    ".vz-cookie-actions .vz-accept{background:var(--ink,#1c1916);color:#fff}" +
-    ".vz-cookie-actions button:focus-visible{outline:2px solid var(--gold,#c4a46a);outline-offset:2px}";
+    ".vz-cookie{position:fixed;left:16px;bottom:16px;z-index:9999;width:min(340px,calc(100% - 32px));" +
+    "background:rgba(255,250,243,.97);color:var(--ink,#1c1916);border:1px solid var(--line,rgba(28,25,22,.12));" +
+    "border-radius:10px;box-shadow:0 12px 32px rgba(28,25,22,.08);padding:14px 16px;" +
+    "font-family:var(--sans,system-ui,sans-serif);font-weight:300;font-size:.78rem;line-height:1.5;" +
+    "-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);animation:vzc-in .35s ease}" +
+    "@keyframes vzc-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}" +
+    ".vz-cookie[hidden]{display:none}" +
+    ".vz-cookie p{margin:0 0 10px;color:var(--muted,#5e554c);text-align:left;hyphens:none}" +
+    ".vz-cookie p a{color:var(--ink,#1c1916);text-underline-offset:2px}" +
+    ".vz-cookie-actions{display:flex;gap:8px;justify-content:flex-end}" +
+    ".vz-cookie-actions button{min-height:34px;padding:0 14px;border-radius:999px;cursor:pointer;" +
+    "font-family:inherit;font-weight:400;font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;" +
+    "border:1px solid rgba(28,25,22,.35);background:transparent;color:var(--ink,#1c1916);transition:background .2s,color .2s,border-color .2s}" +
+    ".vz-cookie-actions button:hover{border-color:var(--ink,#1c1916)}" +
+    ".vz-cookie-actions .vz-accept{background:var(--ink,#1c1916);border-color:var(--ink,#1c1916);color:var(--paper,#fffaf3)}" +
+    ".vz-cookie-actions .vz-accept:hover{background:var(--terracotta-dark,#6b3022);border-color:var(--terracotta-dark,#6b3022)}" +
+    ".vz-cookie-actions button:focus-visible{outline:2px solid var(--gold,#c4a46a);outline-offset:2px}" +
+    "@media (max-width:600px){.vz-cookie{left:12px;right:12px;bottom:76px;width:auto;padding:12px 14px}}";
 
   var box = null;
   function openBanner() {
-    if (box) { box.hidden = false; box.querySelector(".vz-accept").focus(); return; }
+    if (box) { box.hidden = false; return; }
     var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
     box = document.createElement("div");
     box.className = "vz-cookie";
     box.setAttribute("role", "dialog");
     box.setAttribute("aria-live", "polite");
-    box.setAttribute("aria-labelledby", "vz-cookie-title");
+    box.setAttribute("aria-label", "Cookies");
     box.innerHTML =
-      '<h2 id="vz-cookie-title">' + T.title + '</h2>' +
       '<p>' + T.text + ' <a href="' + legalHref + '#cookies">' + T.more + '</a></p>' +
       '<div class="vz-cookie-actions">' +
       '<button type="button" class="vz-refuse">' + T.refuse + '</button>' +

@@ -22,5 +22,9 @@ window.VILLA_ZENO = {
 
   /* Messages préremplis envoyés dans WhatsApp */
   whatsappMessageFr: "Bonjour, je souhaite des informations pour réserver la Villa Zen'O à Marrakech.",
-  whatsappMessageEn: "Hello, I would like to enquire about booking Villa Zen'O in Marrakech."
+  whatsappMessageEn: "Hello, I would like to enquire about booking Villa Zen'O in Marrakech.",
+
+  /* Meta Pixel : identifiant à 15-16 chiffres (Gestionnaire d'événements Meta > Sources de données).
+     Laisser vide ("") = aucun bandeau cookies, aucun pixel. */
+  metaPixelId: "1298843792408100"
 };

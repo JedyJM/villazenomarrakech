@@ -49,7 +49,13 @@ test("restauration: breakfast before 9h = +10 € (100 DH) per table, real name 
   await page.click("[data-meal='breakfast']");
   await setField(page, "[name='date']", TOMORROW);
   await page.selectOption("[name='time']", "08:00");
-  for (let i = 0; i < 3; i++) await page.click("[data-people-kind='adults'][data-dir='1']");
+  // Guests prefilled from the booking (2 adults), « Modifier » → 3 adults.
+  await page.locator("[data-guests-summary]:not([hidden])").waitFor();
+  assert.match(await page.locator("[data-guests-text]").innerText(), /2 adultes/);
+  await page.click("[data-guests-edit]");
+  await page.click("[data-people-kind='adults'][data-dir='1']");
+  await page.click("[data-bf-tab='oeufs']");
+  await page.click("[data-egg='dur'][data-dir='1']");
   await page.click("[data-meal-form] button[type='submit']");
   await sentOk(page);
   const rows = await page.locator("[data-confirm-list]").innerText();

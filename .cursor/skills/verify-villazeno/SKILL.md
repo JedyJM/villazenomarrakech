@@ -1,11 +1,11 @@
 ---
 name: verify-villazeno
-description: End-to-end verification of the Villa Zen'O guest portal and admin (static site + Google Apps Script). Use before every preview hand-off and every release, and whenever a change touches guest/, admin/, c/, js/vz-*.js or the Apps Script. Runs the full guest journey, the full admin journey and the admin↔guest link on iPhone 15 WebKit with the Apps Script /exec mocked by the real script logic (Code.v19.gs + the shared field model). Never calls the live /exec, WhatsApp or Gmail.
+description: End-to-end verification of the Villa Zen'O guest portal and admin (static site + Google Apps Script). Use before every preview hand-off and every release, and whenever a change touches guest/, admin/, c/, js/vz-*.js or the Apps Script. Runs the full guest journey, the full admin journey and the admin↔guest link on iPhone 15 WebKit with the Apps Script /exec mocked by the real script logic (Code.v21.gs candidate + the shared field model). Never calls the live /exec, WhatsApp or Gmail.
 ---
 
 # verify-villazeno
 
-The site is static: `guest/` (portal), `admin/` (Mehdi), `c/` (provider « Confirmer » links), and shared `js/vz-fields.js` (field model) + `js/vz-api.js` (the one Apps Script client). The backend is a Google Apps Script web app. The repo copy is `guest/apps-script/Code.gs` (live v18). The next version is `/workspace/sec/Code.v19.gs`, outside the repo and never published from here.
+The site is static: `guest/` (portal), `admin/` (Mehdi), `c/` (provider « Confirmer » links), and shared `js/vz-fields.js` (field model) + `js/vz-api.js` (the one Apps Script client). The backend is a Google Apps Script web app. The public repo copy `guest/apps-script/Code.gs` is an old version (no secrets). Live is v20; the candidate under test is `/workspace/sec/Code.v21.gs` (also in the private repo villa-zeno-os, `projects/villa-zenO/apps-script/Code.gs`), never published from here.
 
 ## Launch
 
@@ -17,10 +17,19 @@ npm run verify                 # everything; prints pass/fail per group and TOTA
 ```
 
 - Readiness: each browser test starts its own local static server on `127.0.0.1:<random>`, served as `http://localhost:<port>`. `localhost` is the host where the admin « Mode test » exists. The server prints nothing; a test is ready when its first `page.goto` resolves.
-- Apps Script under test: `VZ_GAS_CODE` (default `/workspace/sec/Code.v19.gs`). If the file is missing, the run stops with exit code 2.
+- Apps Script under test: `VZ_GAS_CODE` (default `/workspace/sec/Code.v21.gs`). If the file is missing, the run stops with exit code 2.
 - Fast loop (script only, about 1 s): `npm run verify:gas`.
 - A single journey: `node --test --test-concurrency=1 tests/verify/admin.e2e.test.js`.
 - Teardown: automatic. Each file closes its contexts, its servers (`after`) and the browser. Nothing keeps running.
+
+## Functional items of 2026-11-27
+
+- `tests/verify/func.test.js` (script, harness with the production Sheet shape): Gmail import button (create / update / cancel, no duplicate), free stay 0 €, stay edit, 3 meal counters + breakfast extras in the Arabic staff WhatsApp (no price), staging switch, Famille Démo, /exec per environment.
+- `tests/verify/func.e2e.test.js` (browser): admin freshness (cache then refresh, « Actualiser », no stacked reads), import button, free stay, stay edit, restauration, home, demo stay. `createBackend({ realShape: true, latency: [min, max] })` = full Réservations headers, Demandes grid of 1000 rows, 60 demandes of other stays, Apps Script latency; `b.inflightMax(action)`.
+
+## Level 2 (staging, TESTS-E2E.md)
+
+`npm run e2e` runs `tests/e2e/staging.e2e.test.js` (G1–G12, A1–A12, S1–S5) on iPhone 16 size then iPhone SE, one screenshot per step in `E2E_SHOTS/<device>/`. Local by default (mocked /exec). Against staging: `E2E_BASE_URL` (Vercel preview), `E2E_EXEC_URL` (staging /exec; production is refused), `E2E_ADMIN_TOKEN`, optional `E2E_GUEST_K`. Environment only, never committed.
 
 ## Doctor (is this instance worth driving?)
 

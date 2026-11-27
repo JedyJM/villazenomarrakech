@@ -955,7 +955,9 @@
     });
     form.addEventListener("focusout", function (event) {
       if (!event.target.classList || !event.target.classList.contains("amt")) return;
-      event.target.value = amountText(calc.cents(event.target.value));
+      var typed = String(event.target.value).replace(/\s|\u00A0/g, "");
+      // A typed 0 stays visible (free stay); empty stays empty.
+      event.target.value = typed !== "" && !calc.cents(typed) ? "0" : amountText(calc.cents(event.target.value));
     });
     // Field to scroll to and focus for a validation message.
     function badField(message) {

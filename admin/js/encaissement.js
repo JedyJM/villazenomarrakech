@@ -138,6 +138,7 @@
       : segment + paypal + '<button type="button" class="primary" data-pay>Marquer comme payé</button>';
     root.innerHTML = '<a class="back" href="sejour.html?id=' + encodeURIComponent(stay.id) + '">‹ Fiche séjour</a>'
       + "<h1>Encaissement</h1>"
+      + '<p class="sync" data-sync></p>'
       + '<p class="cash-who"><span>' + esc(subtitle(stay)) + '</span><span class="chip ' + (paid ? "is-paye" : "is-attente") + '">' + (paid ? "Payé" : "En attente") + "</span></p>"
       + '<section class="block"><p class="kicker">À régler à la villa</p>' + lines
       + (provider ? '<p class="cash-done">' + esc(provider) + "</p>" : "")
@@ -145,6 +146,7 @@
       + '<section class="block cash-sum"><div class="cash-total">' + figs + "</div>"
       + '<p class="cash-rate">Taux appliqué\u00A0: 1\u00A0€ = 10\u00A0DH</p>'
       + action + "</section>";
+    paintStamp();
     fitFigs();
   }
   function fitLine(el, start, min) {
@@ -229,6 +231,7 @@
     root.addEventListener("click", function (event) {
       var off = event.target.closest("[data-off]");
       if (off && !state.paid) {
+        state.touched = true;
         state.lines.forEach(function (line) {
           if (line.id === off.getAttribute("data-off")) line.offert = !line.offert;
         });
@@ -289,36 +292,81 @@
     var saved = stay.encaisse_le
       ? { encaisse_le: stay.encaisse_le, encaisse_mode: stay.encaisse_mode, encaisse_total_eur: stay.encaisse_total_eur, offerts: stay.offerts || [] }
       : (readPay()[stay.id] || null);
-    state = { stay: stay, lines: billLines(stay, saved), mode: "eur", paid: saved };
-    bind(root);
+    var mode = state ? state.mode : "eur";
+    state = { stay: stay, lines: billLines(stay, saved), mode: mode, paid: saved, touched: false };
+    if (!bound) { bind(root); bound = true; }
     paint();
+  }
+  var bound = false;
+  /* Stay + demandes (meals): the cached copies are painted at once, then
+     both are read again on EVERY open and on « Actualiser » (one call per
+     feed at a time). A fresh answer repaints the bill, unless Mehdi is
+     changing it (Offert switch touched, payment sheet open or saving). */
+  var sync = { busy: 0, ats: {} };
+  function syncAt() {
+    var list = Object.keys(sync.ats).map(function (k) { return sync.ats[k]; });
+    return list.length ? Math.min.apply(Math, list) : 0;
+  }
+  function paintStamp() {
+    if (shell.paintSync) shell.paintSync(document.querySelector("[data-cash] [data-sync]"), syncAt(), sync.busy > 0);
+  }
+  function load(id, force) {
+    var root = document.querySelector("[data-cash]");
+    if (sync.busy) return;
+    sync.busy = 2;
+    paintStamp();
+    var items = null;
+    var gotItems = false;
+    var doneReq = false;
+    var doneStay = false;
+    function render() {
+      var stay = window.AdminStays.find(id);
+      if (!stay) return;
+      if (state && (state.touched || saving || !document.querySelector("[data-pay-sheet]").hidden)) { paintStamp(); return; }
+      stay = Object.assign({}, stay);
+      if (calc) {
+        stay.nights = calc.nights(stay.arrival, stay.departure);
+        if (stay.source === "Booking" && calc.bookingTax) stay.tax = calc.bookingTax((stay.adults || 0) + (stay.children || 0), stay.nights);
+      }
+      start(withMeals(stay, items));
+    }
+    shell.cachedGet("demandes", "action=demandes", function (data, meta) {
+      var final = !(meta && meta.cached && !meta.error);
+      if (data && data.ok) { items = data.items || []; gotItems = true; }
+      if (meta && meta.at) sync.ats.demandes = meta.at;
+      if (final && !doneReq) {
+        doneReq = true;
+        sync.busy -= 1;
+        shell.loadError(meta && meta.error ? meta.result : null, function () { load(id, true); });
+      }
+      if (gotItems || final) render();
+      paintStamp();
+    }, { force: !!force });
+    window.AdminStays.load(function (meta) {
+      var final = !(meta && meta.cached && !meta.error);
+      if (meta && meta.at) sync.ats.stays = meta.at;
+      if (final && !doneStay) {
+        doneStay = true;
+        sync.busy -= 1;
+        if (!window.AdminStays.find(id) && !state) start(null);
+      }
+      render();
+      paintStamp();
+    }, force);
   }
   function boot() {
     var root = document.querySelector("[data-cash]");
     if (!root || document.body.classList.contains("is-locked") || !calc) return;
     var id = query("sejour") || query("id");
-    if (!window.AdminStays || !shell.api) { start(null); return; }
-    // Stay (daily cache, same as Séjours) + demandes (meals), both awaited.
+    if (!window.AdminStays || !shell.api || !shell.cachedGet) { start(null); return; }
     root.innerHTML = '<a class="back" href="sejours.html">‹ Séjours</a><p class="empty" data-cash-loading>Chargement…</p>';
-    shell.api.get({ action: "demandes" }).then(function (demandes) {
-      if (!demandes.ok) shell.loadError(demandes, function () { boot(); });
-      var started = false;
-      window.AdminStays.load(function () {
-        var stay = window.AdminStays.find(id);
-        if (started || !stay) {
-          if (!started && !stay) root.innerHTML = '<a class="back" href="sejours.html">‹ Séjours</a><p class="empty" data-cash-loading>Chargement…</p>';
-          return;
-        }
-        started = true;
-        stay = Object.assign({}, stay);
-        if (calc) {
-          stay.nights = calc.nights(stay.arrival, stay.departure);
-          if (stay.source === "Booking" && calc.bookingTax) stay.tax = calc.bookingTax((stay.adults || 0) + (stay.children || 0), stay.nights);
-        }
-        start(withMeals(stay, demandes.ok ? (demandes.data.items || []) : null));
-      });
-      window.setTimeout(function () { if (!started) start(null); }, 30000);
+    root.addEventListener("click", function (event) {
+      if (event.target.closest("[data-sync] [data-refresh]")) {
+        if (state) state.touched = false;
+        load(id, true);
+      }
     });
+    load(id, false);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

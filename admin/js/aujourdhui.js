@@ -167,16 +167,44 @@
 
     root.querySelector("[data-date]").textContent = WEEK[day.getDay()] + " " + day.getDate() + "\u00A0" + MONTHS[day.getMonth()] + "\u00A0" + day.getFullYear();
     paintStays(root, todayKey, empty, false);
-    // Real Zen'O stays from the daily cache (same feed as Séjours).
-    // Cached answer: painted in the same task (no skeleton flash); network
-    // only when the cache is from another day or missing. Then the other
-    // shared feeds are filled in the background for Séjours and Stats.
-    if (window.AdminStays && !empty) {
-      window.AdminStays.load(function (meta) {
-        paintStays(root, todayKey, empty, true);
-        if (window.AdminShell && window.AdminShell.warm && !(meta && meta.cached && meta.stale)) window.AdminShell.warm();
-      });
+    var shell = window.AdminShell;
+    var sync = root.querySelector("[data-sync]");
+    // Two feeds (stays, demandes): cached copy painted at once, then the
+    // network answer, on EVERY open and on « Actualiser ».
+    var ats = {};
+    var busy = 0;
+    function stamp() {
+      var list = Object.keys(ats).map(function (k) { return ats[k]; });
+      if (shell && shell.paintSync) shell.paintSync(sync, list.length ? Math.min.apply(Math, list) : 0, busy > 0);
     }
+    function load(force) {
+      if (empty || !shell) return;
+      if (busy) return; // a read is running: never a second one
+      busy = 2;
+      stamp();
+      var stayDone = false;
+      var reqDone = false;
+      if (window.AdminStays) {
+        window.AdminStays.load(function (meta) {
+          paintStays(root, todayKey, empty, true);
+          if (meta && meta.at) ats.stays = meta.at;
+          if (!(meta && meta.cached && !meta.error) && !stayDone) { stayDone = true; busy -= 1; stamp(); if (shell.warm) shell.warm(); }
+          else stamp();
+        }, force);
+      } else { busy -= 1; }
+      if (shell.cachedGet) {
+        shell.cachedGet("demandes", "action=demandes", function (data, meta) {
+          paintRequests(requestsFrom(data));
+          if (meta && meta.at) ats.demandes = meta.at;
+          shell.loadError(meta && meta.error ? meta.result : null, function () { load(true); });
+          if (!(meta && meta.cached && !meta.error) && !reqDone) { reqDone = true; busy -= 1; }
+          stamp();
+        }, { force: !!force });
+      } else { busy -= 1; }
+    }
+    if (sync) sync.addEventListener("click", function (event) {
+      if (event.target.closest("[data-refresh]")) load(true);
+    });
 
     function paintRequests(items) {
     var alerts = items.filter(function (item) {
@@ -199,12 +227,7 @@
     }).join("") : '<p class="today-empty">Aucun service</p>';
     }
     paintRequests([]);
-    if (!empty && window.AdminShell && window.AdminShell.cachedGet) {
-      window.AdminShell.cachedGet("demandes", "action=demandes", function (data, meta) {
-        paintRequests(requestsFrom(data));
-        window.AdminShell.loadError(meta && meta.error ? meta.result : null, function () { boot(); });
-      });
-    }
+    load(false);
   }
   function chipClass(status) {
     if (status === "Confirmée") return "status-confirmee";

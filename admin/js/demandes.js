@@ -375,36 +375,87 @@
       if (event.target.closest("[data-sheet-close]") || event.target.hasAttribute("data-sheet-back")) closeSheet(root);
     });
     if (staffConfirmDemo()) { paint(root); return; }
-    load(root);
+    var sync = root.querySelector("[data-sync]");
+    if (sync) sync.addEventListener("click", function (event) {
+      if (event.target.closest("[data-refresh]")) load(root, true);
+    });
+    load(root, false);
   }
-  // Demandes + stays (current stays), both awaited; an error is shown with « Réessayer ».
-  function load(root) {
+  // A local status patch is only needed until the script answers with it:
+  // once the fresh list agrees, the patch is dropped (fresher server
+  // changes, e.g. a staff « Confirmer », are then shown).
+  function dropSyncedPatches(items) {
+    var patches = readPatches();
+    var changed = false;
+    items.forEach(function (item) {
+      var p = patches[item.id];
+      if (p && p.status === item.status && !!p.offert === !!item.offert) { delete patches[item.id]; changed = true; }
+    });
+    if (changed) { try { sessionStorage.setItem(STORE, JSON.stringify(patches)); } catch (e) {} }
+  }
+  /* Demandes + stays (current stays). The cached copy is painted at once,
+     then both feeds are read again on EVERY open and on « Actualiser »
+     (AdminShell.cachedGet: one call per feed at a time, never stacked).
+     An error is shown with « Réessayer », the cached list stays. */
+  var busy = 0;
+  var ats = {};
+  function stamp(root) {
+    var list = Object.keys(ats).map(function (k) { return ats[k]; });
+    if (shell.paintSync) shell.paintSync(root.querySelector("[data-sync]"), list.length ? Math.min.apply(Math, list) : 0, busy > 0);
+  }
+  function load(root, force) {
+    if (busy) return;
     var note = root.querySelector("[data-req-loading]");
     if (!note) {
       note = document.createElement("p");
       note.className = "empty";
       note.setAttribute("data-req-loading", "");
-      root.insertBefore(note, root.firstChild);
+      var list = root.querySelector("[data-list]");
+      list.parentNode.insertBefore(note, list);
     }
-    note.hidden = false;
-    note.textContent = "Chargement des demandes…";
-    var slow = window.setTimeout(function () { note.textContent = "Chargement des demandes… le serveur met du temps à répondre."; }, 8000);
-    Promise.all([shell.api.get({ action: "demandes" }), shell.api.get({ action: "stays" })]).then(function (pair) {
-      window.clearTimeout(slow);
-      note.hidden = true;
-      if (!pair[0].ok) {
-        shell.loadError(pair[0], function () { load(root); });
-        paint(root);
-        return;
+    if (remoteItems === null) {
+      note.hidden = false;
+      note.textContent = "Chargement des demandes…";
+    }
+    var slow = window.setTimeout(function () { if (remoteItems === null) note.textContent = "Chargement des demandes… le serveur met du temps à répondre."; }, 8000);
+    if (!shell.cachedGet) return;
+    busy = 2;
+    stamp(root);
+    var doneReq = false;
+    var doneStays = false;
+    shell.cachedGet("demandes", "action=demandes", function (data, meta) {
+      var final = !(meta && meta.cached && !meta.error);
+      if (meta && meta.at) ats.demandes = meta.at;
+      if (data && data.ok) {
+        remoteItems = (data.items || []).map(fromApi);
+        note.hidden = true;
+        if (!(meta && meta.cached)) dropSyncedPatches(remoteItems);
       }
-      shell.loadError(null);
-      remoteItems = ((pair[0].data && pair[0].data.items) || []).map(fromApi);
-      var todayIso = isoDay(today());
-      remoteCurrentIds = ((pair[1].ok && pair[1].data.stays) || []).filter(function (stay) {
-        return stay.arrival && stay.departure && stay.arrival <= todayIso && todayIso < stay.departure;
-      }).map(function (stay) { return stay.id; });
+      if (final && !doneReq) {
+        doneReq = true;
+        busy -= 1;
+        window.clearTimeout(slow);
+        if (meta && meta.error) {
+          if (remoteItems === null) note.hidden = true;
+          shell.loadError(meta.result, function () { load(root, true); });
+        } else shell.loadError(null);
+      }
+      stamp(root);
       paint(root);
-    });
+    }, { force: !!force });
+    shell.cachedGet("stays", "action=stays", function (data, meta) {
+      var final = !(meta && meta.cached && !meta.error);
+      if (data && data.ok) {
+        var todayIso = isoDay(today());
+        remoteCurrentIds = (data.stays || []).filter(function (stay) {
+          return stay.arrival && stay.departure && stay.arrival <= todayIso && todayIso < stay.departure;
+        }).map(function (stay) { return stay.id; });
+      }
+      if (meta && meta.at) ats.stays = meta.at;
+      if (final && !doneStays) { doneStays = true; busy -= 1; }
+      stamp(root);
+      paint(root);
+    }, { force: !!force });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

@@ -288,14 +288,20 @@
     return testData() ? all.slice() : all.filter(function (row) { return !isTestRow(row); });
   }
 
-  /* Daily data cache (Séjours, Stats, Aujourd'hui). Raw API answers are
-     kept in localStorage per session kind (test / Google account) and
-     per local day: one network update per day, or on « Actualiser ».
-     An answer from an earlier day is shown at once, then refreshed in
-     the background. Filters (origine test, Jeu de test) apply at render
-     time, never in the cache. Signing out clears it. */
-  var CACHE_PREFIX = "vz.admin.cache.v2.";
+  /* Data cache (Aujourd'hui, Demandes, Encaissement, Séjours, Stats).
+     Raw API answers are kept in localStorage per session kind (test /
+     Google account). Every page OPEN shows the cached answer at once, then
+     asks the script again in the background (stale-while-revalidate): a
+     request sent today is never hidden until tomorrow (root cause of
+     2026-11-27: the old cache was refreshed once per day). « Actualiser »
+     forces the same network read. One call per feed at a time: a second
+     ask while one is running joins it (no stacked requests). Filters
+     (origine test, Jeu de test) apply at render time, never in the cache.
+     Signing out clears it. */
+  var CACHE_PREFIX = "vz.admin.cache.v3.";
   var inflight = {};
+  // Feeds read by this page load (network): warm() never re-reads them.
+  var readThisLoad = {};
   function localDay(d) {
     d = d || new Date();
     var m = d.getMonth() + 1;
@@ -329,26 +335,39 @@
       }
     } catch (e) {}
   }
-  function clearCache() { invalidate(""); }
+  function clearCache() {
+    invalidate("");
+    // Older cache generations (v2 = once a day).
+    try {
+      for (var i = localStorage.length - 1; i >= 0; i--) {
+        var key = localStorage.key(i);
+        if (key && key.indexOf("vz.admin.cache.") === 0) localStorage.removeItem(key);
+      }
+    } catch (e) {}
+  }
+  function running(params) { return !!inflight[params]; }
   // name: cache key. params: query string after the token ("action=stays").
-  // done(data, meta) runs once with the cached answer (meta.cached) and
-  // again if a network answer follows; data is null when nothing is known.
-  // opts.force: skip today's cache (« Actualiser »).
+  // done(data, meta) runs at once with the cached answer (meta.cached) and
+  // again when the network answer arrives; data is null when nothing is
+  // known. opts.force: no cached paint first (« Actualiser »: the page
+  // already shows data). opts.maxAge (ms): skip the network when the cache
+  // is younger (background warm-up only). Pages never pass maxAge: each
+  // open refreshes.
   function cachedGet(name, params, done, opts) {
     opts = opts || {};
-    var entry = opts.force ? null : readCache(name);
+    var entry = readCache(name);
     // A cached answer the page can no longer use (e.g. saved before a field
     // existed) is dropped and refetched at once.
     var valid = opts.valid || (name.indexOf("stays") === 0 ? hasTotals : null);
     if (entry && valid && !valid(entry.data)) entry = null;
-    var fresh = entry && entry.day === localDay();
-    if (entry) done(entry.data, { cached: true, at: entry.at, stale: !fresh });
-    if (fresh) return;
+    if (entry && !opts.force) done(entry.data, { cached: true, at: entry.at, stale: true });
+    if (entry && opts.maxAge && Date.now() - entry.at < opts.maxAge) return;
     if (!window.VZApi || !session()) { if (!entry) done(null, { at: 0, error: true, result: { ok: false, kind: "session" } }); return; }
     var job = inflight[params];
     if (!job) {
       var query = {};
       new URLSearchParams(params).forEach(function (value, key) { query[key] = value; });
+      readThisLoad[name] = true;
       job = inflight[params] = apiGet(query);
       job.then(function () { delete inflight[params]; });
     }
@@ -368,9 +387,11 @@
     for (var i = 0; i < list.length; i++) if (list[i] && list[i].portal !== false && !("totalVoyageur" in list[i])) return false;
     return true;
   }
-  function isFresh(name) {
+  // Cached answer younger than maxAge ms (default 10 min).
+  function isFresh(name, maxAge) {
     var entry = readCache(name);
-    return !!(entry && entry.day === localDay() && !(name.indexOf("stays") === 0 && !hasTotals(entry.data)));
+    var age = maxAge == null ? WARM_MAX_AGE : maxAge;
+    return !!(entry && Date.now() - entry.at < age && !(name.indexOf("stays") === 0 && !hasTotals(entry.data)));
   }
   // The feeds Aujourd'hui, Séjours and Stats share (one cache key each).
   function feeds() {
@@ -382,18 +403,32 @@
       ["depenses-" + year, "action=depenses&year=" + year]
     ];
   }
-  // Fills, in the background and side by side, the shared feeds that have
-  // no answer from today yet, so the next tab opens at once. At most one
-  // call per feed and per day; nothing when everything is fresh.
+  // Fills, in the background, the shared feeds this page did not read and
+  // that have no answer younger than 10 minutes, so the next tab opens at
+  // once (that tab still refreshes when it opens). Never twice per load.
+  var WARM_MAX_AGE = 10 * 60 * 1000;
   var warming = false;
   function warm(delay) {
     if (warming || !session() || !SCRIPT_URL || !window.fetch) return;
     warming = true;
     window.setTimeout(function () {
       feeds().forEach(function (feed) {
-        if (!isFresh(feed[0])) cachedGet(feed[0], feed[1], function () {});
+        if (readThisLoad[feed[0]] || running(feed[1]) || isFresh(feed[0])) return;
+        cachedGet(feed[0], feed[1], function () {}, { maxAge: WARM_MAX_AGE });
       });
     }, delay == null ? 300 : delay);
+  }
+
+  /* « Actualiser » line: stamp + button. el = container (.sync). state:
+     { at, busy }. The button is disabled while a read runs (no double
+     send). */
+  function syncHtml(at, busy) {
+    return '<span data-stamp>' + (busy ? "Mise à jour…" : stampText(at)) + '</span>'
+      + '<button type="button" data-refresh' + (busy ? ' disabled aria-busy="true"' : "") + '>Actualiser</button>';
+  }
+  function paintSync(el, at, busy) {
+    if (!el) return;
+    el.innerHTML = syncHtml(at, busy);
   }
 
   // "Mis à jour aujourd’hui à 08:12" / "hier à 21:40" / "le 22 nov. à 09:05".
@@ -509,6 +544,8 @@
     cachedGet: cachedGet,
     warm: warm,
     isFresh: isFresh,
+    running: running,
+    paintSync: paintSync,
     invalidate: invalidate,
     stampText: stampText,
     localDay: localDay,

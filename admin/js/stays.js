@@ -23,15 +23,15 @@
   function realOnly(list) {
     return shell.realOnly ? shell.realOnly(list || []) : (list || []).filter(function (row) { return String((row && row.origine) || "").toLowerCase() !== "test"; });
   }
-  // Daily cache (AdminShell.cachedGet): done may run twice, first with the
-  // cached answer, then with the network one. meta: { at, cached, stale }.
+  // Cache (AdminShell.cachedGet): done may run twice, first with the cached
+  // answer, then with the network one (every open). meta: { at, cached, error }.
   var loadMeta = { at: 0 };
   function loadStays(done, force) {
     shell.cachedGet("stays", "action=stays", function (data, meta) {
       remote = (data && data.ok && data.stays) || remote || [];
       if (meta && meta.at) loadMeta = meta;
       if (shell.loadError) shell.loadError(meta && meta.error ? meta.result : null, function () { loadStays(done, true); });
-      done(loadMeta);
+      done(Object.assign({}, loadMeta, meta || {}));
     }, { force: !!force, valid: hasKeys });
   }
   // Zen'O rows must carry totalVoyageur (Stats brut); a cached answer from

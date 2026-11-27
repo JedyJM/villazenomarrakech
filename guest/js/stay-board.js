@@ -387,11 +387,12 @@
     var month = (isEn() ? MONTHS_EN : MONTHS)[Number(parts[1]) - 1] || "";
     return Number(parts[2]) + (isEn() ? " " : "\u00A0") + month;
   }
+  // Payment method name only: the Sheet stores « Espèces € » / « Espèces DH »
+  // (admin Encaissement needs the currency), but on the récap header the
+  // currency belongs to the amount alone → « Espèces · 137,50 € ».
   function modeName(mode) {
-    var value = String(mode || "");
-    if (!isEn()) return value;
-    if (value === "Espèces €") return "Cash €";
-    if (value === "Espèces DH") return "Cash DH";
+    var value = String(mode || "").replace(/\s*(€|eur|euros?|dh|dhs|mad|dirhams?)\s*$/i, "").trim();
+    if (isEn() && /^esp[eè]ces$/i.test(value)) return "Cash";
     return value;
   }
   function showSettled(root, stay, linesHtml, due) {

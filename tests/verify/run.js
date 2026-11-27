@@ -22,7 +22,7 @@ const groups = [
   ["guest journey", ["tests/verify/guest.e2e.test.js"]],
   ["admin journey + link", ["tests/verify/admin.e2e.test.js", "tests/verify/admin-google.e2e.test.js"]],
   ["cross-cutting", ["tests/verify/cross.e2e.test.js"]],
-  ["functional 2026-11-27 (items 1–6)", ["tests/verify/func.e2e.test.js"]],
+  ["functional 2026-11-27 (items 1–6)", ["tests/verify/func.e2e.test.js", "tests/verify/recap-mode.e2e.test.js"]],
 ];
 let pass = 0, fail = 0;
 const rows = [];

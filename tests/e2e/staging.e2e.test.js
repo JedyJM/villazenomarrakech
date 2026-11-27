@@ -395,7 +395,9 @@ test("G12 several requests on the same stay: done → Encaissement → paid, ré
   // 11. Récapitulatif: settled with the detail, the right columns and the rate.
   await G.page.goto(origin + "/guest/recap.html");
   await G.page.locator("[data-settled]:not([hidden])").waitFor({ timeout: 30000 });
-  assert.match(await G.page.locator("[data-settled]").innerText(), /Réglé le .* · Espèces € · 137,50\s€/);
+  const settled = await G.page.locator("[data-settled]").innerText();
+  assert.match(settled, /Réglé le .* · Espèces · 137,50\s€/);
+  assert.doesNotMatch(settled, /(Espèces|Cash)\s(€|DH)/, "the currency belongs to the amount, not the method");
   const bill = await G.page.locator("[data-bill-card]").innerText();
   assert.match(bill, /À RÉGLER À LA VILLA[\s\S]*50\s€[\s\S]*37,50\s€[\s\S]*50\s€[\s\S]*Total réglé[\s\S]*137,50\s€[\s\S]*1\s?375\sDH/);
   assert.equal(Number(await G.page.locator("[data-recap-total]").getAttribute("data-recap-total")), 137.5, "total = sum of the meals");

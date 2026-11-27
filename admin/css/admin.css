@@ -818,3 +818,7 @@ input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, t
 .api-retry { display: inline-block; margin-left: 8px; min-height: 32px; padding: 0 12px; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font-size: 14px; white-space: nowrap; touch-action: manipulation; }
 .form-ok { color: #1d6b3a; font-size: 13px; }
 .load-error { color: var(--terracotta); font-size: 14px; padding: 12px 4px; }
+
+/* Séjours: « Importer depuis Gmail » (2026-11-27, same look as the other buttons). */
+.import-row { display: grid; gap: 6px; margin: 0 0 14px; }
+.import-row [data-import] { width: 100%; }

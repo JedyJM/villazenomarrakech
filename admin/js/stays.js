@@ -557,6 +557,41 @@
       loadStays(one, true);
       loadOthers(one, true);
     });
+    /* « Importer depuis Gmail »: one manual import (no trigger). Waits for
+       the script (Gmail search + Sheet), up to 3 minutes; the button stays
+       disabled meanwhile (never two imports). Then the stays are re-read. */
+    var importBtn = root.querySelector("[data-import]");
+    var importNote = root.querySelector("[data-import-note]");
+    var importing = false;
+    function plural(n, word) { return n + "\u00A0" + word + (n > 1 ? "s" : ""); }
+    if (importBtn) importBtn.addEventListener("click", function () {
+      if (importing || !shell.api) return;
+      importing = true;
+      importBtn.disabled = true;
+      importBtn.setAttribute("aria-busy", "true");
+      importBtn.textContent = "Import en cours…";
+      importNote.textContent = "Lecture des e-mails Airbnb et Booking.com…";
+      shell.api.post({ action: "import-gmail" }, { timeout: 180000 }).then(function (result) {
+        importing = false;
+        importBtn.disabled = false;
+        importBtn.removeAttribute("aria-busy");
+        importBtn.textContent = "Importer depuis Gmail";
+        if (!result.ok) {
+          var gmail = result.data && result.data.error === "gmail";
+          if (shell.showError) shell.showError(importNote, result, function () { importBtn.click(); }, "save");
+          if (gmail) importNote.firstChild.textContent = "Gmail n’a pas pu être lu (autorisation du script). Prévenez Jedy.";
+          return;
+        }
+        var d = result.data || {};
+        importNote.setAttribute("data-import-done", "");
+        var created = Number(d.created) || 0;
+        importNote.textContent = "Import terminé : " + created + (created > 1 ? "\u00A0séjours créés" : "\u00A0séjour créé")
+          + " · " + (Number(d.updated) || 0) + "\u00A0mis à jour · " + plural(Number(d.cancelled) || 0, "annulé") + ".";
+        if (shell.invalidate) shell.invalidate("stays");
+        loadStays(paint, true);
+        loadOthers(paint, true);
+      });
+    });
     paint();
     loadStays(paint);
     loadOthers(function () {

@@ -57,7 +57,7 @@ test.before(async () => {
     const helpers = require("../verify/helpers");
     server = await helpers.startServer("vercel");
     origin = server.origin;
-    b = helpers.createBackend({ session: "google", realShape: true, latency: [200, 600], props: { STAGING: "true", TEST_WA_NUMBER: "33600000099" } });
+    b = helpers.createBackend({ session: "google", realShape: true, latency: [200, 600], props: { STAGING: "true", TEST_WA_NUMBER: "33600000099", ADMIN_TEST_MODE: "true" } });
     b.box.ctx.seedDemoStay_();
     adminToken = b.GOOGLE_TOKEN;
     guestK = b.keyOf(DEMO);
@@ -75,10 +75,12 @@ test.after(async () => {
 // ---------- backend access (mock or staging admin API) ----------
 async function adminGet(params) {
   if (!REAL) {
-    const out = b.box.ctx.doGet({ parameter: Object.assign({ token: adminToken }, params) });
+    // Same as the admin on a preview host: test=1 (test rows visible when the
+    // staging script has ADMIN_TEST_MODE=true).
+    const out = b.box.ctx.doGet({ parameter: Object.assign({ token: adminToken, test: "1" }, params) });
     return JSON.parse(out.text);
   }
-  const q = new URLSearchParams(Object.assign({ token: adminToken, test: adminToken === "test" ? "1" : "" }, params));
+  const q = new URLSearchParams(Object.assign({ token: adminToken, test: "1" }, params));
   const res = await fetch(EXEC + "?" + q, { redirect: "follow" });
   return res.json();
 }
@@ -141,8 +143,8 @@ async function chain(G, A, tag, opts) {
   assert.equal(item.guest, "Famille Démo", "real guest name");
   // 3. Mes demandes: Envoyée.
   await page.goto(origin + "/guest/demandes.html");
-  await page.locator("[data-demand-list] li").first().waitFor({ timeout: 30000 });
-  assert.match(await page.locator("[data-demand-list]").innerText(), /Envoyée/);
+  // Cached list first, then the fresh one: wait until the new request is listed.
+  await page.waitForFunction(() => { const l = document.querySelector("[data-demand-list]"); return l && /Envoyée/.test(l.innerText); }, null, { timeout: 30000 });
   await shot(page, tag + "-03-mes-demandes");
   // 5. Staff WhatsApp (auto services): sent, to the test number only, no price.
   if (opts.staff) {
@@ -525,6 +527,8 @@ test("S2 flood limit: 30 requests per hour per stay", async () => {
     if (r.error === "rate_limited") refused++;
   }
   assert.ok(refused >= 1, "requests beyond the limit are refused");
+  // Free the demo stay again for the next steps (the window is one hour).
+  for (const key of Object.keys(b.box.cache)) if (key.indexOf("rl_dem_") === 0) delete b.box.cache[key];
 });
 
 test("S3 no price in any staff message", async () => {

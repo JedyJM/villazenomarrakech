@@ -979,13 +979,11 @@
      the first plates (one per child under 4) are free, the next ones (one per
      child aged 4 to 11) are half price, all other plates are full price.
      The early-breakfast table supplement is added on top. */
-  var KID_AGES = [
-    { code: "moins_4", label: "Moins de 4 ans", rate: 0 },
-    { code: "de_4_a_11", label: "4 à 11 ans", rate: 0.5 },
-    { code: "plus_12", label: "12 ans et +", rate: 1 }
-  ];
-
-  function mealQuote(kind, prices, dishes, people, supplement) {
+  /* Guests: 3 counters (2026-11-27) — Adultes (and 12+), 4–11 ans −50 %,
+     moins de 4 ans offert. No age entry any more (exact ages come from the
+     passports). Breakfast extras: Coupe de fruits frais (per table),
+     Œufs façon tajine (per person), prices in meal-prices.js. */
+  function mealQuote(kind, prices, dishes, people, supplement, extras) {
     var kids = people.kids || {};
     var free = Number(kids.moins_4) || 0;
     var half = Number(kids.de_4_a_11) || 0;
@@ -1016,8 +1014,12 @@
       else groups.push({ rate: rate, amount: amount, count: 1 });
     });
     var extra = Number(supplement) || 0;
-    total = Math.round((total + extra) * 100) / 100;
-    return { total: total, sums: sums, groups: groups, supplement: extra, plates: plates.length };
+    var x = extras || {};
+    var xp = (prices && prices.breakfastExtras) || { fruitBowl: 15, tajineEgg: 5 };
+    var fruit = kind === "breakfast" && x.fruit_bowl ? Number(xp.fruitBowl) || 0 : 0;
+    var tajine = kind === "breakfast" ? (Number(x.tajine_eggs) || 0) * (Number(xp.tajineEgg) || 0) : 0;
+    total = Math.round((total + extra + fruit + tajine) * 100) / 100;
+    return { total: total, sums: sums, groups: groups, supplement: extra, fruit: fruit, tajine: tajine, tajineCount: kind === "breakfast" ? Number(x.tajine_eggs) || 0 : 0, plates: plates.length };
   }
 
   function euroAmount(amount) {
@@ -1035,7 +1037,11 @@
     var windows = { breakfast: [7 * 60, 11 * 60 + 30], lunch: [12 * 60, 15 * 60 + 30], dinner: [19 * 60, 21 * 60] };
     var maxCount = 16;
     var maxKids = 10;
-    var kidAges = [];
+    // Guests prefilled from the booking (adults, 4–11, under 4) until the
+    // guest taps « Modifier » or changes a counter.
+    var guestsTouched = false;
+    var guestsOpen = false;
+    var noEggsOk = false;
 
     var euro = euroAmount;
     function personWord(n) {
@@ -1107,40 +1113,63 @@
       form.querySelector("[data-people-kind='" + name + "'][data-dir='1']").disabled = count >= max;
       return count;
     }
-    // One row of age chips per child; existing choices are kept.
-    function paintKids(count) {
-      var list = form.querySelector("[data-kid-list]");
-      kidAges.length = Math.min(kidAges.length, count);
-      while (kidAges.length < count) kidAges.push("");
-      if (list.children.length !== count) {
-        var html = "";
-        for (var i = 0; i < count; i++) {
-          html += "<div class=\"kid-row\"><span class=\"kid-name\" id=\"kid-" + i + "\">Enfant " + (i + 1) + "</span>"
-            + "<div class=\"meal-chips chips kid-ages\" role=\"radiogroup\" aria-labelledby=\"kid-" + i + "\">";
-          KID_AGES.forEach(function (age) {
-            html += "<button type=\"button\" role=\"radio\" data-kid=\"" + i + "\" data-age=\"" + age.code + "\">" + age.label + "</button>";
-          });
-          html += "</div></div>";
-        }
-        list.innerHTML = html;
-      }
-      list.querySelectorAll("[data-kid]").forEach(function (button) {
-        var on = kidAges[Number(button.getAttribute("data-kid"))] === button.getAttribute("data-age");
-        button.setAttribute("aria-checked", on ? "true" : "false");
-        button.setAttribute("aria-pressed", on ? "true" : "false");
-      });
+    function guestsText(people) {
+      var bits = [people.adults + (people.adults > 1 ? " adultes" : " adulte")];
+      if (people.kids.de_4_a_11) bits.push(people.kids.de_4_a_11 + (people.kids.de_4_a_11 > 1 ? " enfants" : " enfant"));
+      if (people.kids.moins_4) bits.push(people.kids.moins_4 + (people.kids.moins_4 > 1 ? " bébés" : " bébé"));
+      return bits.join(" · ");
     }
     function readPeople() {
       var adults = readPeopleCount("adults", maxCount);
-      var children = readPeopleCount("children", maxKids);
-      paintKids(children);
-      var kids = { moins_4: 0, de_4_a_11: 0, plus_12: 0 };
-      var missing = 0;
-      kidAges.forEach(function (code) {
-        if (kids.hasOwnProperty(code)) kids[code]++;
-        else missing++;
+      var k411 = readPeopleCount("kids411", maxKids);
+      var k4 = readPeopleCount("kids4", maxKids);
+      var kids = { moins_4: k4, de_4_a_11: k411, plus_12: 0 };
+      var people = { adults: adults, children: k411 + k4, kids: kids, missing: 0, total: adults + k411 + k4 };
+      var summary = form.querySelector("[data-guests-summary]");
+      var counters = form.querySelector("[data-guests-counters]");
+      var text = form.querySelector("[data-guests-text]");
+      var prefilled = summary && summary.hasAttribute("data-prefilled");
+      if (summary) summary.hidden = !prefilled;
+      if (counters) counters.hidden = prefilled && !guestsOpen;
+      if (text) text.textContent = guestsText(people);
+      var edit = form.querySelector("[data-guests-edit]");
+      if (edit) edit.setAttribute("aria-expanded", guestsOpen ? "true" : "false");
+      return people;
+    }
+    // Prefill from the stay (GuestStay: adults, children_4_11, under_4).
+    function prefillGuests(stay) {
+      if (!stay || guestsTouched || !(Number(stay.adults) > 0)) return;
+      var k411 = stay.children_4_11 != null ? Number(stay.children_4_11) || 0 : Number(stay.children) || 0;
+      var k4 = Number(stay.under_4) || 0;
+      form.querySelector("[name='adults']").value = String(Number(stay.adults));
+      form.querySelector("[name='kids411']").value = String(k411);
+      form.querySelector("[name='kids4']").value = String(k4);
+      var summary = form.querySelector("[data-guests-summary]");
+      if (summary) summary.setAttribute("data-prefilled", "");
+      paintMeal();
+    }
+    function bfTab(name) {
+      form.querySelectorAll("[data-bf-tab]").forEach(function (button) {
+        button.setAttribute("aria-selected", button.getAttribute("data-bf-tab") === name ? "true" : "false");
       });
-      return { adults: adults, children: children, kids: kids, missing: missing, total: adults + children };
+      form.querySelectorAll("[data-bf-panel]").forEach(function (panel) {
+        panel.hidden = panel.getAttribute("data-bf-panel") !== name;
+      });
+    }
+    function readExtras(total) {
+      var fruit = form.querySelector("[data-extra='fruit_bowl']");
+      var input = form.querySelector("[name='extra_tajine']");
+      if (!input) return { fruit_bowl: false, tajine_eggs: 0 };
+      var n = Math.max(0, Math.min(total, Math.floor(Number(input.value) || 0)));
+      input.value = String(n);
+      var row = form.querySelector("[data-egg-row='tajine']");
+      row.querySelector("[data-extra-count]").textContent = String(n);
+      row.querySelector("[data-extra-step='tajine'][data-dir='-1']").disabled = n <= 0;
+      row.querySelector("[data-extra-step='tajine'][data-dir='1']").disabled = n >= total;
+      var xp = prices.breakfastExtras || { fruitBowl: 15, tajineEgg: 5 };
+      form.querySelectorAll("[data-extra-price='fruit_bowl']").forEach(function (el) { el.textContent = euro(xp.fruitBowl); });
+      form.querySelectorAll("[data-extra-price='tajine']").forEach(function (el) { el.textContent = euro(xp.tajineEgg); });
+      return { fruit_bowl: !!fruit && fruit.getAttribute("aria-pressed") === "true", tajine_eggs: n };
     }
     // One stepper per egg style; at most one egg per guest in total.
     var EGG_STYLES = ["dur", "brouille", "au_plat"];
@@ -1219,6 +1248,8 @@
         return group.count + " × " + euro(group.amount);
       }).reverse();
       if (quote.supplement) bits.push("supplément " + euro(quote.supplement));
+      if (quote.fruit) bits.push("coupe de fruits " + euro(quote.fruit));
+      if (quote.tajine) bits.push(quote.tajineCount + " œuf" + (quote.tajineCount > 1 ? "s" : "") + " tajine × " + euro(quote.tajine / quote.tajineCount));
       return bits.join(" + ");
     }
     function paintMeal() {
@@ -1226,16 +1257,17 @@
       var people = readPeople();
       var eggs = readEggs(people.total);
       var dishes = kind === "breakfast" ? [] : chosenDishes();
-      var quote = mealQuote(kind, prices, dishes, people, supplementEuro());
-      var verb = { breakfast: "petit-déjeuner", lunch: "déjeuner", dinner: "dîner" };
-      var send = form.querySelector("[data-send-label]");
-      if (send) send.textContent = "Réserver mon " + verb[kind] + " · " + euro(quote.total);
+      var extras = readExtras(people.total);
+      var quote = mealQuote(kind, prices, dishes, people, supplementEuro(), extras);
+      var totalLine = form.querySelector("[data-meal-total]");
+      if (totalLine) totalLine.textContent = "Total estimé · " + euro(quote.total);
       var line = form.querySelector("[data-meal-breakdown]");
       var text = quote.plates ? breakdownText(quote) : "";
       if (line) {
-        line.hidden = !text || !people.children;
+        line.hidden = !text || !(people.children || quote.fruit || quote.tajine);
         line.textContent = text;
       }
+      quote.extras = extras;
       quote.people = people;
       quote.eggs = eggs;
       quote.dishes = dishes;
@@ -1272,19 +1304,28 @@
         eggInput.value = String(Number(eggInput.value) + Number(egg.getAttribute("data-dir")));
         showError(error, "");
       }
-      var kid = event.target.closest("[data-kid]");
-      if (kid) {
-        kidAges[Number(kid.getAttribute("data-kid"))] = kid.getAttribute("data-age");
-        showError(error, "");
+      var kid = null;
+      var bft = event.target.closest("[data-bf-tab]");
+      if (bft) bfTab(bft.getAttribute("data-bf-tab"));
+      var xtra = event.target.closest("[data-extra]");
+      if (xtra) xtra.setAttribute("aria-pressed", xtra.getAttribute("aria-pressed") === "true" ? "false" : "true");
+      var xstep = event.target.closest("[data-extra-step]");
+      if (xstep) {
+        var xi = form.querySelector("[name='extra_tajine']");
+        xi.value = String(Number(xi.value) + Number(xstep.getAttribute("data-dir")));
       }
+      var gedit = event.target.closest("[data-guests-edit]");
+      if (gedit) { guestsOpen = !guestsOpen; guestsTouched = true; }
       var step = event.target.closest("[data-people-kind], [data-dish-step]");
+      if (step && step.hasAttribute("data-people-kind")) guestsTouched = true;
       if (step) {
         var dish = step.closest(".dish");
         var input = dish ? dish.querySelector("input[type='hidden']") : form.querySelector("[name='" + step.getAttribute("data-people-kind") + "']");
         input.value = String(Number(input.value) + Number(step.getAttribute("data-dir") || step.getAttribute("data-dish-step")));
         showError(error, "");
       }
-      if (tab || salad || step || kid || egg) paintMeal();
+      if (egg) noEggsOk = false;
+      if (tab || salad || step || kid || egg || xtra || xstep || gedit) paintMeal();
     });
     form.querySelector("[name='time']").addEventListener("change", function () { paintMeal(); });
     var typingTimer = 0;
@@ -1333,8 +1374,14 @@
         showError(error, "Veuillez indiquer le nombre d’adultes et d’enfants.");
         return;
       }
-      if (people.missing) {
-        showError(error, "Veuillez indiquer l’âge de chaque enfant.");
+      // Breakfast sent without any egg: open « Vos œufs » once; a second tap
+      // on « Envoyer ma demande » sends without eggs.
+      if (kind === "breakfast" && !eggs.sum && !noEggsOk) {
+        noEggsOk = true;
+        bfTab("oeufs");
+        showError(error, "Choisissez vos œufs, ou appuyez à nouveau sur « Envoyer ma demande » pour continuer sans œufs.");
+        var eggBox = form.querySelector("[data-bf-panel='oeufs']");
+        if (eggBox && eggBox.scrollIntoView) eggBox.scrollIntoView({ block: "center" });
         return;
       }
       showError(error, "");
@@ -1347,10 +1394,10 @@
       var breakfast = kind === "breakfast";
       var eggLabel = breakfast ? eggs.label : "";
       var kidRows = [
-        ["Enfants 12 ans et plus", people.kids.plus_12],
         ["Enfants 4 à 11 ans", people.kids.de_4_a_11],
         ["Enfants moins de 4 ans", people.kids.moins_4]
       ].filter(function (row) { return row[1] > 0; });
+      var extras = breakfast ? quote.extras : { fruit_bowl: false, tajine_eggs: 0 };
       var fields = {
         meal: kind,
         meal_label: names[kind],
@@ -1364,7 +1411,10 @@
         people: people.total,
         adults: people.adults,
         children: people.children,
-        children_ages: people.kids,
+        // 3 counters (the Sheet no longer gets children_ages; old rows are still read).
+        enfants_4_11: people.kids.de_4_a_11,
+        enfants_moins_4: people.kids.moins_4,
+        extras: breakfast ? { fruit_bowl: !!extras.fruit_bowl, tajine_eggs: extras.tajine_eggs || 0 } : null,
         allergies: allergies,
         supplement_dh: quote.supplement || 0,
         bill_label: quote.bill
@@ -1383,6 +1433,8 @@
         rows.push([item.label, item.count + " · " + euro(quote.sums[item.label] || 0)]);
       });
       if (quote.supplement) rows.push(["Supplément", "Petit-déjeuner avant " + clockLabel(earlyRule().before) + " : " + euro(quote.supplement)]);
+      if (quote.fruit) rows.push(["Coupe de fruits frais", "pour la table · " + euro(quote.fruit)]);
+      if (quote.tajine) rows.push(["Œufs façon tajine", quote.tajineCount + " · " + euro(quote.tajine)]);
       rows.push(["Total", personWord(people.total) + " · " + euro(quote.total)]);
       if (allergies) rows.push(["Allergies ou demandes", allergies]);
       // Staff summary (Sheet resume, WhatsApp): never a price.
@@ -1395,6 +1447,9 @@
       if (breakfast) staffRows.push(["Œufs", eggLabel || "aucun"]);
       staffRows.push(["Personnes", String(people.total)], ["Adultes", String(people.adults)]);
       kidRows.forEach(function (row) { staffRows.push([row[0], String(row[1])]); });
+      // Extras for staff: counts only, never a price (Code.gs translates the labels).
+      if (breakfast && extras.fruit_bowl) staffRows.push(["Coupe de fruits frais", "1"]);
+      if (breakfast && extras.tajine_eggs) staffRows.push(["Œufs façon tajine", String(extras.tajine_eggs)]);
       if (salads.length) staffRows.push(["Salades", salads.join(", ")]);
       dishes.forEach(function (item) { staffRows.push([item.label, String(item.count)]); });
       if (allergies) staffRows.push(["Allergies ou demandes", allergies]);
@@ -1402,6 +1457,13 @@
       sendAutoService(root, record, rows, staffRows, kind, "Fouzia");
     });
     showMeal("lunch");
+    bfTab("inclus");
+    // Guests prefilled from the booking, on all three meals.
+    if (window.GuestStay) {
+      var snap0 = window.GuestStay.snapshot();
+      if (snap0 && snap0.stay) prefillGuests(snap0.stay);
+      window.GuestStay.onChange(function (snap) { if (snap && snap.stay) prefillGuests(snap.stay); });
+    }
   }
 
   function initServices(root) {

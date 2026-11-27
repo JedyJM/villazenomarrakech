@@ -54,7 +54,12 @@
 </div>
 <p class="meal-hours" data-meal-hours></p>
 <div class="meal-breakfast" data-meal-panel="breakfast" hidden>
-<section class="bf-includes" aria-label="Inclus dans le petit-déjeuner">
+<div class="segments bf-tabs" role="tablist" aria-label="Petit-déjeuner">
+<button type="button" role="tab" data-bf-tab="oeufs" aria-selected="false">Vos œufs</button>
+<button type="button" role="tab" data-bf-tab="inclus" aria-selected="true">Inclus</button>
+<button type="button" role="tab" data-bf-tab="supplements" aria-selected="false">Suppléments</button>
+</div>
+<section class="bf-includes" data-bf-panel="inclus" aria-label="Inclus dans le petit-déjeuner">
 <p>Inclus dans le petit-déjeuner</p>
 <ul>
 <li><svg viewBox="0 0 28 28" aria-hidden="true"><g transform="translate(0 0.4)"><path d="M8.4 3.1c.9 1 .9 1.6 0 2.6M14 1.8c.9 1 .9 1.6 0 2.6M19.6 3.1c.9 1 .9 1.6 0 2.6"/><path d="M6.6 10.4h10.6v5a5.3 5.3 0 0 1-10.6 0v-5z"/><path d="M6.1 10.4h11.6"/><path d="M17.2 12h2a2.3 2.3 0 0 1 0 4.6h-2"/><path d="M4.2 22.2h19.6"/><path d="M5.6 22.2c.8 1.7 3.6 2.8 8.4 2.8s7.6-1.1 8.4-2.8"/></g></svg><span>Thé, café, lait, jus d’orange</span></li>
@@ -63,10 +68,9 @@
 <li><svg viewBox="0 0 28 28" aria-hidden="true"><g transform="translate(0 0.8)"><path d="M14 4.4c3.5.4 6.8 4.1 7.3 8.4.5 4.8-.7 9-3.6 10.6-1.5.9-2.9 1.2-3.7 1.2s-2.2-.3-3.7-1.2c-2.9-1.6-4.1-5.8-3.6-10.6.5-4.3 3.8-8 7.3-8.4z"/></g></svg><span>Œufs</span></li>
 <li><svg viewBox="0 0 28 28" aria-hidden="true"><g transform="translate(0 3.4)"><path d="M9.4 5.6h9.2"/><path d="M8.2 6.8h11.6v2.2H8.2z"/><path d="M9 9h10v11.2a1.8 1.8 0 0 1-1.8 1.8H10.8a1.8 1.8 0 0 1-1.8-1.8V9z"/><rect x="10.6" y="12.4" width="6.8" height="4.4" rx=".7" fill="#efe6d8"/><path d="M11.6 14.6h4.8"/></g></svg><span>Confiture &amp; miel</span></li>
 <li><svg viewBox="0 0 28 28" aria-hidden="true"><g transform="translate(-1.5 2.2)"><path d="M4.6 23.2c3.4-2.8 6.6-6.4 9-9.6 2.2-3 4.6-6.4 8.2-9"/><path class="leaf" d="M6.2 18.4c3.2-3.6 7.4-4 8.8-2.2-3 3.8-7.2 4.4-8.8 2.2z"/><path class="leaf" d="M10.4 14c3.4-3.4 7.6-3.6 9-1.8-3.2 3.6-7.4 4-9 1.8z"/><path class="leaf" d="M14.4 9.6c3.2-3.2 7.2-3.2 8.6-1.4-3 3.4-7 3.6-8.6 1.4z"/><ellipse class="leaf" cx="22.6" cy="5.6" rx="3.4" ry="2" transform="rotate(-46 22.6 5.6)"/></g></svg><span>Huile d’olive</span></li>
-<li><svg viewBox="0 0 28 28" aria-hidden="true"><g transform="translate(0 2.1)"><circle cx="9.2" cy="11.4" r="2.35"/><circle cx="14.2" cy="10.2" r="2.55"/><path d="M14.2 7.2c.5.7.3 1.5-.1 2.2"/><circle cx="18.6" cy="11.6" r="2.15"/><path d="M4.4 15.6h19.2l-1.9 6.4c-.25.8-.9 1.3-1.7 1.3H8c-.8 0-1.45-.5-1.7-1.3l-1.9-6.4z"/><path d="M3.4 15.6h21.2"/></g></svg><span>Fruits frais</span></li>
 </ul>
 </section>
-<fieldset class="bf-eggs">
+<fieldset class="bf-eggs" data-bf-panel="oeufs" hidden>
 <legend><span>Vos œufs</span><span class="bf-eggs-hint" data-egg-hint></span></legend>
 <div class="bf-egg-grid">
 <div class="bf-egg" data-egg-row="dur"><span class="bf-egg-name" id="egg-dur">Dur</span><span class="stepper" role="group" aria-labelledby="egg-dur"><button type="button" data-egg="dur" data-dir="-1" aria-label="Moins, Dur">−</button><span data-egg-count>0</span><button type="button" data-egg="dur" data-dir="1" aria-label="Plus, Dur">+</button></span><input type="hidden" name="egg_dur" value="0" data-label="Dur"></div>
@@ -74,6 +78,13 @@
 <div class="bf-egg" data-egg-row="au_plat"><span class="bf-egg-name" id="egg-au_plat">Au plat</span><span class="stepper" role="group" aria-labelledby="egg-au_plat"><button type="button" data-egg="au_plat" data-dir="-1" aria-label="Moins, Au plat">−</button><span data-egg-count>0</span><button type="button" data-egg="au_plat" data-dir="1" aria-label="Plus, Au plat">+</button></span><input type="hidden" name="egg_au_plat" value="0" data-label="Au plat"></div>
 </div>
 </fieldset>
+<section class="bf-extras" data-bf-panel="supplements" hidden aria-label="Suppléments du petit-déjeuner">
+<p class="meal-kicker">Ajouter un supplément</p>
+<div class="meal-chips chips">
+<button type="button" data-extra="fruit_bowl" aria-pressed="false">Coupe de fruits frais · <span data-extra-price="fruit_bowl"></span> pour la table</button>
+</div>
+<div class="bf-egg" data-egg-row="tajine"><span class="bf-egg-name" id="egg-tajine">Œufs façon tajine, tomates et oignons · <span data-extra-price="tajine"></span>&nbsp;/&nbsp;pers.</span><span class="stepper" role="group" aria-labelledby="egg-tajine"><button type="button" data-extra-step="tajine" data-dir="-1" aria-label="Moins, œufs façon tajine">−</button><span data-extra-count>0</span><button type="button" data-extra-step="tajine" data-dir="1" aria-label="Plus, œufs façon tajine">+</button></span><input type="hidden" name="extra_tajine" value="0"></div>
+</section>
 </div>
 <div class="meal-menu" data-meal-panel="menu">
 <p class="meal-kicker">Vos salades à partager (comprises)</p>
@@ -111,6 +122,11 @@
 </div>
 </div>
 <section class="meal-people" aria-label="Convives">
+<div class="bf-people meal-guests" data-guests-summary hidden>
+<div class="bf-people-copy"><span>Convives</span><span class="meal-pill" data-guests-text></span></div>
+<button type="button" class="meal-edit" data-guests-edit aria-expanded="false">Modifier</button>
+</div>
+<div data-guests-counters>
 <div class="bf-people">
 <div class="bf-people-copy">
 <span>Adultes</span>
@@ -121,19 +137,28 @@
 </div>
 <div class="bf-people">
 <div class="bf-people-copy">
-<span>Enfants</span>
-<span class="meal-pill">Moins de 4 ans gratuit · 4 à 11 ans −50&nbsp;%</span>
+<span>4–11 ans</span>
+<span class="meal-pill">−50&nbsp;%</span>
 </div>
-<span class="stepper"><button type="button" data-people-kind="children" data-dir="-1" aria-label="Moins d’enfants">−</button><span data-children-count>0</span><button type="button" data-people-kind="children" data-dir="1" aria-label="Plus d’enfants">+</button></span>
-<input type="hidden" name="children" value="0">
+<span class="stepper"><button type="button" data-people-kind="kids411" data-dir="-1" aria-label="Moins d’enfants de 4 à 11 ans">−</button><span data-kids411-count>0</span><button type="button" data-people-kind="kids411" data-dir="1" aria-label="Plus d’enfants de 4 à 11 ans">+</button></span>
+<input type="hidden" name="kids411" value="0">
 </div>
-<div class="kid-list" data-kid-list></div>
+<div class="bf-people">
+<div class="bf-people-copy">
+<span>Moins de 4 ans</span>
+<span class="meal-pill">offert</span>
+</div>
+<span class="stepper"><button type="button" data-people-kind="kids4" data-dir="-1" aria-label="Moins d’enfants de moins de 4 ans">−</button><span data-kids4-count>0</span><button type="button" data-people-kind="kids4" data-dir="1" aria-label="Plus d’enfants de moins de 4 ans">+</button></span>
+<input type="hidden" name="kids4" value="0">
+</div>
+</div>
 <p class="meal-breakdown" data-meal-breakdown hidden></p>
 </section>
 <label class="meal-allergies" for="allergies"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><textarea id="allergies" name="allergies" rows="1" placeholder="Allergies ou demandes particulières"></textarea></label>
 <div class="meal-dock">
-<button class="request-submit meal-send" type="submit"><span data-send-label>Réserver mon déjeuner · 0&nbsp;€</span></button>
-<p class="bf-cash">Réglé en espèces en fin de séjour</p>
+<p class="meal-total" data-meal-total>Total estimé · 0&nbsp;€</p>
+<button class="request-submit meal-send" type="submit"><span data-send-label>Envoyer ma demande</span></button>
+<p class="bf-cash">Rien à payer maintenant : réglé en espèces à votre départ.</p>
 </div>
 <aside class="meal-fouzia" data-meal-fouzia hidden>
 <span class="meal-fouzia-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 14.2a4 4 0 0 1-.7-7.3 5 5 0 0 1 9.5-1.5 4 4 0 0 1 3.5 5.2A3.2 3.2 0 0 1 18 16.5V20H6v-5.8z"/><path d="M7 17.5h10"/></svg></span>

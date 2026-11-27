@@ -2954,3 +2954,10 @@ input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, t
 .demand-state[data-api-error], .send-status.is-error { color: #8c3f2a; }
 .send-status.is-ok { color: #1d6b3a; }
 .api-retry { display: inline-block; margin-left: 0.5rem; min-height: 36px; padding: 0 0.9rem; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font: inherit; font-size: 0.9rem; white-space: nowrap; cursor: pointer; touch-action: manipulation; }
+
+/* Restauration (2026-11-27, logic only, current style): breakfast tabs,
+   extras, guests summary + « Modifier », total line. */
+.bf-tabs.segments { margin: 0 0 10px; }
+.bf-extras { display: grid; gap: 10px; }
+.meal-guests .meal-edit { border: 0; background: transparent; padding: 4px 2px; font: inherit; font-weight: 600; color: var(--bronze, #8a6a43); text-decoration: underline; text-underline-offset: 2px; }
+.meal-total { margin: 0 0 6px; text-align: center; font-weight: 600; }

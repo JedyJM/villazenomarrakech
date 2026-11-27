@@ -132,10 +132,15 @@
   function toConfirm(items) {
     return items.filter(function (item) { return item.status === "Envoyée" && isFutureDay(item); });
   }
+  // Guests: adults, then children 4–11 and under 4 (meal counters, v21);
+  // older demandes only have a children total.
   function paxOf(item) {
     var bits = [];
     if (item.adults) bits.push(item.adults + " ad.");
-    if (item.children) bits.push(item.children + " enf.");
+    if (item.kids_4_11 || item.kids_under_4) {
+      if (item.kids_4_11) bits.push(item.kids_4_11 + " enf. 4–11");
+      if (item.kids_under_4) bits.push(item.kids_under_4 + " < 4 ans");
+    } else if (item.children) bits.push(item.children + " enf.");
     return bits;
   }
   // Full title, used in the WhatsApp relance text.
@@ -247,6 +252,7 @@
       + icon(item.kind)
       + '<span class="req-title">' + esc(rowTitleOf(item)) + '</span>'
       + '<span class="req-meta">' + esc(metaOf(item)) + '</span>'
+      + (item.extras ? '<span class="req-meta" data-extras>Suppléments : ' + esc(item.extras) + '</span>' : '')
       + (confirmedLine(item) ? '<span class="req-meta req-confirmed">' + esc(confirmedLine(item)) + '</span>' : '')
       + '<span class="req-foot">' + price + staff + '</span>'
       + '<span class="req-chip status-chip ' + chipClass(item.status) + '">' + esc(item.status) + '</span>'

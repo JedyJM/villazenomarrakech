@@ -6,7 +6,10 @@ var MEAL_PRICES = {
   breakfast: 10,
   lunch: { poulet: 15, viande: 15, vegetarien: 15 },
   dinner: { poulet: 20, viande: 20, vegetarien: 20 },
-  earlyBreakfast: { supplementEur: 10, before: "09:00" }
+  earlyBreakfast: { supplementEur: 10, before: "09:00" },
+  // Suppléments du petit-déjeuner : coupe de fruits frais pour toute la table,
+  // œufs façon tajine (tomates et oignons) par personne.
+  breakfastExtras: { fruitBowl: 15, tajineEgg: 5 }
 };
 
 /*

@@ -67,7 +67,9 @@
     document.body.setAttribute("data-state", ok ? "ok" : "message");
   }
   function legacy(found) {
-    location.replace(window.VZApi.URL + "?action=confirm&id=" + encodeURIComponent(found.id) + "&t=" + encodeURIComponent(found.token));
+    window.VZApi.urlReady.then(function (base) {
+      location.replace(base + "?action=confirm&id=" + encodeURIComponent(found.id) + "&t=" + encodeURIComponent(found.token));
+    });
   }
   var found = parts();
   if (!found.id || !found.token || !window.VZApi) {

@@ -11,7 +11,38 @@
 (function (root) {
   "use strict";
 
-  var URL = "https://script.google.com/macros/s/AKfycbwrmyFtKdhIovJAh2A-DjYfIYNwGWz7s-r_yKz8TDj29J1OcbnBPA7tIBV1qRJbtFcwlw/exec";
+  /* /exec URL per environment (2026-11-27).
+     - Production (www / villazenomarrakech.com on GitHub Pages,
+       villazenomarrakech.vercel.app), localhost and anything unknown: PROD_URL,
+       exactly as before, decided at once (no extra request).
+     - A Vercel PREVIEW (*.vercel.app, not the production alias): asks
+       /api/vz-env once; the Vercel env variable VZ_EXEC_URL (Preview only)
+       points it to the staging /exec. No answer or no variable: PROD_URL.
+     Every call waits for that choice (urlReady), so a preview never sends
+     anything to production by mistake once VZ_EXEC_URL is set. */
+  var PROD_URL = "https://script.google.com/macros/s/AKfycbwrmyFtKdhIovJAh2A-DjYfIYNwGWz7s-r_yKz8TDj29J1OcbnBPA7tIBV1qRJbtFcwlw/exec";
+  var PROD_HOSTS = { "www.villazenomarrakech.com": 1, "villazenomarrakech.com": 1, "villazenomarrakech.vercel.app": 1 };
+  var EXEC_RE = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{20,200}\/exec$/;
+  var URL = PROD_URL;
+  function isPreviewHost(host) {
+    host = String(host || "").toLowerCase();
+    return !PROD_HOSTS[host] && /\.vercel\.app$/.test(host);
+  }
+  var urlReady = (function () {
+    var host = "";
+    try { host = root.location.hostname; } catch (e) {}
+    if (!isPreviewHost(host) || !root.fetch) return Promise.resolve(PROD_URL);
+    var done = false;
+    return new Promise(function (resolve) {
+      var timer = root.setTimeout(function () { if (!done) { done = true; resolve(PROD_URL); } }, 5000);
+      root.fetch("/api/vz-env", { cache: "no-store" }).then(function (res) { return res.json(); }).then(function (data) {
+        var url = data && EXEC_RE.test(String(data.execUrl || "")) ? String(data.execUrl) : PROD_URL;
+        if (!done) { done = true; root.clearTimeout(timer); resolve(url); }
+      }, function () {
+        if (!done) { done = true; root.clearTimeout(timer); resolve(PROD_URL); }
+      });
+    }).then(function (url) { api.URL = url; api.env = url === PROD_URL ? "production" : "staging"; return url; });
+  })();
   var SESSION_ERRORS = { forbidden: 1, invalid_token: 1, unauthorized: 1 };
 
   function wait(ms) { return new Promise(function (resolve) { root.setTimeout(resolve, ms); }); }
@@ -83,9 +114,12 @@
     var timeoutMs = opts.timeout || 20000;
     var retries = opts.retries == null ? 2 : opts.retries;
     var backoff = opts.backoff == null ? 800 : opts.backoff;
-    var url = api.URL + "?" + query(params);
+    var url = "";
     function attempt(n) {
-      return once(url, { method: "GET" }, timeoutMs).then(function (result) {
+      return urlReady.then(function (base) {
+        url = base + "?" + query(params);
+        return once(url, { method: "GET" }, timeoutMs);
+      }).then(function (result) {
         var retryable = !result.ok && (result.kind === "network" || (result.kind === "timeout" && opts.retryTimeout !== false) || result.kind === "busy" || result.error === "not_json");
         if (retryable && n < retries) return wait(backoff * (n + 1)).then(function () { return attempt(n + 1); });
         return result;
@@ -97,11 +131,13 @@
   // Write. One try (the caller offers « Réessayer »; writes carry their own id).
   function post(body, opts) {
     opts = opts || {};
-    return once(api.URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(body || {})
-    }, opts.timeout || 25000);
+    return urlReady.then(function (base) {
+      return once(base, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(body || {})
+      }, opts.timeout || 25000);
+    });
   }
 
   function isEn() {
@@ -159,6 +195,6 @@
     return node;
   }
 
-  var api = { URL: URL, get: get, post: post, message: message, showError: showError, classify: classify };
+  var api = { URL: URL, PROD_URL: PROD_URL, env: "production", urlReady: urlReady, isPreviewHost: isPreviewHost, get: get, post: post, message: message, showError: showError, classify: classify };
   root.VZApi = api;
 })(window);

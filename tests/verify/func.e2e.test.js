@@ -340,3 +340,41 @@ test("6. « Famille Démo » (staging seed): guest link works with prefilled gue
     assert.equal(statsCalls[statsCalls.length - 1].answer.stays.some((s) => s.id === "FAMDEMO2812"), false);
   } finally { await A.ctx.close(); }
 });
+
+// Review 2026-11-27 (screenshots): text drawn over text on admin cards, raw
+// labels (« Menage · maison », « Transfert · departure »), meal price shown
+// /10 (« 5 € · 50 DH » for 50 €). On iPhone 16 and iPhone SE sizes.
+const { layoutProblems } = require("./layout");
+for (const [size, viewport] of [["iPhone 16", { width: 393, height: 852 }], ["iPhone SE", { width: 375, height: 667 }]]) {
+  test("review fixes (" + size + "): no overlapping text on Demandes / Aujourd'hui / Encaissement, French labels, meal price in €", async () => {
+    const b = newBackend({ latency: [0, 0], realDemandes: 0 });
+    const dem = (id, service, sous, details, total, statut, conf) => [id, new Date().toISOString(), service, sous, "Invité", JSON.stringify(Object.assign({ booking_id: b.STAY_ID, token: "t" + id }, details)), total, "Hicham", statut, conf || "", false];
+    for (const r of [
+      dem("rv1", "transfert", "départ", { trip_type: "departure", date: day(1), pickup_time: "08:00" }, 350, "Confirmée", day(0) + " 09:12"),
+      dem("rv2", "menage", "maison", { date: day(0), time: "10:00" }, "", "Confirmée", day(0) + " 09:13"),
+      dem("rv3", "activites", "quad", { date: day(2), time: "14:30", adults: 1 }, 300, "Envoyée"),
+      dem("rv4", "massage", "decouverte", { date: day(0), time: "11:00" }, 300, "Confirmée", day(0) + " 09:14"),
+      dem("rv5", "restauration", "breakfast", { meal: "breakfast", date: day(0), time: "10:00", adults: 2, enfants_4_11: 1, enfants_moins_4: 1, extras: { fruit_bowl: true, tajine_eggs: 2 } }, 50, "Confirmée", day(0) + " 09:15"),
+    ]) addDemande(b, r);
+    const A = await admin(b);
+    await A.page.setViewportSize(viewport);
+    try {
+      await A.page.goto(srv.origin + "/admin/demandes.html");
+      await A.page.locator("[data-sync] [data-refresh]:not([disabled])").waitFor({ timeout: 20000 });
+      await A.page.click("[data-filter='toutes']");
+      await A.page.locator("[data-open='rv5']").waitFor();
+      assert.deepEqual(await layoutProblems(A.page, "main"), [], "Demandes");
+      const titles = await A.page.locator("[data-list] .req-title").allInnerTexts();
+      for (const t of ["Transfert · départ", "Ménage · toute la maison", "Activités · quad", "Massage découverte", "Restauration · petit-déjeuner"]) assert.ok(titles.indexOf(t) >= 0, t + " in " + JSON.stringify(titles));
+      assert.match(await A.page.locator("[data-open='rv5']").innerText(), /50\s€ · 500\sDH/);
+      assert.match(await A.page.locator("[data-open='rv1']").innerText(), /35\s€ · 350\sDH/);
+      await shot(A.page, "func-review-demandes-" + viewport.width + ".png");
+      await A.page.goto(srv.origin + "/admin/aujourdhui.html");
+      await A.page.locator("[data-sync] [data-refresh]:not([disabled])").waitFor({ timeout: 20000 });
+      assert.deepEqual(await layoutProblems(A.page, "main"), [], "Aujourd'hui");
+      await A.page.goto(srv.origin + "/admin/encaissement.html?sejour=" + b.STAY_ID);
+      await A.page.locator("[data-cash] [data-sync] [data-refresh]:not([disabled])").waitFor({ timeout: 20000 });
+      assert.deepEqual(await layoutProblems(A.page, "main"), [], "Encaissement");
+    } finally { await A.ctx.close(); }
+  });
+}

@@ -799,7 +799,7 @@ html.is-keyboard .bottom-nav {
 }
 
 .page-request { padding-bottom: calc(var(--nav-space) + 16px); }
-.page-meal { padding-bottom: calc(var(--nav-space) + 92px); }
+.page-meal { padding-bottom: calc(var(--nav-space) + 132px); }
 .meal-dock {
   position: fixed;
   left: 0;
@@ -1258,7 +1258,7 @@ html.is-kb-open body { padding-bottom: calc(var(--kb-space, 0px) + 24px) !import
   line-height: 22px;
 }
 .page-meal .meal-allergies textarea::placeholder { color: var(--muted); font-family: var(--sans); font-size: 16px; opacity: 1; }
-.meal-dock { padding: 0 0 8px; background: var(--bg); }
+.meal-dock { padding: 8px 0 8px; background: var(--bg); border-top: 1px solid rgba(28, 25, 22, 0.08); }
 .meal-dock .meal-send { width: calc(100% - 24px); margin: 8px 12px 0; }
 .page-meal .meal-send { height: 48px; margin-top: 0; border-radius: 16px; background: #6b3022; font-size: 0.86rem; white-space: nowrap; }
 .page-meal .meal-send .meal-arrow { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -1761,7 +1761,7 @@ a.request-submit:active { color: var(--paper); text-decoration: none; }
 }
 .confirm-list div:first-child { border-top: 0; }
 .confirm-list dt { margin: 0; color: var(--muted); font-weight: 400; flex: none; }
-.confirm-list dd { margin: 0; min-width: 0; color: var(--ink); font-weight: 500; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.confirm-list dd { margin: 0; min-width: 0; color: var(--ink); font-weight: 500; text-align: right; overflow-wrap: anywhere; }
 .heating {
   margin: 0 0 10px;
   padding: 12px 14px;
@@ -2075,7 +2075,7 @@ a.guide-row .ext { margin-left: auto; width: 13px; height: 13px; color: var(--mu
 }
 .recap-sum b small { font-family: var(--sans); }
 .recap-lines strong,
-.recap-lines em { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recap-lines em { display: block; overflow-wrap: anywhere; }
 .recap-lines strong { font-size: 0.75rem; font-weight: 600; font-style: normal; line-height: 1.25; }
 .recap-lines em { color: var(--muted); font-size: 0.66rem; font-style: normal; line-height: 1.25; }
 .recap-card.is-paid .recap-lines em { color: #8a8178; }

@@ -27,6 +27,8 @@ npm run verify                 # everything; prints pass/fail per group and TOTA
 - `tests/verify/func.test.js` (script, harness with the production Sheet shape): Gmail import button (create / update / cancel, no duplicate), free stay 0 €, stay edit, 3 meal counters + breakfast extras in the Arabic staff WhatsApp (no price), staging switch, Famille Démo, /exec per environment.
 - `tests/verify/func.e2e.test.js` (browser): admin freshness (cache then refresh, « Actualiser », no stacked reads), import button, free stay, stay edit, restauration, home, demo stay. `createBackend({ realShape: true, latency: [min, max] })` = full Réservations headers, Demandes grid of 1000 rows, 60 demandes of other stays, Apps Script latency; `b.inflightMax(action)`.
 
+- Layout guard `tests/verify/layout.js` (`layoutProblems(page, root)`): visible text runs that overlap or run past the screen (clipped text measured as drawn). Used on Demandes, Aujourd'hui, Encaissement (iPhone 16 and SE sizes) and in Level 2 on the récap and Mes demandes. Screenshots are reviewed too: a passing test with a broken screenshot is a test bug.
+
 ## Level 2 (staging, TESTS-E2E.md)
 
 `npm run e2e` runs `tests/e2e/staging.e2e.test.js` (G1–G12, A1–A12, S1–S5) on iPhone 16 size then iPhone SE, one screenshot per step in `E2E_SHOTS/<device>/`. Local by default (mocked /exec). Against staging: `E2E_BASE_URL` (Vercel preview), `E2E_EXEC_URL` (staging /exec; production is refused), `E2E_ADMIN_TOKEN`, optional `E2E_GUEST_K`. Environment only, never committed.

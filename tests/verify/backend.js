@@ -27,15 +27,15 @@ function realRow(o) { return RES_REAL.map((h) => (o[h] === undefined ? "" : o[h]
 /* « Vraies listes de demandes »: n past / future demandes of other stays
    (every service, every status), like the live Demandes tab. */
 function realDemandes(n) {
-  const services = [["restauration", "lunch", 30], ["menage", "maison", ""], ["piscine", "piscine", ""], ["activites", "quad", 300], ["transfert", "arrivée", 350], ["massage", "decouverte", 600]];
+  const services = [["restauration", "lunch", 30], ["menage", "maison", ""], ["piscine", "nettoyage", ""], ["activites", "quad", 300], ["transfert", "arrivée", 350], ["massage", "decouverte", 600]];
   const statuses = ["Envoyée", "Confirmée", "Terminée", "Annulée"];
   const out = [];
   for (let i = 0; i < n; i++) {
     const [service, sous, total] = services[i % services.length];
     const date = addDays((i % 21) - 14);
-    out.push(["old" + String(i).padStart(5, "0"), new Date(Date.now() - (n - i) * 3600e3).toISOString(), service, sous, "Invité",
-      JSON.stringify({ booking_id: "OLDSTAY" + (i % 5), token: "tok" + i, date, time: "12:00", trip_type: "arrival", flight_arrival_time: "12:00", meal: service === "restauration" ? "lunch" : undefined }),
-      total, "Fouzia", statuses[i % statuses.length], "", false]);
+    out.push(["old" + String(i).padStart(5, "0"), new Date(Date.now() - (n - i) * 3600e3).toISOString(), service, sous, ["Martin", "Dubois", "Lefèvre", "Moreau", "Laurent"][i % 5] + " (exemple)",
+      JSON.stringify(Object.assign({ booking_id: "OLDSTAY" + (i % 5), token: "tok" + i, date, time: "12:00" }, service === "transfert" ? { trip_type: "arrival", flight_arrival_time: "12:00" } : {}, service === "restauration" ? { meal: "lunch", adults: 2 } : {})),
+      total, ({ restauration: "Fouzia", menage: "Nadera", piscine: "Khalid", activites: "Khalid", transfert: "Hicham", massage: "Massages & soins" })[service], statuses[i % statuses.length], "", false]);
   }
   return out;
 }

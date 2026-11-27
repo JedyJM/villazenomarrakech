@@ -122,8 +122,12 @@
   // Shared normalizer (AdminShell.demandeFromApi, js/vz-fields.js).
   function fromApi(raw) {
     var item = shell.demandeFromApi(raw);
-    item.price = raw.total === "" || raw.total == null ? "" : euroText(raw.total);
-    item.dh = item.price && raw.total ? (Math.round(Number(raw.total)) + "\u00A0DH") : "";
+    // Meals: total in euros (Sheet total_dh holds € for restauration); other
+    // services: dirhams. Review 2026-11-27: a 50 € breakfast showed « 5 € · 50 DH ».
+    var meal = String(raw.service || "").toLowerCase() === "restauration";
+    var dhValue = raw.total === "" || raw.total == null ? null : (meal ? Number(raw.total) * 10 : Number(raw.total));
+    item.price = dhValue == null ? "" : euroText(dhValue);
+    item.dh = item.price && dhValue ? (Math.round(dhValue) + "\u00A0DH") : "";
     return item;
   }
   function dayKey(item) { return isoDay(item.when); }
@@ -172,7 +176,7 @@
     return "depuis " + Math.round(hours / 24) + "\u00A0j";
   }
   function metaOf(item) {
-    var text = [item.guest].concat(paxOf(item)).filter(Boolean).join(" · ") + " · " + whenLabel(item);
+    var text = [item.guest].concat(paxOf(item)).concat([whenLabel(item)]).filter(Boolean).join(" · ");
     if (item.status === "Envoyée") text += " · " + since(item);
     return text;
   }

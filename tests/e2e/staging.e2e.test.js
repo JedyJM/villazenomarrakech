@@ -57,7 +57,9 @@ test.before(async () => {
     const helpers = require("../verify/helpers");
     server = await helpers.startServer("vercel");
     origin = server.origin;
-    b = helpers.createBackend({ session: "google", realShape: true, latency: [200, 600], props: { STAGING: "true", TEST_WA_NUMBER: "33600000099", ADMIN_TEST_MODE: "true" } });
+    b = helpers.createBackend({ session: "google", realShape: true, latency: [200, 600], props: { STAGING: "true", TEST_WA_NUMBER: "33600000099", ADMIN_TEST_MODE: "true" },
+      // A real (non-test) stay of this year, like the staging Sheet copy: Stats must show it, never the demo.
+      stays: [{ booking_id: "HMREAL0001", nom: "Client Exemple", date_arrivee: new Date().getFullYear() + "-03-02", date_depart: new Date().getFullYear() + "-03-09", source: "Airbnb", bien: "Villa Zen'O", origine: "gmail", lien_actif: true, adultes: 2, airbnb_frais_chambre: 1400, airbnb_frais_service: 217, airbnb_gain: 1183, total_voyageur: 1600, devise: "EUR" }] });
     b.box.ctx.seedDemoStay_();
     adminToken = b.GOOGLE_TOKEN;
     guestK = b.keyOf(DEMO);
@@ -121,6 +123,9 @@ async function setField(page, sel, value) {
 async function stayReady(page) {
   await page.waitForFunction(() => window.GuestStay && window.GuestStay.snapshot().state === "ok", null, { timeout: 30000 });
 }
+const { layoutProblems } = require("../verify/layout");
+// Raw technical values that must never reach a screen (labels in French).
+const RAW = /\b(departure|arrival|menage|activites|decouverte|nettoyage|location_voiture|breakfast|lunch|dinner)\b|· (maison|chambres)\b/;
 const PRICE = /€|\bEUR\b|\bDH\b|\bMAD\b|\d+\s?(€|dh)/i;
 
 /* The common chain (steps 1–9 and 12 of TESTS-E2E.md) for one guest request.
@@ -345,23 +350,95 @@ test("G11 pool, jacuzzi, garden maintenance (no charge)", async () => {
   });
 });
 
-test("G12 several requests on the same stay: Mes demandes lists them, Encaissement → paid, récap « réglé »", async () => {
+test("G12 several requests on the same stay: done → Encaissement → paid, récap with the exact amounts", async () => {
   await G.page.goto(origin + "/guest/demandes.html?stay=" + DEMO + "&k=" + guestK);
   await G.page.locator("[data-demand-list] li").first().waitFor({ timeout: 30000 });
-  assert.ok(await G.page.locator("[data-demand-list] li").count() >= 10, "all requests of the stay");
+  assert.ok(await G.page.locator("[data-demand-list] li").count() >= 11, "all requests of the stay");
   await shot(G.page, "G12-01-mes-demandes");
-  // 10. Encaissement: marked paid.
+  // After each service, Mehdi sets the request « Terminée » (Changer statut).
+  // The demo stay is in 2028, so the automatic « Terminée » (time + 2 h)
+  // never comes: done by hand, exactly as the admin can.
+  const confirmed = (await adminGet({ action: "demandes" })).items.filter((x) => x.stay === DEMO && x.status === "Confirmée");
+  assert.ok(confirmed.length >= 11, "G1–G11 confirmed");
+  await A.page.goto(origin + "/admin/demandes.html");
+  await A.page.locator("[data-sync] [data-refresh]:not([disabled])").waitFor({ timeout: 45000 });
+  await A.page.click("[data-filter='toutes']");
+  for (const it of confirmed) {
+    await A.page.click("[data-open='" + it.id + "']");
+    await A.page.click("[data-statut='" + it.id + "']");
+    await A.page.click("[data-set='Terminée']");
+    await A.page.locator("[data-open='" + it.id + "'] .status-terminee").waitFor({ timeout: 30000 });
+  }
+  await shot(A.page, "G12-02-terminees");
+  // Expected amounts (TESTS-E2E G1–G9 on Famille Démo: 2 adults, 1 child 4–11, 1 under 4):
+  //   à régler à la villa: G1 breakfast 50 € + G2 lunch 37,50 € + G3 dinner 50 € = 137,50 €
+  //   déjà réglé aux prestataires: G4 35 € + G5 35 € + G8 quad 30 € + G9 massage 30 € = 130 €
+  const done = (await adminGet({ action: "demandes" })).items.filter((x) => x.stay === DEMO && x.status === "Terminée");
+  const meals = done.filter((x) => x.service === "restauration").reduce((t, x) => t + Number(x.total), 0);
+  const providers = done.filter((x) => ["transfert", "activites", "massage"].indexOf(x.service) >= 0 && x.total != null && x.total !== "").reduce((t, x) => t + Number(x.total) / 10, 0);
+  assert.equal(meals, 137.5, "meals of G1–G3");
+  assert.equal(providers, 130, "providers of G4, G5, G8, G9");
+  // 10. Encaissement: the meals to pay, the providers already paid, then paid.
   await A.page.goto(origin + "/admin/encaissement.html?sejour=" + DEMO);
   await A.page.locator("[data-pay]").waitFor({ timeout: 45000 });
+  await A.page.waitForFunction(() => /137,50/.test(document.querySelector(".cash-euro").textContent), null, { timeout: 30000 });
+  const cash = await A.page.locator("[data-cash]").innerText();
+  assert.match(cash, /Petit-déjeuner[\s\S]*50\s€/);
+  assert.match(cash, /Déjeuner[\s\S]*37,50\s€/);
+  assert.match(cash, /Dîner[\s\S]*50\s€/);
+  assert.match(cash, /Déjà réglé aux prestataires[\s\S]*130\s€/);
+  assert.match(cash, /1\s€ = 10\sDH/);
   await shot(A.page, "G12-10-encaissement");
   await A.page.click("[data-pay]");
   await A.page.click("[data-pay-confirm]");
   await A.page.locator(".cash-paid").waitFor({ timeout: 30000 });
-  // 11. Récapitulatif: settled, 1 € = 10 DH shown.
+  // 11. Récapitulatif: settled with the detail, the right columns and the rate.
   await G.page.goto(origin + "/guest/recap.html");
   await G.page.locator("[data-settled]:not([hidden])").waitFor({ timeout: 30000 });
-  assert.match(await G.page.locator("main").innerText(), /Réglé/);
+  assert.match(await G.page.locator("[data-settled]").innerText(), /Réglé le .* · Espèces € · 137,50\s€/);
+  const bill = await G.page.locator("[data-bill-card]").innerText();
+  assert.match(bill, /À RÉGLER À LA VILLA[\s\S]*50\s€[\s\S]*37,50\s€[\s\S]*50\s€[\s\S]*Total réglé[\s\S]*137,50\s€[\s\S]*1\s?375\sDH/);
+  assert.equal(Number(await G.page.locator("[data-recap-total]").getAttribute("data-recap-total")), 137.5, "total = sum of the meals");
+  const paid = G.page.locator("[data-paid-card]");
+  assert.equal(await paid.isVisible(), true);
+  assert.match(await paid.innerText(), /DÉJÀ RÉGLÉ AUX PRESTATAIRES/);
+  const paidAmounts = await G.page.locator("[data-paid] li b").evaluateAll((els) => els.map((e) => Number(e.childNodes[0].textContent.replace(/[^0-9,]/g, "").replace(",", "."))));
+  assert.deepEqual(paidAmounts.slice().sort((x, y) => x - y), [30, 30, 35, 35]);
+  assert.match(await G.page.locator(".recap-rate").innerText(), /1\s€ = 10\sDH/);
   await shot(G.page, "G12-11-recap");
+});
+
+test("Layout: no overlapping or overflowing text, French labels (Demandes, Aujourd'hui, Encaissement, récap, Mes demandes)", async () => {
+  for (const [url, name] of [["/admin/demandes.html", "L-demandes"], ["/admin/aujourdhui.html", "L-aujourdhui"], ["/admin/encaissement.html?sejour=" + DEMO, "L-encaissement"]]) {
+    await A.page.goto(origin + url);
+    await A.page.locator("[data-sync] [data-refresh]:not([disabled])").first().waitFor({ timeout: 45000 });
+    if (url.indexOf("demandes") >= 0) {
+      await A.page.click("[data-filter='toutes']");
+      await A.page.locator("[data-list] .req-row").first().waitFor();
+    }
+    await shot(A.page, name);
+    assert.deepEqual(await layoutProblems(A.page, "main"), [], name);
+    assert.doesNotMatch(await A.page.locator("main").innerText(), RAW, name + ": raw value on screen");
+  }
+  // French request titles in admin Demandes.
+  await A.page.goto(origin + "/admin/demandes.html");
+  await A.page.locator("[data-sync] [data-refresh]:not([disabled])").waitFor({ timeout: 45000 });
+  await A.page.click("[data-filter='toutes']");
+  const titles = await A.page.locator("[data-list] .req-title").allInnerTexts();
+  // Meals: the Sheet total is in euros (50 € breakfast, never « 5 € · 50 DH »).
+  const breakfastRow = A.page.locator("[data-list] .req-row", { hasText: "Restauration · petit-déjeuner" }).first();
+  assert.match(await breakfastRow.innerText(), /50\s€ · 500\sDH/);
+  for (const t of ["Transfert · départ", "Transfert · arrivée", "Ménage · toute la maison", "Activités · quad", "Massage découverte", "Piscine · entretien", "Restauration · petit-déjeuner", "Restauration · déjeuner", "Restauration · dîner", "Transfert en ville", "Location · citadine"]) {
+    assert.ok(titles.indexOf(t) >= 0, "title « " + t + " » in " + JSON.stringify(titles));
+  }
+  await G.page.goto(origin + "/guest/recap.html?stay=" + DEMO + "&k=" + guestK);
+  await G.page.locator("[data-settled]:not([hidden])").waitFor({ timeout: 30000 });
+  assert.deepEqual(await layoutProblems(G.page, "main"), [], "récap");
+  await G.page.goto(origin + "/guest/demandes.html");
+  await G.page.locator("[data-demand-list] li").first().waitFor({ timeout: 30000 });
+  await shot(G.page, "L-mes-demandes");
+  assert.deepEqual(await layoutProblems(G.page, "main"), [], "mes demandes");
+  assert.doesNotMatch(await G.page.locator("main").innerText(), RAW, "mes demandes: raw value");
 });
 
 // ---------- Admin ----------
@@ -458,8 +535,11 @@ test("A6 settings: read", async () => {
 test("A7 stats: « Famille Démo » stays out of the real stats", async () => {
   const stats = (await adminGet({ action: "stays-stats" })).stays || [];
   assert.equal(stats.some((x) => x.id === DEMO), false);
+  if (!REAL) assert.ok(stats.some((x) => x.id === "HMREAL0001"), "the real stay counts");
   await A.page.goto(origin + "/admin/stats.html");
-  await A.page.waitForTimeout(3000);
+  await A.page.locator("[data-refresh]:not([disabled])").first().waitFor({ timeout: 45000 });
+  await A.page.waitForFunction(() => !/Aucune donnée réelle/.test(document.querySelector("main").innerText), null, { timeout: 30000 });
+  if (!REAL) assert.match(await A.page.locator("main").innerText(), /1\s?600/, "brut of the real stay");
   await shot(A.page, "A7-stats");
 });
 
@@ -475,13 +555,16 @@ test("A8 admin access: a forged token is refused", async () => {
 
 test("A9 / A12 « Importer depuis Gmail »: answer created / updated / cancelled, no duplicate", async () => {
   if (!REAL) {
-    b.box.ctx.GmailApp = { search: () => [] };
+    // One Airbnb confirmation in the mailbox (synthetic, no real guest).
+    const m = { id: "gE2E", from: "Airbnb <automated@airbnb.com>", subject: "Réservation confirmée : Exemple Import arrive le 10 sept.",
+      body: ["https://www.airbnb.fr/hosting/reservations/details/HME2E00001   Exemple Import", "", "Villa Zen'O Palmeraie", "Logement entier", "", "Arrivée   Départ", "dim. 10 sept. 2028   jeu. 14 sept. 2028", "", "VOYAGEURS", "2 adultes", "", "CODE DE CONFIRMATION", "HME2E00001", "", "TOTAL (EUR)   900,00 €"].join("\n") };
+    b.box.ctx.GmailApp = { search: (q, start) => (start || !/airbnb/.test(q) ? [] : [{ getMessages: () => [{ getId: () => m.id, getFrom: () => m.from, getSubject: () => m.subject, getDate: () => new Date(), getPlainBody: () => m.body }] }]) };
   }
   await A.page.goto(origin + "/admin/sejours.html");
   await A.page.click("[data-import]");
   await A.page.locator("[data-import-note][data-import-done], [data-import-note][data-api-error]").waitFor({ timeout: 200000 });
   await shot(A.page, "A9-import");
-  assert.match(await A.page.locator("[data-import-note]").innerText(), /Import terminé : \d+\s(séjour|séjours) créés? · \d+\smis à jour · \d+\sannulés?/);
+  assert.match(await A.page.locator("[data-import-note]").innerText(), REAL ? /Import terminé : \d+\s(séjour|séjours) créés? · \d+\smis à jour · \d+\sannulés?/ : /Import terminé : 1\sséjour créé · 0\smis à jour · 0\sannulé/);
   const ids = (await adminGet({ action: "stays" })).stays.map((x) => x.id);
   assert.equal(new Set(ids).size, ids.length, "no duplicate stay id");
 });

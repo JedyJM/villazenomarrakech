@@ -489,6 +489,39 @@
     var text = String(value || "").trim();
     return text ? text.charAt(0).toLocaleUpperCase("fr-FR") + text.slice(1) : text;
   }
+  /* French labels for the raw script values (2026-11-27 review: « Menage ·
+     maison », « Transfert · departure », « Massage · decouverte »). */
+  var SERVICE_FR = {
+    restauration: "Restauration", menage: "Ménage", piscine: "Piscine", activites: "Activités",
+    transfert: "Transfert", course: "Transfert en ville", location_voiture: "Location", massage: "Massage"
+  };
+  var EXTRA_FR = {
+    departure: "départ", "départ": "départ", depart: "départ", arrival: "arrivée", "arrivée": "arrivée", arrivee: "arrivée",
+    maison: "toute la maison", chambres: "chambres uniquement", nettoyage: "entretien",
+    breakfast: "petit-déjeuner", lunch: "déjeuner", dinner: "dîner",
+    quad: "quad", dromadaire: "dromadaire", cheval: "balade à cheval",
+    citadine: "citadine", "4x4": "4×4", "en ville": ""
+  };
+  var SOIN_FR = {
+    decouverte: "Massage découverte", relaxant: "Massage relaxant ou tonique", amincissant: "Massage amincissant",
+    signature: "Massage Signature", manucure: "Manucure", pedicure: "Pédicure", vernis: "Pose vernis ou French",
+    jambes: "Épilation jambes", dos: "Épilation dos", bras: "Épilation bras", duvet: "Épilation duvet, sourcils ou menton",
+    aisselles: "Épilation aisselles", maillot: "Épilation maillot"
+  };
+  // { label, extra } in French. Massage: the treatments are the label.
+  function frenchLabel(raw) {
+    var service = String(raw.service || "").toLowerCase();
+    var sous = String(raw.trip || raw.sous_type || "").trim();
+    var label = SERVICE_FR[service] || serviceLabel(raw.service) || "Demande";
+    if (service === "massage" && sous) {
+      var names = sous.split("+").map(function (id) { return SOIN_FR[id.trim().toLowerCase()] || id.trim(); });
+      return { label: names.join(" + "), extra: "" };
+    }
+    var key = sous.toLowerCase();
+    var extra = EXTRA_FR.hasOwnProperty(key) ? EXTRA_FR[key] : sous;
+    return { label: label, extra: extra };
+  }
+
   /* Admin demande from action=demandes (shared field model). when: local
      date + time; hasTime false when the script sent no time (never a
      made-up 00:00). */
@@ -499,8 +532,9 @@
     var d = (day || "1970-01-01").split("-");
     var t = clock ? clock.split(":") : ["0", "0"];
     var when = new Date(Number(d[0]), (Number(d[1]) || 1) - 1, Number(d[2]) || 1, Number(t[0]), Number(t[1]));
-    var service = serviceLabel(raw.service) || "Demande";
-    var key = service.toLowerCase();
+    var fr = frenchLabel(raw);
+    var service = fr.label;
+    var key = (String(raw.service || "") + " " + (serviceLabel(raw.service) || "")).toLowerCase();
     var kind = "menage";
     if (key.indexOf("petit") >= 0 || raw.meal === "breakfast") kind = "breakfast";
     else if (key.indexOf("ner") >= 0 || key.indexOf("dinner") >= 0 || raw.meal === "dinner") kind = "dinner";
@@ -520,7 +554,8 @@
       kids_4_11: Number(raw.kids_4_11) || 0,
       kids_under_4: Number(raw.kids_under_4) || 0,
       extras: String(raw.extras || ""),
-      extra: raw.trip || raw.sous_type || "",
+      extra: fr.extra,
+      sous_type: String(raw.sous_type || ""),
       guest: fields && fields.isPlaceholderName(guest) ? "" : guest,
       stay: guest,
       stay_id: String(raw.stay || ""),
@@ -543,6 +578,7 @@
     showError: showError,
     loadError: loadError,
     demandeFromApi: demandeFromApi,
+    frenchLabel: frenchLabel,
     serviceLabel: serviceLabel,
     cachedGet: cachedGet,
     warm: warm,

@@ -760,6 +760,13 @@
     return "";
   }
 
+  // Travellers of a stay: adults + every child (under 4 included: a seat each).
+  function stayTravelers(stay) {
+    if (!stay || !(Number(stay.adults) > 0)) return 0;
+    var kids = Math.max(Number(stay.children) || 0, (Number(stay.children_4_11) || 0) + (Number(stay.under_4) || 0));
+    return Number(stay.adults) + kids;
+  }
+
   function syncCity(form) {
     var input = form.querySelector("[name='passengers']");
     var count = Math.max(1, Math.min(8, Number(input.value) || 1));
@@ -1902,6 +1909,7 @@
         var step = event.target.closest("[data-step]");
         if (step) {
           var name = step.getAttribute("data-step");
+          if (name === "passengers" || name === "vehicles") transferTouched = true;
           var input = transfer.querySelector("[name='" + name + "']");
           var dir = Number(step.getAttribute("data-dir"));
           var vehicles = Number(transfer.querySelector("[name='vehicles']").value) || 1;
@@ -1962,6 +1970,7 @@
       city.addEventListener("click", function (event) {
         var step = event.target.closest("[data-city-step]");
         if (!step) return;
+        cityTouched = true;
         var input = city.querySelector("[name='passengers']");
         input.value = String(Number(input.value) + Number(step.getAttribute("data-city-step")));
         syncCity(city);
@@ -1994,6 +2003,33 @@
         sendToVilla(root, sheetPayload(record, record.token, "en ville", "Hicham", staffRows));
         showReceived(root, rows);
       });
+    }
+
+    // Travellers prefilled from the booking (adults + children), like the
+    // meals; the guest can still change them. Without a known stay the
+    // page defaults stay (3 passengers, 1 person in town).
+    var transferTouched = false;
+    var cityTouched = false;
+    function prefillTravelers(stay) {
+      var n = stayTravelers(stay);
+      if (!n) return;
+      if (transfer && !transferTouched) {
+        var pax = Math.min(n, rates.maxPassengers * 2);
+        transfer.querySelector("[name='vehicles']").value = pax > rates.maxPassengers ? "2" : "1";
+        transfer.querySelector("[name='passengers']").value = String(pax);
+        transfer.setAttribute("data-prefilled", String(pax));
+        syncTransfer(transfer);
+      }
+      if (city && !cityTouched) {
+        city.querySelector("[name='passengers']").value = String(Math.min(n, 8));
+        city.setAttribute("data-prefilled", String(Math.min(n, 8)));
+        syncCity(city);
+      }
+    }
+    if ((transfer || city) && window.GuestStay) {
+      var travelSnap = window.GuestStay.snapshot();
+      if (travelSnap && travelSnap.stay) prefillTravelers(travelSnap.stay);
+      window.GuestStay.onChange(function (snap) { if (snap && snap.stay) prefillTravelers(snap.stay); });
     }
 
     if (rental) {

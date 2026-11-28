@@ -24,7 +24,7 @@ const TEXTS = {
     path: "/",
     lines: [
       "Zen'O se cache encore…",
-      "Le petit-déjeuner est offert à tout le groupe. ☕",
+      "Le petit-déjeuner est offert à tout le groupe.",
       "Réservez jusqu'au 31 décembre 2026 pour un séjour entre le 1er janvier et le 28 février 2027.",
       "En direct, sur Airbnb ou sur Booking.com : envoyez-nous votre code sur WhatsApp.",
       "Votre code : ZENO2027",
@@ -43,7 +43,7 @@ const TEXTS = {
     path: "/en/",
     lines: [
       "You found Zen'O… almost.",
-      "Breakfast is on us, for your whole group. ☕",
+      "Breakfast is on us, for your whole group.",
       "Book by 31 December 2026 for a stay between 1 January and 28 February 2027.",
       "Direct, Airbnb or Booking.com: just send your code to us on WhatsApp.",
       "Your code: ZENO2027",
@@ -116,6 +116,18 @@ async function layout(page) {
       if (f < minFont) { minFont = f; minFontEl = n.tagName + "." + n.className; }
     }
     const targets = [...d.querySelectorAll("button, a[href]")].map((n) => { const b = n.getBoundingClientRect(); return { el: n.className, w: b.width, h: b.height }; });
+    function lines(el) {
+      if (!el) return 0;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const tops = [];
+      for (const r of range.getClientRects()) {
+        if (!r.width && !r.height) continue;
+        const t = Math.round(r.top);
+        if (!tops.some((x) => Math.abs(x - t) <= 1)) tops.push(t);
+      }
+      return tops.length;
+    }
     return {
       vw, vh,
       docScrollW: document.documentElement.scrollWidth,
@@ -123,6 +135,8 @@ async function layout(page) {
       innerScrollW: inner.scrollWidth, innerClientW: inner.clientWidth,
       innerScrollH: inner.scrollHeight, innerClientH: inner.clientHeight,
       outside: out, minFont, minFontEl, targets,
+      titleLines: lines(d.querySelector("#zeno-promo-title")),
+      leadLines: lines(d.querySelector(".zeno-promo-lead")),
     };
   });
 }
@@ -161,7 +175,7 @@ for (const lang of ["fr", "en"]) {
         // textContent (not innerText): the buttons are uppercased by CSS only.
         const text = await dlg.evaluate((d) => [...d.querySelectorAll("h2, p, .zeno-promo-code-text, a, button")].map((n) => n.textContent).join("\n"));
         for (const line of L.lines) assert.ok(text.includes(line), `missing text: ${line}\n--- got:\n${text}`);
-        assert.ok(text.includes("ZENO2027") && text.includes("☕"));
+        assert.ok(text.includes("ZENO2027") && !text.includes("☕"));
         assert.ok(!text.includes("..."), "typographic ellipsis only");
         assert.equal(await page.locator("#zeno-promo-title").innerText(), L.title);
         assert.equal(await dlg.getAttribute("aria-labelledby"), "zeno-promo-title");
@@ -189,6 +203,8 @@ for (const lang of ["fr", "en"]) {
         assert.ok(lay.minFont >= 12, `smallest text ${lay.minFont}px (${lay.minFontEl})`);
         for (const t of lay.targets) assert.ok(t.w >= 44 && t.h >= 44, `target too small: ${JSON.stringify(t)}`);
         assert.equal(lay.targets.length, 3, "close, copy, WhatsApp");
+        assert.equal(lay.titleLines, 1, "title must fit on one line, got " + lay.titleLines);
+        assert.equal(lay.leadLines, 1, "subtitle must fit on one line, got " + lay.leadLines);
 
         await shot(page, `${lang}-${device}-open.png`);
 

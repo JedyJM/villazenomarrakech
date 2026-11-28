@@ -4,7 +4,7 @@
 //      field model identity, Confirmer repeat open, staff WhatsApp templates;
 //   2. Vercel relay test (wa-webhook);
 //   3. browser journeys (iPhone 15 WebKit, local server, /exec mocked):
-//      guest, admin + link, cross-cutting.
+//      guest, admin + link, cross-cutting, hidden ZENO2027 pop-up (iPhone 16 / SE).
 // Env: VZ_GAS_CODE (default /workspace/sec/Code.v19.gs), VZ_SHOTS.
 "use strict";
 const { spawnSync } = require("node:child_process");
@@ -22,6 +22,7 @@ const groups = [
   ["guest journey", ["tests/verify/guest.e2e.test.js"]],
   ["admin journey + link", ["tests/verify/admin.e2e.test.js", "tests/verify/admin-google.e2e.test.js"]],
   ["cross-cutting", ["tests/verify/cross.e2e.test.js"]],
+  ["promo ?zeno=1 (homes)", ["tests/verify/zeno-promo.e2e.test.js"]],
 ];
 let pass = 0, fail = 0;
 const rows = [];

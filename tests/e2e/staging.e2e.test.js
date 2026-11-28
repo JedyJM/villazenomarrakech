@@ -505,6 +505,29 @@ test("D5 Restauration: fixed set-up time per meal (9 h 30, 12 h 30, 19 h), no re
   assert.deepEqual(G.errors, []);
 });
 
+test("D6 short screen 375×549 (real iPhone SE in Safari): Loisirs text never clipped, La Villa list reachable (no request sent)", async () => {
+  const page = G.page;
+  await page.setViewportSize({ width: 375, height: 549 });
+  try {
+    await designOpen(page, "loisirs.html");
+    const l = await page.evaluate(() => {
+      const tiles = [...document.querySelectorAll(".tile")];
+      return { sizes: [...new Set(tiles.map((t) => t.getBoundingClientRect().height.toFixed(1)))], clipped: tiles.filter((t) => t.scrollHeight > t.clientHeight + 1).length,
+        overflow: tiles.filter((t) => { const tb = t.getBoundingClientRect(); return [...t.querySelectorAll("h2, p")].some((e) => e.getBoundingClientRect().bottom > tb.bottom - 1); }).length };
+    });
+    assert.equal(l.sizes.length, 1, "equal cards"); assert.equal(l.clipped, 0); assert.equal(l.overflow, 0, "text inside its card");
+    await shot(page, "D6-loisirs-375x549");
+    await designOpen(page, "villa.html");
+    await page.evaluate(() => { const s = document.querySelector(".screen"); s.scrollTop = s.scrollHeight; });
+    const end = await page.evaluate(() => Math.round(document.querySelector(".guide-list").getBoundingClientRect().bottom - document.querySelector(".app > .nav").getBoundingClientRect().top));
+    assert.ok(end <= 0, "whole list reachable above the bar");
+    await shot(page, "D6-villa-375x549");
+  } finally {
+    await page.setViewportSize(DEVICE.viewport);
+  }
+  assert.deepEqual(G.errors, []);
+});
+
 test("G1 breakfast: included, eggs, extras (fruit bowl 15 €/table, tajine eggs 5 €/pers.), switch to « Vos œufs »", async () => {
   await chain(G, A, "G1", {
     page: "restauration.html", service: "restauration", staff: true, total: 50,

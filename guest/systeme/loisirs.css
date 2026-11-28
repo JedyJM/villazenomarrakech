@@ -18,3 +18,13 @@
 .tile.close p{font:var(--t-note);font-size:13px;line-height:1.3;color:var(--taupe);margin:0}
 @media (max-height:700px){.tiles{gap:6px}.tile{padding:8px 10px;gap:4px}.tile p,.tile.close p{font-size:12px;line-height:1.2}}
 @media (min-height:780px){.tile{padding:14px;gap:10px}.tile p,.tile.close p{font-size:13px}.tile h2{font-size:19px}}
+
+/* Écran plus court que l'iPhone SE de référence (Safari iOS réel : 375×549, RUN 8).
+   Le texte ne doit jamais être rogné : les cartes prennent la hauteur de leur contenu
+   (toujours égales entre elles), et l'écran défile. Rendu validé inchangé au-dessus de 600 px. */
+@media (max-height:600px){
+  .screen{overflow:auto;-webkit-overflow-scrolling:touch}
+  .page.fix{flex:none;min-height:auto}
+  .tiles{flex:none;grid-auto-rows:1fr}
+  .tile{overflow:visible}
+}

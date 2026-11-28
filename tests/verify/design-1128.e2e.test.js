@@ -178,3 +178,49 @@ for (const [name, w, h] of [["iPhone 16", 390, 844], ["iPhone SE", 375, 667]]) {
     await ctx.close();
   });
 }
+
+// Vrai iPhone SE dans Safari (barre d'outils en bas) : fenêtre utile 375×549 (RUN 8).
+test("Loisirs v3d 375×549 (Safari SE réel) : aucun texte rogné, cartes égales, tout atteignable en défilant", async () => {
+  const { ctx, page, errors } = await open(375, 549, "/guest/loisirs.html");
+  const m = await page.evaluate(() => {
+    const tiles = [...document.querySelectorAll(".tile")];
+    const lines = (e) => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size; };
+    return {
+      sizes: [...new Set(tiles.map((t) => { const b = t.getBoundingClientRect(); return b.width.toFixed(1) + "x" + b.height.toFixed(1); }))],
+      overflow: tiles.filter((t) => { const tb = t.getBoundingClientRect(); return [...t.querySelectorAll("h2, p")].some((e) => { const b = e.getBoundingClientRect(); return b.bottom > tb.bottom - 1 || b.right > tb.right + 1; }); }).map((t) => t.textContent.trim().slice(0, 20)),
+      clipped: tiles.filter((t) => t.scrollHeight > t.clientHeight + 1).length,
+      lines: [...document.querySelectorAll(".tile p")].map(lines),
+      h2: [...document.querySelectorAll(".tile h2")].filter((e) => lines(e) !== 1).length,
+      font: Math.min(...[...document.querySelectorAll(".tile p, .tile h2")].map((e) => parseFloat(getComputedStyle(e).fontSize))),
+      x: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+  });
+  assert.equal(m.sizes.length, 1, "cartes égales " + m.sizes);
+  assert.deepEqual(m.overflow, [], "texte dans sa carte");
+  assert.equal(m.clipped, 0, "aucun rognage");
+  assert.ok(m.lines.every((n) => n <= 3), "corps ≤ 3 lignes " + m.lines);
+  assert.equal(m.h2, 0); assert.ok(m.font >= 12); assert.equal(m.x, 0);
+  await page.evaluate(() => { const s = document.querySelector(".screen"); s.scrollTop = s.scrollHeight; });
+  const end = await page.evaluate(() => Math.round([...document.querySelectorAll(".tile")].pop().getBoundingClientRect().bottom - document.querySelector(".app > .nav").getBoundingClientRect().top));
+  assert.ok(end <= 0, "dernière carte au-dessus de la barre en bas de défilement (" + end + ")");
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("La Villa v2h 375×549 (Safari SE réel) : titres sur une ligne, cibles ≥ 44 px, toute la liste atteignable", async () => {
+  const { ctx, page, errors } = await open(375, 549, "/guest/villa.html");
+  const m = await page.evaluate(() => {
+    const s = document.querySelector(".screen");
+    return { scroll: s.scrollHeight - s.clientHeight, sums: [...document.querySelectorAll(".guide-list summary")].map((x) => x.getBoundingClientRect().height),
+      h2: [...document.querySelectorAll(".guide-list h2, .stick h1, .stick .lead")].filter((e) => e.scrollWidth > e.clientWidth + 1).length,
+      x: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+  });
+  // 10 rangées de 44 px + en-tête ne tiennent pas dans 549 px : défilement court accepté (≈ 39 px), documenté au RUN 8.
+  assert.ok(m.scroll <= 45, "défilement de la liste fermée " + m.scroll);
+  assert.ok(m.sums.every((hh) => hh >= 44), "cibles ≥ 44 px");
+  assert.equal(m.h2, 0); assert.equal(m.x, 0);
+  await page.evaluate(() => { const s = document.querySelector(".screen"); s.scrollTop = s.scrollHeight; });
+  const end = await page.evaluate(() => Math.round(document.querySelector(".guide-list").getBoundingClientRect().bottom - document.querySelector(".app > .nav").getBoundingClientRect().top));
+  assert.ok(end <= 0, "« Votre départ » atteignable au-dessus de la barre (" + end + ")");
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

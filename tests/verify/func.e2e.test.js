@@ -255,7 +255,7 @@ test("5. restauration: prefilled guests on the 3 meals, counters, extras, no-egg
     assert.match(await page.locator("[data-meal-total]").innerText(), /Total estimé · 50\s€/);
     await shot(page, "func-5-supplements.png");
     await setField(page, "[name='date']", day(1));
-    await page.selectOption("[name='time']", "10:00");
+    assert.equal(await page.inputValue("[name='time']"), "09:30", "heure fixe du petit-déjeuner");
     // Sent without eggs: switch to « Vos œufs » once.
     await page.click(".meal-send");
     assert.equal(await page.locator("[data-bf-tab='oeufs']").getAttribute("aria-selected"), "true");

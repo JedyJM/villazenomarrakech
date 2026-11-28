@@ -352,7 +352,7 @@ test("G1 breakfast: included, eggs, extras (fruit bowl 15 €/table, tajine eggs
     send: async (page) => {
       await page.click("[data-meal='breakfast']");
       await setField(page, "[name='date']", D(3));
-      await page.selectOption("[name='time']", "10:00");
+      assert.equal(await page.inputValue("[name='time']"), "09:30", "heure fixe du petit-déjeuner");
       // Famille Démo: 2 adults, 1 child 4–11, 1 under 4 (prefilled) = 25 €.
       assert.equal(await page.locator("[data-guests-text]").innerText(), "2 adultes · 1 enfant · 1 bébé");
       await page.click("[data-bf-tab='supplements']");
@@ -375,7 +375,7 @@ for (const [tag, meal, unit] of [["G2", "lunch", 15], ["G3", "dinner", 20]]) {
       send: async (page) => {
         await page.click("[data-meal='" + meal + "']");
         await setField(page, "[name='date']", D(4));
-        await page.selectOption("[name='time']", meal === "lunch" ? "13:00" : "20:00");
+        assert.equal(await page.inputValue("[name='time']"), meal === "lunch" ? "12:30" : "19:00", "heure fixe");
         await page.locator("[data-salad]").first().click();
         await page.locator(".care-cat").first().evaluate((d) => { d.open = true; });
         for (let i = 0; i < 4; i++) await page.locator(".dish [data-dish-step='1']").first().click();

@@ -1046,7 +1046,6 @@
     var prices = window.MEAL_PRICES;
     var error = form.querySelector("[data-errors]");
     var names = { breakfast: "Petit-déjeuner", lunch: "Déjeuner", dinner: "Dîner" };
-    var windows = { breakfast: [7 * 60, 11 * 60 + 30], lunch: [12 * 60, 15 * 60 + 30], dinner: [19 * 60, 21 * 60] };
     var maxCount = 16;
     var maxKids = 10;
     // Guests prefilled from the booking (adults, 4–11, under 4) until the
@@ -1078,34 +1077,20 @@
       if (!time || time >= rule.before) return 0;
       return Number(rule.supplementEur) || 0;
     }
+    // Heures fixes de mise en place (Jedy, 28/11 17:01) : une seule heure par repas,
+    // présélectionnée ; le champ et l'envoi (time) ne changent pas.
+    var fixedTimes = { breakfast: "09:30", lunch: "12:30", dinner: "19:00" };
     function fillTimes(kind) {
       var select = form.querySelector("[name='time']");
-      var previous = select.value;
-      var range = windows[kind];
-      var rule = earlyRule();
-      var html = "<option value=\"\">Choisir</option>";
-      for (var t = range[0]; t <= range[1]; t += 30) {
-        var h = Math.floor(t / 60);
-        var m = t % 60;
-        var value = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
-        var label = clockLabel(value);
-        if (kind === "breakfast" && value < rule.before) label += " · + " + euro(Number(rule.supplementEur) || 0);
-        html += "<option value=\"" + value + "\">" + label + "</option>";
-      }
-      select.innerHTML = html;
-      if (select.querySelector("option[value='" + previous + "']")) select.value = previous;
+      var value = fixedTimes[kind];
+      select.innerHTML = "<option value=\"" + value + "\">" + clockLabel(value) + "</option>";
+      select.value = value;
     }
     function paintHours(kind) {
       var el = form.querySelector("[data-meal-hours]");
       if (!el) return;
-      var rule = earlyRule();
-      if (kind === "breakfast") {
-        el.classList.add("meal-hours-split");
-        el.innerHTML = "<span>Servi de 9\u00A0h à 12\u00A0h.</span><span>Avant " + clockLabel(rule.before) + ", un supplément de " + euro(Number(rule.supplementEur) || 0) + " vous sera demandé.</span>";
-        return;
-      }
       el.classList.remove("meal-hours-split");
-      el.textContent = kind === "lunch" ? "Servi de 12\u00A0h à 16\u00A0h." : "Servi de 19\u00A0h à 21\u00A0h.";
+      el.textContent = "Mise en place à " + clockLabel(fixedTimes[kind]) + ".";
     }
     function readDish(dish) {
       var input = dish.querySelector("input[type='hidden']");

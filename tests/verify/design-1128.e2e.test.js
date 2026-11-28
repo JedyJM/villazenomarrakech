@@ -162,3 +162,19 @@ for (const [name, w, h, row] of [["iPhone 16", 390, 844, 74], ["iPhone SE", 375,
     await ctx.close();
   });
 }
+
+// Restauration : heures fixes de mise en place (Jedy, 28/11 17:01).
+for (const [name, w, h] of [["iPhone 16", 390, 844], ["iPhone SE", 375, 667]]) {
+  test("Restauration " + name + " : heure fixe par repas (9 h 30, 12 h 30, 19 h), affichée et présélectionnée", async () => {
+    const { ctx, page, errors } = await open(w, h, "/guest/restauration.html");
+    for (const [meal, value, label] of [["breakfast", "09:30", "9 h 30"], ["lunch", "12:30", "12 h 30"], ["dinner", "19:00", "19 h"]]) {
+      await page.click("[data-meal='" + meal + "']");
+      assert.deepEqual(await page.locator("[name='time'] option").evaluateAll((o) => o.map((x) => [x.value, x.textContent])), [[value, label]], meal);
+      assert.equal(await page.inputValue("[name='time']"), value, meal);
+      assert.equal(await page.locator("[data-meal-hours]").innerText(), "Mise en place à " + label + ".", meal);
+    }
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), 0);
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+}

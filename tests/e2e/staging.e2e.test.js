@@ -390,6 +390,114 @@ test("G0 guest home from the stay link (no access page, no error)", async () => 
   await shot(G.page, "G0-accueil");
 });
 
+// ---------- Nouveau design invité 2026-11-28 (aucun envoi) ----------
+// Mesures communes : défilement de .screen, contenu sous la barre (ou sous le
+// bouton chauffeur), débordement horizontal, barre du système (5 entrées).
+async function designOpen(page, file) {
+  await page.goto(origin + "/guest/" + file + "?stay=" + DEMO + "&k=" + guestK);
+  await stayReady(page);
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(300);
+}
+function designMeasure(page) {
+  return page.evaluate(() => {
+    const s = document.querySelector(".screen"), sr = s.getBoundingClientRect();
+    const floor = (document.querySelector(".action") || document.querySelector(".app > .nav")).getBoundingClientRect().top;
+    let under = 0;
+    document.querySelectorAll(".screen *").forEach((e) => { const r = e.getBoundingClientRect(); if (r.width && r.height && r.top < sr.bottom && r.bottom > sr.top) under = Math.max(under, Math.round(Math.min(r.bottom, sr.bottom) - floor)); });
+    return { scroll: s.scrollHeight - s.clientHeight, under: Math.max(0, under), x: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      nav: [...document.querySelectorAll(".app > .nav a, .app > .nav button")].map((a) => a.textContent.trim()),
+      mehdi: (document.querySelector(".app > .nav [data-guest-whatsapp]") || {}).getAttribute ? document.querySelector(".app > .nav [data-guest-whatsapp]").getAttribute("aria-label") : "" };
+  });
+}
+const NAV5 = ["Accueil", "Demandes", "Accès", "Contacts", "Mehdi"];
+
+test("D1 La Villa v2h: ten sections, one open at a time, open text above the bar", async () => {
+  const page = G.page;
+  await designOpen(page, "villa.html");
+  let m = await designMeasure(page);
+  assert.equal(m.scroll, 0, "closed list: no scroll"); assert.equal(m.x, 0);
+  assert.deepEqual(m.nav, NAV5); assert.equal(m.mehdi, "Écrire à Mehdi, votre hôte, sur WhatsApp");
+  assert.equal(await page.locator(".guide-list details").count(), 10);
+  await shot(page, "D1-villa");
+  for (const id of ["quotidien", "depart", "visiteurs"]) {
+    await page.click(`details[data-sec="${id}"] summary`);
+    await page.waitForTimeout(250);
+    const r = await page.evaluate((id) => {
+      const el = document.querySelector(`details[data-sec="${id}"]`), last = el.querySelector(".guide-body").lastElementChild;
+      const nav = document.querySelector(".app > .nav").getBoundingClientRect(), st = document.querySelector(".stick").getBoundingClientRect();
+      return { open: document.querySelectorAll(".guide-list details[open]").length, under: Math.max(0, Math.round(last.getBoundingClientRect().bottom - nav.top)), covered: Math.max(0, Math.round(st.bottom - el.querySelector("summary").getBoundingClientRect().top - 0.5)) };
+    }, id);
+    assert.deepEqual(r, { open: 1, under: 0, covered: 0 }, id);
+    await shot(page, "D1-villa-" + id);
+  }
+  assert.deepEqual(G.errors, []);
+});
+
+test("D2 Wi-Fi & TV v3c: one screen, network and password from wifi-config.js, local QR", async () => {
+  const page = G.page;
+  await designOpen(page, "wifi.html");
+  const m = await designMeasure(page);
+  assert.equal(m.scroll, 0); assert.equal(m.under, 0); assert.equal(m.x, 0); assert.deepEqual(m.nav, NAV5);
+  const r = await page.evaluate(() => ({ net: document.querySelector("[data-wifi-network]").textContent.length, pass: document.querySelector("[data-wifi-password]").textContent.length,
+    qr: !!document.querySelector("[data-wifi-qr-svg] svg path"), tv: getComputedStyle(document.querySelector(".wf-tv p")).font, bose: getComputedStyle(document.querySelector(".wf-bose p:not(.soft)")).font }));
+  assert.ok(r.net > 0 && r.pass > 0, "network and password shown");
+  assert.ok(r.qr, "QR drawn locally");
+  assert.equal(r.tv, r.bose, "Télévision body = Sono Bose body");
+  await shot(page, "D2-wifi");
+  assert.deepEqual(G.errors, []);
+});
+
+test("D3 Loisirs v3d: one screen, eight equal cards, no clipped text", async () => {
+  const page = G.page;
+  await designOpen(page, "loisirs.html");
+  const m = await designMeasure(page);
+  assert.equal(m.scroll, 0); assert.equal(m.under, 0); assert.equal(m.x, 0); assert.deepEqual(m.nav, NAV5);
+  const r = await page.evaluate(() => ({ sizes: [...new Set([...document.querySelectorAll(".tile")].map((t) => { const b = t.getBoundingClientRect(); return b.width.toFixed(1) + "x" + b.height.toFixed(1); }))],
+    clipped: [...document.querySelectorAll(".tile")].filter((t) => t.scrollHeight > t.clientHeight + 1).length, n: document.querySelectorAll(".tile").length }));
+  assert.equal(r.n, 8); assert.equal(r.sizes.length, 1, "equal cards " + r.sizes); assert.equal(r.clipped, 0);
+  await shot(page, "D3-loisirs");
+  assert.deepEqual(G.errors, []);
+});
+
+test("D4 Nos adresses v3b: closed without scroll, one panel at a time, single driver button → En ville (no request sent)", async () => {
+  const page = G.page;
+  await designOpen(page, "marrakech.html");
+  let m = await designMeasure(page);
+  assert.equal(m.scroll, 0); assert.equal(m.under, 0); assert.equal(m.x, 0); assert.deepEqual(m.nav, NAV5);
+  assert.match(await page.locator("main").innerText(), /Rester connecté/);
+  assert.doesNotMatch(await page.locator("main").innerText(), /Cartes SIM/);
+  assert.equal(await page.locator("a[href='transfert.html#ville']").count(), 1, "one driver button");
+  await shot(page, "D4-adresses");
+  await page.click("#btn-medina");
+  assert.deepEqual(await page.locator(".acc-btn[aria-expanded=true]").evaluateAll((e) => e.map((x) => x.id)), ["btn-medina"]);
+  await shot(page, "D4-adresses-medina");
+  await page.evaluate(() => { const s = document.querySelector(".screen"); s.scrollTop = s.scrollHeight; });
+  m = await designMeasure(page);
+  assert.ok(m.scroll > 0, "open panel: scroll allowed"); assert.equal(m.under, 0, "bottom: nothing under the driver button");
+  await page.click("#btn-mavenue");
+  assert.deepEqual(await page.locator(".panel:not([hidden])").evaluateAll((e) => e.map((x) => x.id)), ["p-mavenue"]);
+  await page.click(".action a.btn");
+  await page.waitForURL(/\/guest\/transfert\.html#ville$/);
+  await page.locator('[data-show="city"][aria-selected="true"]').waitFor({ timeout: 15000 });
+  await shot(page, "D4-transfert-ville");
+  assert.deepEqual(G.errors, []);
+});
+
+test("D5 Restauration: fixed set-up time per meal (9 h 30, 12 h 30, 19 h), no request sent", async () => {
+  const page = G.page;
+  await page.goto(origin + "/guest/restauration.html?stay=" + DEMO + "&k=" + guestK);
+  await stayReady(page);
+  for (const [meal, value, label] of [["breakfast", "09:30", "9\u00a0h\u00a030"], ["lunch", "12:30", "12\u00a0h\u00a030"], ["dinner", "19:00", "19\u00a0h"]]) {
+    await page.click("[data-meal='" + meal + "']");
+    assert.deepEqual(await page.locator("[name='time'] option").evaluateAll((o) => o.map((x) => x.value)), [value], meal);
+    assert.equal(await page.inputValue("[name='time']"), value, meal);
+    assert.equal(await page.locator("[data-meal-hours]").innerText(), "Mise en place à " + label + ".", meal);
+    await shot(page, "D5-restauration-" + meal);
+  }
+  assert.deepEqual(G.errors, []);
+});
+
 test("G1 breakfast: included, eggs, extras (fruit bowl 15 €/table, tajine eggs 5 €/pers.), switch to « Vos œufs »", async () => {
   await chain(G, A, "G1", {
     page: "restauration.html", service: "restauration", staff: true, total: 50,

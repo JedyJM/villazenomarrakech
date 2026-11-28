@@ -40,7 +40,9 @@ if (REAL && (!EXEC || EXEC === PROD_EXEC)) throw new Error("E2E: staging only. S
 const DEVICE = process.env.E2E_DEVICE === "se" ? Object.assign({}, devices["iPhone SE"], { viewport: { width: 375, height: 667 } })
   : Object.assign({}, devices["iPhone 15"], { viewport: { width: 393, height: 852 } });
 const DEVICE_NAME = process.env.E2E_DEVICE === "se" ? "iphone-se" : "iphone-16";
-const SHOTS = path.join(process.env.E2E_SHOTS || path.join(__dirname, "out"), DEVICE_NAME);
+// E2E_SHOTS is for staging runs only: a local (mocked) run always writes to
+// tests/e2e/out, so it can never overwrite staging screenshots.
+const SHOTS = path.join(REAL && process.env.E2E_SHOTS ? process.env.E2E_SHOTS : path.join(__dirname, "out"), DEVICE_NAME);
 fs.mkdirSync(SHOTS, { recursive: true });
 const DEMO = "FAMDEMO2812";
 // Inside the demo stay (1–15 Dec 2028).

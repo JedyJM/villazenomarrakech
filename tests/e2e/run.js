@@ -2,7 +2,7 @@
 // npm run e2e — LEVEL 2 suite (TESTS-E2E.md) on iPhone 16 size then iPhone SE.
 // Local by default (mocked /exec, real script logic). Against staging:
 //   E2E_BASE_URL=<Vercel preview> E2E_EXEC_URL=<staging /exec> E2E_ADMIN_TOKEN=<token> [E2E_GUEST_K=<key>] npm run e2e
-// Screenshots: E2E_SHOTS (default tests/e2e/out)/<device>/<step>.png
+// Screenshots: staging E2E_SHOTS/<device>/<step>.png; local always tests/e2e/out/<device>/
 "use strict";
 const { spawnSync } = require("node:child_process");
 const path = require("node:path");

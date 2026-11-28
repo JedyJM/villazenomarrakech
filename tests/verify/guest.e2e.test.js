@@ -121,6 +121,9 @@ test("transfert aéroport: guest WhatsApp with the real name, the time and the C
   const row = lastRow();
   assert.equal(row.service, "transfert");
   assert.ok(text.includes(srv.origin + "/c/" + row.id + "-" + row.details.token), "compact Confirmer link");
+  // Décision 28/11 16:03 : phrase exacte juste avant le lien, sur sa propre ligne.
+  assert.ok(text.includes("\n\nMerci de confirmer en cliquant sur le lien :\n" + srv.origin + "/c/" + row.id + "-" + row.details.token), "phrase before the link");
+  assert.doesNotMatch(text, /\nConfirmer :\n/);
   // The generated text rendered on a page (evidence).
   const view = await P.ctx.newPage();
   await view.setContent("<meta name=viewport content='width=device-width'><body style='font:16px -apple-system,sans-serif;padding:16px;background:#e7ffdb'><p style='color:#555'>Texte WhatsApp généré (transfert aéroport)</p><pre style='white-space:pre-wrap;background:#fff;padding:12px;border-radius:10px'></pre></body>");
@@ -170,7 +173,7 @@ test("transfert ville, location, massage: real name, times, Confirmer link", asy
   text = lastWa();
   assert.match(text, /Nom : Léa Bernard/);
   assert.match(text, /Heure : 11:00/);
-  assert.match(text, /\/c\/[0-9a-z]+-[0-9a-z]+/);
+  assert.match(text, /\n\nMerci de confirmer en cliquant sur le lien :\nhttps?:\/\/[^\s]+\/c\/[0-9a-z]+-[0-9a-z]+/);
   assert.equal(lastRow().service, "massage");
   P.wa.forEach((u) => assert.doesNotMatch(waText(u), /Invité/, "no « Invité » in any WhatsApp text"));
 });

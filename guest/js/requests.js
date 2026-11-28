@@ -64,7 +64,8 @@
 
   function withStaffConfirm(message, id, token) {
     if (!APPS_SCRIPT_URL || !token) return message;
-    return message + "\n\nConfirmer :\n" + confirmLink(id, token);
+    // Phrase validée par Jedy (28/11 16:03) pour les prestataires externes.
+    return message + "\n\nMerci de confirmer en cliquant sur le lien :\n" + confirmLink(id, token);
   }
 
   function sheetPayload(record, token, sousType, destinataire, rows) {

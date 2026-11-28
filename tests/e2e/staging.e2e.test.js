@@ -298,6 +298,7 @@ async function chain(G, A, tag, opts) {
   }
   // Provider services: the guest WhatsApp opens with the Confirmer link.
   if (opts.wa) assert.ok(G.wa.some((u) => /\/c\/[0-9a-z]+-[0-9a-z]+/.test(decodeURIComponent(u))), tag + ": Confirmer link in the guest WhatsApp");
+  if (opts.wa) assert.ok(G.wa.some((u) => /\n\nMerci de confirmer en cliquant sur le lien :\nhttps?:\/\/\S+\/c\/[0-9a-z]+-[0-9a-z]+/.test(new URL(u).searchParams.get("text") || "")), tag + ": phrase « Merci de confirmer en cliquant sur le lien : » before the link");
   // 7. Amount.
   if (opts.total !== undefined) assert.equal(Number(item.total), opts.total, tag + ": amount");
   // 6. Admin Demandes (+ Aujourd'hui) shows it; 8. admin confirms.

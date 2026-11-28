@@ -180,3 +180,11 @@ test("Nos adresses v3b : sept sections, « Rester connecté », un seul bouton c
   assert.doesNotMatch(html, /function place\(/, "pas de place() de La Villa");
   noSecret("guest/marrakech.html", html.replace(/<svg[\s\S]*?<\/svg>/g, ""));
 });
+
+test("Décision 28/11 16:03 : prestataires externes, phrase exacte avant le lien de confirmation", () => {
+  const js = read("guest/js/requests.js");
+  assert.match(js, /function withStaffConfirm\(message, id, token\) \{[\s\S]*?return message \+ "\\n\\nMerci de confirmer en cliquant sur le lien :\\n" \+ confirmLink\(id, token\);/);
+  assert.doesNotMatch(js, /"\\n\\nConfirmer :\\n"/);
+  // Les quatre messages prestataires passent par withStaffConfirm (massage, transfert aéroport, en ville, location).
+  assert.equal((js.match(/withStaffConfirm\(/g) || []).length, 5, "1 définition + 4 appels");
+});

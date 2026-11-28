@@ -243,7 +243,14 @@ async function context(kind) {
     });
   }
   const page = await ctx.newPage();
-  page.on("pageerror", (e) => errors.push(String(e && e.message || e)));
+  page.on("pageerror", (e) => {
+    // Staging only: the Vercel preview toolbar (vercel.live feedback.js, preview
+    // only, not the app) throws « Fetch API cannot load …/.well-known/vercel/jwe
+    // due to access control checks » on quick navigations. Not counted; any
+    // other error (the portal's own code) still fails the test.
+    if (REAL && /https:\/\/vercel\.live\//.test(String(e && e.stack || ""))) return;
+    errors.push(String(e && e.message || e));
+  });
   return { ctx, page, wa, errors };
 }
 async function setField(page, sel, value) {

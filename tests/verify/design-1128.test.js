@@ -13,7 +13,7 @@ const strip = (s) => s.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<br>/g, "\n"
 function noSecret(name, html) {
   assert.doesNotMatch(html, /script\.google\.com|\/exec\b/, name + ": URL Apps Script");
   assert.doesNotMatch(html, /wa\.me\/|\+?212[\s\d]{9,}/, name + ": numéro écrit en dur");
-  assert.doesNotMatch(html, /netflix|prime video|mot de passe|password|token=|[?&]k=/i, name + ": identifiant");
+  assert.doesNotMatch(html, /\b(password|passwd|login)\s*[:=]|@[a-z0-9-]+\.[a-z]{2,}|token=|[?&]k=/i, name + ": identifiant");
   assert.doesNotMatch(html, /portal\.css|fonts\.googleapis|Inter:|Playfair/, name + ": ancien design");
 }
 
@@ -81,4 +81,33 @@ test("Système commun : jetons et polices locales présents", () => {
   const css = read("guest/systeme/systeme.css");
   for (const tok of ["--chaux:#F5EFE6", "--lin:#FBF8F3", "--sable:#E4D8C6", "--pise:#9C4F33", "--palmeraie:#2F3B2F", "--encre:#231F1B", "--taupe:#73685D"]) assert.ok(css.includes(tok), tok);
   for (const f of ["Cardo-Regular.ttf", "Cardo-Italic.ttf", "DMSans-var.ttf"]) assert.ok(fs.statSync(path.join(root, "guest/systeme/fonts", f)).size > 10000, f);
+});
+
+test("Wi-Fi & TV v3c : textes mot pour mot, un seul bloc, pictos copiés, aucun secret nouveau", () => {
+  const html = read("guest/wifi.html");
+  const t = strip(html);
+  assert.match(html, /<title>Wi-Fi &amp; TV \| Villa Zen’O<\/title>/);
+  assert.match(html, /<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">/);
+  assert.match(html, /<a class="back" href="\.\/" aria-label="Accueil">/);
+  for (const s of ["Wi-Fi & TV", "Tout est inclus pendant votre séjour.", "Réseau", "Mot de passe", "Pour rejoindre", "le réseau", "Sono Bose",
+    "Votre musique se lance depuis votre téléphone, une fois sur le Wi-Fi, en choisissant l’enceinte Bose comme sortie audio.",
+    "Un volume tout en retenue, par égard pour le voisinage.", "Télévision",
+    "IPTV, Netflix et Prime Video vous attendent, inclus et prêts à regarder : ni identifiant, ni mot de passe à saisir."]) assert.ok(t.includes(s), "texte : " + s);
+  assert.deepEqual([...html.matchAll(/<h2 data-one>([^<]+)<\/h2>/g)].map((m) => m[1]), ["Wi-Fi", "Sono Bose", "Télévision"]);
+  assert.equal((html.match(/<section class="wf-block" aria-label="Wi-Fi et télévision">/g) || []).length, 1);
+  assert.equal((html.match(/<div class="orn" aria-hidden="true"><i><\/i><\/div>/g) || []).length, 2);
+  assert.doesNotMatch(html, /<details|motdepasse-exemple|Exemple<|data-fake/);
+  const plumes = [...html.matchAll(/<svg class="plume" aria-hidden="true"[\s\S]*?<\/svg>/g)].map((m) => m[0]);
+  ["wifi-plume", "enceinte", "tv-play-musique"].forEach((f, i) => {
+    assert.equal(plumes[i].trim(), read("guest/systeme/pictos/plume/" + f + ".svg").replace("<svg ", '<svg class="plume" aria-hidden="true" ').trim(), f);
+  });
+  // Réseau et mot de passe : uniquement dans wifi-config.js (risque accepté le 28/11 14:20), jamais recopiés dans la page.
+  const wifi = require(path.join(root, "guest/js/wifi-config.js")).wifi;
+  assert.ok(!html.includes(wifi.password), "mot de passe absent du HTML");
+  assert.match(html, /<span class="val" data-wifi-network><\/span>/);
+  assert.match(html, /<span class="val" data-wifi-password><\/span>/);
+  assert.match(html, /data-wifi-qr-svg role="img" aria-label="Rejoindre le réseau"/);
+  assert.match(html, /<script src="js\/wifi-config\.js\?v=[0-9a-z]+"><\/script>\n<script src="js\/qrcode\.js\?v=[0-9a-z]+"><\/script>/);
+  noSecret("guest/wifi.html", html.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<script>[\s\S]*?<\/script>/g, ""));
+  assert.doesNotMatch(html, /api\.qrserver|chart\.googleapis|quickchart|qr-code-generator/i, "QR généré localement");
 });

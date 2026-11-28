@@ -61,3 +61,37 @@ for (const [name, w, h] of [["iPhone 16", 390, 844], ["iPhone SE", 375, 667]]) {
     await ctx.close();
   });
 }
+
+for (const [name, w, h] of [["iPhone 16", 390, 844], ["iPhone SE", 375, 667]]) {
+  test("Wi-Fi & TV v3c " + name + " : un écran, rien sous la barre, corps TV = corps Bose, vrai QR local", async () => {
+    const { ctx, page, errors } = await open(w, h, "/guest/wifi.html");
+    const m = await page.evaluate(() => {
+      const s = document.querySelector(".screen"), nav = document.querySelector(".nav").getBoundingClientRect();
+      let under = 0;
+      document.querySelectorAll(".screen *").forEach((e) => { const r = e.getBoundingClientRect(); if (r.width && r.height) under = Math.max(under, Math.round(r.bottom - nav.top)); });
+      const ty = (sel) => { const c = getComputedStyle(document.querySelector(sel)); return [c.fontFamily, c.fontSize, c.lineHeight, c.fontStyle, c.fontWeight, c.color].join("|"); };
+      const one = [...document.querySelectorAll("h1, h2, .lead, .val")].filter((e) => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1; }).map((e) => e.textContent);
+      const path = document.querySelector("[data-wifi-qr-svg] svg path");
+      return { scroll: s.scrollHeight - s.clientHeight, under: Math.max(0, under), x: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        bose: ty(".wf-bose p:not(.soft)"), tv: ty(".wf-tv p"), one, net: document.querySelector("[data-wifi-network]").textContent,
+        pass: document.querySelector("[data-wifi-password]").textContent, qr: path ? path.getAttribute("d") : "", qrBox: document.querySelector(".qr-box").getBoundingClientRect().width };
+    });
+    assert.equal(m.scroll, 0, "aucun défilement");
+    assert.equal(m.under, 0, "rien sous la barre");
+    assert.equal(m.x, 0);
+    assert.equal(m.tv, m.bose, "corps Télévision = corps Bose");
+    assert.match(m.bose, /^DM Sans.*\|normal\|400\|rgb\(35, 31, 27\)$/);
+    assert.deepEqual(m.one, [], "titres et valeurs sur une ligne");
+    const cfg = require("../../guest/js/wifi-config.js");
+    assert.equal(m.net, cfg.wifi.network);
+    assert.equal(m.pass, cfg.wifi.password);
+    assert.equal(m.qrBox, h >= 780 ? 116 : 92, "carré QR");
+    const qrcode = require("../../guest/js/qrcode.js");
+    const qr = qrcode(0, "M"); qr.addData(cfg.wifiPayload()); qr.make();
+    let d = ""; const n = qr.getModuleCount();
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += "M" + (c + 1) + " " + (r + 1) + "h1v1h-1z";
+    assert.equal(m.qr, d, "QR = matrice qrcode.js de wifi-config.js");
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+}

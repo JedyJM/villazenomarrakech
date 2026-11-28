@@ -53,6 +53,13 @@ const STAFF_WA = !REAL || process.env.E2E_STAFF_WA === "1";
 const RUN = REAL ? " " + DEVICE_NAME.replace("iphone-", "") + "-" + Date.now().toString(36) : "";
 const NOM_CREATION = "E2E Création" + RUN;
 const NOM_OFFERT = "E2E Offert" + RUN;
+// Guest-only staging (E2E_ADMIN_TOKEN=none): ADMIN_TEST_MODE stays off on the
+// staging script, so the admin API answers « forbidden ». The admin API is then
+// never called (no reset, no Sheet read, no admin page): tests that need it are
+// skipped with a reason; guest steps run as usual. The production guard above
+// is unchanged.
+const GUEST_ONLY = REAL && process.env.E2E_ADMIN_TOKEN === "none";
+const NEEDS_ADMIN = GUEST_ONLY ? { skip: "guest-only staging (E2E_ADMIN_TOKEN=none, ADMIN_TEST_MODE off): needs the admin API" } : {};
 const blockedSeen = new Set();
 function blocked(what) {
   if (blockedSeen.has(what)) return;
@@ -104,8 +111,9 @@ test.before(async () => {
     origin = BASE;
     vercelCookies = await vercelAccess();
     adminToken = process.env.E2E_ADMIN_TOKEN || "";
-    if (!adminToken) throw new Error("E2E_ADMIN_TOKEN is required against staging.");
+    if (!adminToken) throw new Error("E2E_ADMIN_TOKEN is required against staging (or « none » for a guest-only run).");
     guestK = process.env.E2E_GUEST_K || "";
+    if (!guestK && GUEST_ONLY) throw new Error("E2E: a guest-only staging run needs E2E_GUEST_K (key of FAMDEMO2812).");
     if (!guestK) {
       const r = await adminGet({ action: "stays" });
       const s = (r.stays || []).find((x) => x.id === DEMO);
@@ -124,10 +132,10 @@ test.before(async () => {
     guestK = b.keyOf(DEMO);
   }
   G = await context();
-  A = await context("admin");
+  A = GUEST_ONLY ? null : await context("admin");
   // E2E_NO_RESET=1: keep the demo stay as the previous run left it (to re-run
   // isolated tests, e.g. G8 + G12, on top of the already confirmed requests).
-  if (REAL && process.env.E2E_NO_RESET !== "1") await resetDemo();
+  if (REAL && !GUEST_ONLY && process.env.E2E_NO_RESET !== "1") await resetDemo();
 });
 test.after(async () => {
   if (G) await G.ctx.close();
@@ -138,6 +146,7 @@ test.after(async () => {
 
 // ---------- backend access (mock or staging admin API) ----------
 async function adminGet(params) {
+  if (GUEST_ONLY) throw new Error("E2E: guest-only run, the admin API is not used (" + (params && params.action) + ")");
   if (!REAL) {
     // Same as the admin on a preview host: test=1 (test rows visible when the
     // staging script has ADMIN_TEST_MODE=true).
@@ -149,6 +158,7 @@ async function adminGet(params) {
   return res.json();
 }
 async function adminPost(body) {
+  if (GUEST_ONLY) throw new Error("E2E: guest-only run, the admin API is not used");
   const res = await fetch(EXEC, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(Object.assign({ token: adminToken, test: "1" }, body)), redirect: "follow" });
   return res.json();
 }
@@ -261,6 +271,7 @@ async function sent(page) {
 async function chain(G, A, tag, opts) {
   if (rateLimited) throw new Error("E2E: staging flood limit reached for the demo stay (rate_limited): skipped.");
   const page = G.page;
+  if (GUEST_ONLY) return guestChain(G, tag, opts);
   const before = (await adminGet({ action: "demandes" })).items.map((x) => x.id);
   await page.goto(origin + "/guest/" + opts.page + "?stay=" + DEMO + "&k=" + guestK);
   await stayReady(page);
@@ -330,6 +341,38 @@ async function chain(G, A, tag, opts) {
   return item;
 }
 
+// Guest-only chain: steps the guest can see (form, « Demande reçue », one more
+// line « Envoyée » in Mes demandes, the provider WhatsApp text). The Sheet
+// row, the amount and the admin confirmation need the admin API: not checked.
+async function guestCountDemandes(page) {
+  await page.goto(origin + "/guest/demandes.html?stay=" + DEMO + "&k=" + guestK);
+  await stayReady(page);
+  await page.locator("[data-demand-list] li, [data-demand-empty]:not([hidden])").first().waitFor({ timeout: 30000 }).catch(() => {});
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await page.waitForTimeout(1500);
+  return page.locator("[data-demand-list] li").count();
+}
+async function guestChain(G, tag, opts) {
+  const page = G.page;
+  const waBefore = G.wa.length;
+  const n0 = await guestCountDemandes(page);
+  await page.goto(origin + "/guest/" + opts.page + "?stay=" + DEMO + "&k=" + guestK);
+  await stayReady(page);
+  await shot(page, tag + "-01-form");
+  await opts.send(page);
+  await sent(page);
+  await shot(page, tag + "-02-recue");
+  await page.goto(origin + "/guest/demandes.html");
+  await page.waitForFunction((n) => { const l = document.querySelector("[data-demand-list]"); return l && l.querySelectorAll("li").length > n && /Envoyée/.test(l.innerText); }, n0, { timeout: 45000 });
+  await shot(page, tag + "-03-mes-demandes");
+  if (opts.staff) blocked(tag + ": staff WhatsApp not provable (guest-only run, staging script without TEST_WA_NUMBER)");
+  if (opts.wa) {
+    const texts = G.wa.slice(waBefore).map((u) => { try { return new URL(u).searchParams.get("text") || ""; } catch (e) { return ""; } });
+    assert.ok(texts.some((t) => /\/c\/[0-9a-z]+-[0-9a-z]+/.test(t)), tag + ": Confirmer link in the guest WhatsApp");
+    assert.ok(texts.some((t) => /\n\nMerci de confirmer en cliquant sur le lien :\nhttps?:\/\/\S+\/c\/[0-9a-z]+-[0-9a-z]+/.test(t)), tag + ": phrase « Merci de confirmer en cliquant sur le lien : » before the link");
+  }
+  return null;
+}
 
 async function guests(page, adults) {
   await page.locator("[data-guests-summary]:not([hidden]), [data-guests-counters]:not([hidden])").first().waitFor({ timeout: 10000 });
@@ -490,7 +533,7 @@ test("G11 pool, jacuzzi, garden maintenance (no charge)", async () => {
   });
 });
 
-test("G12 several requests on the same stay: done → Encaissement → paid, récap with the exact amounts", async () => {
+test("G12 several requests on the same stay: done → Encaissement → paid, récap with the exact amounts", NEEDS_ADMIN, async () => {
   await G.page.goto(origin + "/guest/demandes.html?stay=" + DEMO + "&k=" + guestK);
   await G.page.locator("[data-demand-list] li").first().waitFor({ timeout: 30000 });
   assert.ok(await G.page.locator("[data-demand-list] li").count() >= 11, "all requests of the stay");
@@ -550,7 +593,7 @@ test("G12 several requests on the same stay: done → Encaissement → paid, ré
   await shot(G.page, "G12-11-recap");
 });
 
-test("Layout: no overlapping or overflowing text, French labels (Demandes, Aujourd'hui, Encaissement, récap, Mes demandes)", async () => {
+test("Layout: no overlapping or overflowing text, French labels (Demandes, Aujourd'hui, Encaissement, récap, Mes demandes)", NEEDS_ADMIN, async () => {
   for (const [url, name] of [["/admin/demandes.html", "L-demandes"], ["/admin/aujourdhui.html", "L-aujourdhui"], ["/admin/encaissement.html?sejour=" + DEMO, "L-encaissement"]]) {
     await A.page.goto(origin + url);
     await A.page.locator("[data-sync] [data-refresh]:not([disabled])").first().waitFor({ timeout: 45000 });
@@ -584,7 +627,7 @@ test("Layout: no overlapping or overflowing text, French labels (Demandes, Aujou
 });
 
 // ---------- Admin ----------
-test("A1 create a stay: guest link works with the prefilled guest count", async () => {
+test("A1 create a stay: guest link works with the prefilled guest count", NEEDS_ADMIN, async () => {
   await A.page.goto(origin + "/admin/nouveau.html");
   await A.page.fill("[name='nom']", NOM_CREATION);
   await A.page.fill("[name='telephone']", "+33 6 00 00 00 11");
@@ -613,7 +656,7 @@ test("A1 create a stay: guest link works with the prefilled guest count", async 
   await P.ctx.close();
 });
 
-test("A2 / S1 stay link: Désactiver → refused; invalid key refused", async () => {
+test("A2 / S1 stay link: Désactiver → refused; invalid key refused", NEEDS_ADMIN, async () => {
   const stays = (await adminGet({ action: "stays" })).stays;
   const s = stays.find((x) => x.nom === NOM_CREATION);
   await A.page.goto(origin + "/admin/sejour.html?id=" + s.id);
@@ -630,7 +673,7 @@ test("A2 / S1 stay link: Désactiver → refused; invalid key refused", async ()
   await P.ctx.close();
 });
 
-test("A3 extend a stay (Prolonger)", async () => {
+test("A3 extend a stay (Prolonger)", NEEDS_ADMIN, async () => {
   const s = (await adminGet({ action: "stays" })).stays.find((x) => x.nom === NOM_CREATION);
   await A.page.goto(origin + "/admin/sejour.html?id=" + s.id);
   await A.page.click("[data-prolong]");
@@ -640,7 +683,7 @@ test("A3 extend a stay (Prolonger)", async () => {
   assert.equal(after.lien_actif, true);
 });
 
-test("A4 same-day freshness: a new request appears after « Actualiser »", async () => {
+test("A4 same-day freshness: a new request appears after « Actualiser »", NEEDS_ADMIN, async () => {
   await A.page.goto(origin + "/admin/demandes.html");
   await A.page.locator("[data-sync] [data-refresh]:not([disabled])").waitFor({ timeout: 45000 });
   await A.page.click("[data-filter='toutes']");
@@ -662,19 +705,19 @@ async function chainLite() {
   await sent(G.page);
 }
 
-test("A5 expenses: add, then the list shows it", async () => {
+test("A5 expenses: add, then the list shows it", NEEDS_ADMIN, async () => {
   await A.page.goto(origin + "/admin/depense.html");
   await A.page.locator("form, [data-depense-form]").first().waitFor({ timeout: 30000 });
   await shot(A.page, "A5-depense");
 });
 
-test("A6 settings: read", async () => {
+test("A6 settings: read", NEEDS_ADMIN, async () => {
   await A.page.goto(origin + "/admin/reglages.html");
   await A.page.locator("[data-jeu-test]").waitFor({ timeout: 30000 });
   await shot(A.page, "A6-reglages");
 });
 
-test("A7 stats: « Famille Démo » stays out of the real stats", async () => {
+test("A7 stats: « Famille Démo » stays out of the real stats", NEEDS_ADMIN, async () => {
   const stats = (await adminGet({ action: "stays-stats" })).stays || [];
   assert.equal(stats.some((x) => x.id === DEMO), false);
   if (!REAL) assert.ok(stats.some((x) => x.id === "HMREAL0001"), "the real stay counts");
@@ -695,7 +738,7 @@ test("A8 admin access: a forged token is refused", async () => {
   await X.ctx.close();
 });
 
-test("A9 / A12 « Importer depuis Gmail »: answer created / updated / cancelled, no duplicate", async () => {
+test("A9 / A12 « Importer depuis Gmail »: answer created / updated / cancelled, no duplicate", NEEDS_ADMIN, async () => {
   if (!REAL) {
     // One Airbnb confirmation in the mailbox (synthetic, no real guest).
     const m = { id: "gE2E", from: "Airbnb <automated@airbnb.com>", subject: "Réservation confirmée : Exemple Import arrive le 10 sept.",
@@ -711,7 +754,7 @@ test("A9 / A12 « Importer depuis Gmail »: answer created / updated / cancelled
   assert.equal(new Set(ids).size, ids.length, "no duplicate stay id");
 });
 
-test("A10 free stay 0 €: accepted, « Offert »", async () => {
+test("A10 free stay 0 €: accepted, « Offert »", NEEDS_ADMIN, async () => {
   await A.page.goto(origin + "/admin/nouveau.html");
   await A.page.fill("[name='nom']", NOM_OFFERT);
   await A.page.fill("[name='telephone']", "+33 6 00 00 00 12");
@@ -728,7 +771,7 @@ test("A10 free stay 0 €: accepted, « Offert »", async () => {
   await shot(A.page, "A10-offert");
 });
 
-test("A11 edit a stay: dates, guests, amount saved everywhere", async () => {
+test("A11 edit a stay: dates, guests, amount saved everywhere", NEEDS_ADMIN, async () => {
   const s = (await adminGet({ action: "stays" })).stays.find((x) => x.nom === NOM_OFFERT);
   await A.page.goto(origin + "/admin/nouveau.html?id=" + s.id);
   await A.page.locator("main h1:has-text('Modifier')").waitFor({ timeout: 30000 });

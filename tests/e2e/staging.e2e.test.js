@@ -125,7 +125,9 @@ test.before(async () => {
   }
   G = await context();
   A = await context("admin");
-  if (REAL) await resetDemo();
+  // E2E_NO_RESET=1: keep the demo stay as the previous run left it (to re-run
+  // isolated tests, e.g. G8 + G12, on top of the already confirmed requests).
+  if (REAL && process.env.E2E_NO_RESET !== "1") await resetDemo();
 });
 test.after(async () => {
   if (G) await G.ctx.close();

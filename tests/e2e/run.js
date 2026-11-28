@@ -2,6 +2,8 @@
 // npm run e2e — LEVEL 2 suite (TESTS-E2E.md) on iPhone 16 size then iPhone SE.
 // Local by default (mocked /exec, real script logic). Against staging:
 //   E2E_BASE_URL=<Vercel preview> E2E_EXEC_URL=<staging /exec> E2E_ADMIN_TOKEN=<token> [E2E_GUEST_K=<key>] npm run e2e
+// Only some tests: E2E_GREP=<regexp on test names> (with E2E_NO_RESET=1 to keep
+// the demo stay of the previous run).
 // Screenshots: staging E2E_SHOTS/<device>/<step>.png; local always tests/e2e/out/<device>/
 "use strict";
 const { spawnSync } = require("node:child_process");
@@ -11,7 +13,7 @@ let pass = 0, fail = 0;
 const failed = [];
 const blocked = new Set();
 for (const device of (process.env.E2E_DEVICES || "16,se").split(",")) {
-  const r = spawnSync(process.execPath, ["--test", "--test-concurrency=1", "--test-timeout=240000", "--test-reporter=tap", "tests/e2e/staging.e2e.test.js"], {
+  const r = spawnSync(process.execPath, ["--test", "--test-concurrency=1", "--test-timeout=240000", "--test-reporter=tap"].concat(process.env.E2E_GREP ? ["--test-name-pattern=" + process.env.E2E_GREP] : [], ["tests/e2e/staging.e2e.test.js"]), {
     cwd: root, env: Object.assign({}, process.env, { E2E_DEVICE: device }), encoding: "utf8", maxBuffer: 64 * 1024 * 1024, timeout: 3000000, killSignal: "SIGKILL",
   });
   const out = (r.stdout || "") + (r.stderr || "");

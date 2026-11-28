@@ -398,10 +398,13 @@
     node.textContent = message;
   }
 
+  // Baby seats: a direct counter from 0 (0 = none, 3 max). The English page
+  // still has the old switch + counter (1–3 when on): both are read here.
   function babySeats(form) {
-    if (!form.querySelector("[name='baby_seat']").checked) return 0;
-    var n = Number(form.querySelector("[name='baby_seats']").value) || 1;
-    return Math.max(1, Math.min(3, n));
+    var toggle = form.querySelector("[name='baby_seat']");
+    var n = Number(form.querySelector("[name='baby_seats']").value) || 0;
+    if (toggle) return toggle.checked ? Math.max(1, Math.min(3, n || 1)) : 0;
+    return Math.max(0, Math.min(3, n));
   }
 
   function readTransfer(form) {
@@ -509,19 +512,20 @@
         ? text("Villa de départ", "Departure villa")
         : text("Villa d’arrivée", "Arrival villa");
     }
-    var babyOn = form.querySelector("[name='baby_seat']").checked;
+    var babyToggle = form.querySelector("[name='baby_seat']");
     var seats = form.querySelector("[name='baby_seats']");
-    if (babyOn && Number(seats.value) < 1) seats.value = "1";
-    var babyCount = babyOn ? Math.max(1, Math.min(3, Number(seats.value) || 1)) : 0;
-    seats.value = String(babyCount || 1);
+    var babyCount = babySeats(form);
+    var babyMin = babyToggle ? 1 : 0;
+    var babyShown = babyToggle ? (babyCount || 1) : babyCount;
+    seats.value = String(babyShown);
     var babyStep = form.querySelector("[data-baby-step]");
-    if (babyStep) babyStep.hidden = !babyOn;
+    if (babyStep && babyToggle) babyStep.hidden = !babyToggle.checked;
     var babyFigure = form.querySelector("[data-baby-count]");
-    if (babyFigure) babyFigure.textContent = String(babyCount || 1);
+    if (babyFigure) babyFigure.textContent = String(babyShown);
     var babyDec = form.querySelector('[data-step="baby"][data-dir="-1"]');
     var babyInc = form.querySelector('[data-step="baby"][data-dir="1"]');
-    if (babyDec) babyDec.disabled = babyCount <= 1;
-    if (babyInc) babyInc.disabled = babyCount >= 3;
+    if (babyDec) babyDec.disabled = babyShown <= babyMin;
+    if (babyInc) babyInc.disabled = babyShown >= 3;
     ["passengers", "luggage", "vehicles"].forEach(function (name) {
       var input = form.querySelector("[name='" + name + "']");
       var figure = form.querySelector("[data-" + name + "-count]");
@@ -1913,7 +1917,7 @@
           var input = transfer.querySelector("[name='" + name + "']");
           var dir = Number(step.getAttribute("data-dir"));
           var vehicles = Number(transfer.querySelector("[name='vehicles']").value) || 1;
-          var next = Number(input.value) + dir;
+          var next = input ? Number(input.value) + dir : 0; // « baby » has no input of its own (baby_seats)
           if (name === "passengers") {
             var max = rates.maxPassengers * vehicles;
             if (vehicles === 1 && Number(input.value) >= rates.maxPassengers && dir > 0) {
@@ -1929,7 +1933,8 @@
           } else if (name === "luggage") {
             next = Math.max(0, Math.min(16, next));
           } else if (name === "baby") {
-            next = Math.max(1, Math.min(3, Number(transfer.querySelector("[name='baby_seats']").value) + dir));
+            var babyFloor = transfer.querySelector("[name='baby_seat']") ? 1 : 0;
+            next = Math.max(babyFloor, Math.min(3, (Number(transfer.querySelector("[name='baby_seats']").value) || 0) + dir));
             transfer.querySelector("[name='baby_seats']").value = String(next);
             syncTransfer(transfer);
             return;

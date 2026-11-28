@@ -68,3 +68,83 @@ test("audit 28/11 point 1: Aéroport and En ville travellers prefilled from the 
     assert.equal(await Q.page.locator("[data-transfer-form][data-prefilled]").count(), 0);
   } finally { await Q.ctx.close(); }
 });
+
+const { setField, day, waText } = require("./helpers");
+
+async function fillAirport(page) {
+  await setField(page, "[data-transfer-form] [name='date']", day(2));
+  await setField(page, "[data-transfer-form] [name='time']", "15:30");
+  await page.fill("[name='flight_number']", "AT800");
+  await page.fill("[name='origin_city']", "Paris");
+}
+
+test("audit 28/11 point 2: baby seat is a direct counter from 0 (no switch); payload, WhatsApp and price unchanged (+50 MAD per seat)", async () => {
+  const b = createBackend();
+  const P = await phone(srv.origin, b);
+  const page = P.page;
+  const last = () => b.demandes()[b.demandes().length - 1];
+  try {
+    await openTransfer(P, b, b.STAY_ID);
+    const form = "[data-transfer-form]";
+    assert.equal(await page.locator(form + " [name='baby_seat']").count(), 0, "no switch");
+    assert.equal(await page.locator(form + " .baby-row .switch").count(), 0, "no switch");
+    assert.ok(await page.locator("[data-baby-step]").isVisible(), "counter shown at once");
+    assert.equal(await page.textContent("[data-baby-count]"), "0");
+    assert.ok(await page.locator('[data-step="baby"][data-dir="-1"]').isDisabled(), "cannot go under 0");
+    // 0 = none: 2 passengers -> 350, no supplement.
+    await fillAirport(page);
+    assert.doesNotMatch(await page.textContent("[data-price-break]"), /siège/);
+    await page.click("[data-transfer-submit]");
+    await page.locator("[data-send-status].is-ok").waitFor({ timeout: 15000 });
+    let row = last();
+    assert.equal(row.details.baby_seat, false);
+    assert.equal(row.details.baby_seats, 0);
+    assert.equal(Number(row.total_dh), 350);
+    assert.match(waText(P.wa[P.wa.length - 1]), /Sièges bébé : Aucun/);
+    assert.match(await page.textContent("[data-confirm-list]"), /Sièges bébé\s*0/);
+    // Counter: + + + + stops at 3, − back to 2 -> 2 × 50 = 100.
+    await openTransfer(P, b, b.STAY_ID);
+    const plus = page.locator('[data-step="baby"][data-dir="1"]');
+    for (let i = 0; i < 4; i++) if (await plus.isEnabled()) await plus.click();
+    assert.equal(await page.textContent("[data-baby-count]"), "3");
+    assert.ok(await plus.isDisabled(), "3 max");
+    await page.click('[data-step="baby"][data-dir="-1"]');
+    assert.equal(await page.textContent("[data-baby-count]"), "2");
+    assert.match(await page.textContent("[data-price-total]"), /Total 450/);
+    assert.match(await page.textContent("[data-price-break]"), /2 sièges bébé 100/);
+    await shot(page, "audit-p2-baby-2.png");
+    await fillAirport(page);
+    await page.click("[data-transfer-submit]");
+    await page.locator("[data-send-status].is-ok").waitFor({ timeout: 15000 });
+    row = last();
+    assert.equal(row.details.baby_seat, true, "v21 field kept");
+    assert.equal(row.details.baby_seats, 2);
+    assert.equal(Number(row.total_dh), 450);
+    assert.match(row.details.resume, /Sièges bébé : 2/);
+    assert.match(waText(P.wa[P.wa.length - 1]), /Sièges bébé : 2/);
+    assert.deepEqual(P.errors, []);
+  } finally { await P.ctx.close(); }
+});
+
+test("audit 28/11 point 2: the English page (untouched, switch) still sends its seats", async () => {
+  const b = createBackend();
+  const P = await phone(srv.origin, b);
+  const page = P.page;
+  try {
+    await page.goto(srv.origin + "/guest/en/transfer.html?stay=" + b.STAY_ID + "&k=" + b.key);
+    await page.waitForFunction(() => window.GuestStay && window.GuestStay.snapshot().state === "ok", null, { timeout: 20000 });
+    assert.ok(await page.locator("[data-baby-step]").isHidden());
+    await page.locator(".baby-row .switch").click();
+    assert.equal(await page.textContent("[data-baby-count]"), "1");
+    assert.ok(await page.locator('[data-step="baby"][data-dir="-1"]').isDisabled());
+    await page.click('[data-step="baby"][data-dir="1"]');
+    assert.equal(await page.textContent("[data-baby-count]"), "2");
+    await fillAirport(page);
+    await page.click("[data-transfer-submit]");
+    await page.locator("[data-send-status].is-ok").waitFor({ timeout: 15000 });
+    const row = b.demandes()[b.demandes().length - 1];
+    assert.equal(row.details.baby_seats, 2);
+    assert.equal(Number(row.total_dh), 450);
+    assert.deepEqual(P.errors, []);
+  } finally { await P.ctx.close(); }
+});

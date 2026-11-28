@@ -14,6 +14,16 @@
 //    admin API (action=demandes / stays); WhatsApp is proved by the
 //    WhatsApp_log recipients the script returns (staff_confirm), never read
 //    on a phone. The suite REFUSES to run against the production /exec.
+//    Optional E2E_VERCEL_SHARE: Vercel share token when the preview is behind
+//    Vercel Authentication. It is exchanged ONCE, in Node, for the access
+//    cookie (_vercel_jwt), which is then added to every browser context: the
+//    token itself never reaches the browser, a URL, a log or an error.
+//    Staging is shared between runs and devices: before each run the demo
+//    stay is reset through the admin API (its previous requests set to
+//    « Annulée », its Encaissement cleared), and the stays created by A1/A10
+//    carry a per-run suffix. Without TEST_WA_NUMBER + WHATSAPP_TOKEN on the
+//    staging script no staff WhatsApp leaves: that check is then reported as
+//    BLOCKED (set E2E_STAFF_WA=1 once they are set) and the chain goes on.
 // Values come from the environment only; nothing is committed.
 "use strict";
 const test = require("node:test");
@@ -35,8 +45,54 @@ fs.mkdirSync(SHOTS, { recursive: true });
 const DEMO = "FAMDEMO2812";
 // Inside the demo stay (1–15 Dec 2028).
 const D = (n) => "2028-12-" + String(n).padStart(2, "0");
+// Staff WhatsApp provable only when the staging script can send it.
+const STAFF_WA = !REAL || process.env.E2E_STAFF_WA === "1";
+// Unique names for the stays this run creates (staging keeps every run).
+const RUN = REAL ? " " + DEVICE_NAME.replace("iphone-", "") + "-" + Date.now().toString(36) : "";
+const NOM_CREATION = "E2E Création" + RUN;
+const NOM_OFFERT = "E2E Offert" + RUN;
+const blockedSeen = new Set();
+function blocked(what) {
+  if (blockedSeen.has(what)) return;
+  blockedSeen.add(what);
+  console.log("BLOCKED: " + what);
+}
 
-let browser, origin, server, b, adminToken, guestK, G, A;
+let browser, origin, server, b, adminToken, guestK, G, A, vercelCookies = [];
+// Staging guard: any request to the PRODUCTION /exec is aborted and recorded
+// (page path + action only, never the query), and so is every slow or failed
+// /api/vz-env (the preview's /exec choice), to explain such a request.
+const prodHits = [];
+const envIssues = [];
+// Staging plumbing stops: Vercel access lost (share token expired: pages
+// land on vercel.com login) or the per-stay flood limit of the script
+// (30 new requests / hour per stay, window renewed by each request).
+let vercelLost = false, rateLimited = false;
+test.beforeEach(() => {
+  if (vercelLost) throw new Error("E2E: Vercel access lost (pages redirect to the Vercel login): E2E_VERCEL_SHARE expired or revoked.");
+});
+const pathOf = (u) => { try { return new URL(u).pathname; } catch (e) { return "?"; } };
+
+// Vercel share token → access cookie (no redirect followed, nothing logged).
+async function vercelAccess() {
+  const tok = process.env.E2E_VERCEL_SHARE || "";
+  const probe = await fetch(BASE + "/", { redirect: "manual" });
+  if (!tok) {
+    if (probe.status === 401 || probe.status === 302 || probe.status === 307) throw new Error("E2E: the preview is protected (HTTP " + probe.status + "): set E2E_VERCEL_SHARE.");
+    return [];
+  }
+  let res;
+  try { res = await fetch(BASE + "/?_vercel_share=" + encodeURIComponent(tok), { redirect: "manual" }); }
+  catch (e) { throw new Error("E2E: Vercel share request failed (" + (e && e.name) + ")"); }
+  const host = new URL(BASE).hostname;
+  const out = [];
+  for (const line of res.headers.getSetCookie()) {
+    const m = line.match(/^(_vercel_jwt)=([^;]+)/);
+    if (m) out.push({ name: m[1], value: m[2], domain: host, path: "/", httpOnly: true, secure: true, sameSite: "Lax" });
+  }
+  if (!out.length) throw new Error("E2E: the Vercel share token gave no access cookie (HTTP " + res.status + "): token expired or wrong?");
+  return out;
+}
 
 async function shot(page, name) { await page.screenshot({ path: path.join(SHOTS, name + ".png") }); }
 
@@ -44,6 +100,7 @@ test.before(async () => {
   browser = await webkit.launch();
   if (REAL) {
     origin = BASE;
+    vercelCookies = await vercelAccess();
     adminToken = process.env.E2E_ADMIN_TOKEN || "";
     if (!adminToken) throw new Error("E2E_ADMIN_TOKEN is required against staging.");
     guestK = process.env.E2E_GUEST_K || "";
@@ -66,6 +123,7 @@ test.before(async () => {
   }
   G = await context();
   A = await context("admin");
+  if (REAL) await resetDemo();
 });
 test.after(async () => {
   if (G) await G.ctx.close();
@@ -86,6 +144,32 @@ async function adminGet(params) {
   const res = await fetch(EXEC + "?" + q, { redirect: "follow" });
   return res.json();
 }
+async function adminPost(body) {
+  const res = await fetch(EXEC, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(Object.assign({ token: adminToken, test: "1" }, body)), redirect: "follow" });
+  return res.json();
+}
+// Staging only: the demo stay back to « no request, not paid », through the
+// same admin API the admin pages use (nothing is deleted).
+async function resetDemo() {
+  const items = ((await adminGet({ action: "demandes" })).items || []).filter((x) => x.stay === DEMO && x.status !== "Annulée");
+  for (const it of items) {
+    const r = await adminPost({ action: "set-demande", id: it.id, statut: "Annulée" });
+    if (!r || !r.ok) throw new Error("E2E reset: could not cancel an old demo request (" + JSON.stringify(r) + ")");
+  }
+  await A.page.goto(origin + "/admin/sejours.html");
+  await A.page.waitForFunction(() => window.AdminStays && window.AdminShell, null, { timeout: 45000 });
+  const unpaid = await A.page.evaluate(async (id) => {
+    await new Promise((done) => window.AdminStays.load(() => done(), true));
+    const s = window.AdminStays.find(id);
+    if (!s) return "missing";
+    if (!s.encaisse_le) return "clean";
+    const copy = Object.assign({}, s, { encaisse_total_eur: "", encaisse_mode: "", encaisse_le: "", offerts: "" });
+    const r = await window.AdminStays.post({ action: "save-stay", test: window.AdminStays.testFlag(), token: window.AdminShell.session(), stay: window.AdminStays.sheet(copy) });
+    return r && r.ok ? "cleared" : "failed:" + (r && r.kind);
+  }, DEMO);
+  if (unpaid !== "clean" && unpaid !== "cleared") throw new Error("E2E reset: demo Encaissement " + unpaid);
+  console.log("RESET: " + items.length + " old demo request(s) cancelled, Encaissement " + unpaid);
+}
 async function adminDemande(id) {
   const r = await adminGet({ action: "demandes" });
   return (r.items || []).find((x) => x.id === id) || null;
@@ -98,6 +182,7 @@ function staffMessages(id) {
 
 async function context(kind) {
   const ctx = await browser.newContext(Object.assign({}, DEVICE, { locale: "fr-FR", timezoneId: "Africa/Casablanca" }));
+  if (vercelCookies.length) await ctx.addCookies(vercelCookies);
   const wa = [];
   const errors = [];
   await ctx.route("**/*", async (route) => {
@@ -107,11 +192,34 @@ async function context(kind) {
       return route.fulfill({ status: 200, contentType: "text/html", body: "<html><body>wa.me (test)</body></html>" });
     }
     if (!REAL && url.startsWith("https://script.google.com/macros/")) return b.route(route);
+    if (REAL && /^https:\/\/vercel\.com\//.test(url)) { vercelLost = true; return route.abort(); }
+    if (REAL && url.startsWith(PROD_EXEC)) {
+      let from = "?";
+      try { from = pathOf(route.request().frame().url()); } catch (e) {}
+      prodHits.push({ at: new Date().toISOString(), from, method: route.request().method(), action: new URL(url).searchParams.get("action") || "(post)" });
+      return route.abort();
+    }
     if (url.startsWith(origin) || REAL) return route.continue();
     return route.abort();
   });
   if (kind === "admin") {
     await ctx.addInitScript((t) => { try { sessionStorage.setItem("vz.admin", t); sessionStorage.setItem("vz.admin.email", "e2e"); localStorage.setItem("vz.admin.jeu_test", "1"); } catch (e) {} }, adminToken);
+  }
+  if (REAL) {
+    ctx.on("response", async (r) => {
+      if (r.request().method() !== "POST" && !/script\.googleusercontent\.com/.test(r.url())) return;
+      if (!/script\.google(usercontent)?\.com/.test(r.url())) return;
+      try { if (/"rate_limited"/.test(await r.text())) rateLimited = true; } catch (e) {}
+    });
+    ctx.on("requestfinished", (r) => {
+      if (!/\/api\/vz-env$/.test(pathOf(r.url()))) return;
+      const t = r.timing();
+      const ms = Math.round(t.responseEnd >= 0 ? t.responseEnd : -1);
+      if (ms < 0 || ms > 3000) envIssues.push({ from: pathOf(r.frame().url()), ms });
+    });
+    ctx.on("requestfailed", (r) => {
+      if (/\/api\/vz-env$/.test(pathOf(r.url()))) envIssues.push({ from: pathOf(r.frame().url()), failed: (r.failure() || {}).errorText || "failed" });
+    });
   }
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(String(e && e.message || e)));
@@ -130,7 +238,17 @@ const PRICE = /€|\bEUR\b|\bDH\b|\bMAD\b|\d+\s?(€|dh)/i;
 
 /* The common chain (steps 1–9 and 12 of TESTS-E2E.md) for one guest request.
    send(page) fills and submits the form on the open page. */
+// « Demande reçue », or a clear stop on a refused send (flood limit).
+async function sent(page) {
+  if (rateLimited) throw new Error("E2E: staging flood limit reached for the demo stay (30 requests / hour, script answer rate_limited): wait 1 h after the last request.");
+  await page.locator("[data-send-status].is-ok, [data-send-status].is-error").first().waitFor({ timeout: 45000 });
+  if (await page.locator("[data-send-status].is-error").count()) {
+    const msg = await page.locator("[data-send-status].is-error").first().innerText();
+    throw new Error((rateLimited ? "E2E: staging flood limit reached for the demo stay (rate_limited). " : "E2E: send refused. ") + "Screen: " + msg);
+  }
+}
 async function chain(G, A, tag, opts) {
+  if (rateLimited) throw new Error("E2E: staging flood limit reached for the demo stay (rate_limited): skipped.");
   const page = G.page;
   const before = (await adminGet({ action: "demandes" })).items.map((x) => x.id);
   await page.goto(origin + "/guest/" + opts.page + "?stay=" + DEMO + "&k=" + guestK);
@@ -138,7 +256,7 @@ async function chain(G, A, tag, opts) {
   await shot(page, tag + "-01-form");
   await opts.send(page);
   // 2. « Demande reçue »
-  await page.locator("[data-send-status].is-ok").waitFor({ timeout: 30000 });
+  await sent(page);
   await shot(page, tag + "-02-recue");
   // 4. Sheet row (admin API = Demandes tab).
   const after = (await adminGet({ action: "demandes" })).items;
@@ -153,7 +271,9 @@ async function chain(G, A, tag, opts) {
   await shot(page, tag + "-03-mes-demandes");
   // 5. Staff WhatsApp (auto services): sent, to the test number only, no price.
   if (opts.staff) {
-    if (REAL) {
+    if (REAL && !STAFF_WA) {
+      blocked(tag + ": staff WhatsApp not provable (staging script without TEST_WA_NUMBER + WHATSAPP_TOKEN)");
+    } else if (REAL) {
       const it = await adminDemande(item.id);
       assert.ok((it.staff_confirm || []).length >= 1, tag + ": WhatsApp logged as sent (WhatsApp_log)");
     } else {
@@ -206,6 +326,14 @@ async function guests(page, adults) {
   for (let i = cur; i < adults; i++) await page.click("[data-people-kind='adults'][data-dir='1']");
   for (let i = cur; i > adults; i--) await page.click("[data-people-kind='adults'][data-dir='-1']");
 }
+
+test("G0 guest home from the stay link (no access page, no error)", async () => {
+  await G.page.goto(origin + "/guest/?stay=" + DEMO + "&k=" + guestK);
+  await stayReady(G.page);
+  assert.doesNotMatch(await G.page.title(), /Vercel|Log in|Sign in|Connexion/i, "not an access page");
+  await G.page.waitForLoadState("networkidle").catch(() => {});
+  await shot(G.page, "G0-accueil");
+});
 
 test("G1 breakfast: included, eggs, extras (fruit bowl 15 €/table, tajine eggs 5 €/pers.), switch to « Vos œufs »", async () => {
   await chain(G, A, "G1", {
@@ -446,7 +574,7 @@ test("Layout: no overlapping or overflowing text, French labels (Demandes, Aujou
 // ---------- Admin ----------
 test("A1 create a stay: guest link works with the prefilled guest count", async () => {
   await A.page.goto(origin + "/admin/nouveau.html");
-  await A.page.fill("[name='nom']", "E2E Création");
+  await A.page.fill("[name='nom']", NOM_CREATION);
   await A.page.fill("[name='telephone']", "+33 6 00 00 00 11");
   await setField(A.page, "[name='arrival']", "2028-11-10");
   await setField(A.page, "[name='departure']", "2028-11-14");
@@ -475,7 +603,7 @@ test("A1 create a stay: guest link works with the prefilled guest count", async 
 
 test("A2 / S1 stay link: Désactiver → refused; invalid key refused", async () => {
   const stays = (await adminGet({ action: "stays" })).stays;
-  const s = stays.find((x) => x.nom === "E2E Création");
+  const s = stays.find((x) => x.nom === NOM_CREATION);
   await A.page.goto(origin + "/admin/sejour.html?id=" + s.id);
   await A.page.click("[data-stop]");
   await A.page.waitForFunction(() => /désactivé/i.test(document.querySelector(".link-until").textContent), null, { timeout: 30000 });
@@ -491,7 +619,7 @@ test("A2 / S1 stay link: Désactiver → refused; invalid key refused", async ()
 });
 
 test("A3 extend a stay (Prolonger)", async () => {
-  const s = (await adminGet({ action: "stays" })).stays.find((x) => x.nom === "E2E Création");
+  const s = (await adminGet({ action: "stays" })).stays.find((x) => x.nom === NOM_CREATION);
   await A.page.goto(origin + "/admin/sejour.html?id=" + s.id);
   await A.page.click("[data-prolong]");
   await A.page.waitForFunction(() => /actif jusqu/i.test(document.querySelector(".link-until").textContent), null, { timeout: 30000 });
@@ -519,7 +647,7 @@ async function chainLite() {
   await setField(G.page, "[name='date']", D(12));
   await setField(G.page, "[name='time']", "09:30");
   await G.page.click("[data-pool-form] button[type='submit']");
-  await G.page.locator("[data-send-status].is-ok").waitFor({ timeout: 30000 });
+  await sent(G.page);
 }
 
 test("A5 expenses: add, then the list shows it", async () => {
@@ -573,7 +701,7 @@ test("A9 / A12 « Importer depuis Gmail »: answer created / updated / cancelled
 
 test("A10 free stay 0 €: accepted, « Offert »", async () => {
   await A.page.goto(origin + "/admin/nouveau.html");
-  await A.page.fill("[name='nom']", "E2E Offert");
+  await A.page.fill("[name='nom']", NOM_OFFERT);
   await A.page.fill("[name='telephone']", "+33 6 00 00 00 12");
   await setField(A.page, "[name='arrival']", "2028-10-01");
   await setField(A.page, "[name='departure']", "2028-10-03");
@@ -581,7 +709,7 @@ test("A10 free stay 0 €: accepted, « Offert »", async () => {
   await A.page.fill("[name='tarif']", "0");
   await A.page.click("[data-save]");
   await A.page.locator(".form-ok").waitFor({ timeout: 30000 });
-  const s = (await adminGet({ action: "stays" })).stays.find((x) => x.nom === "E2E Offert");
+  const s = (await adminGet({ action: "stays" })).stays.find((x) => x.nom === NOM_OFFERT);
   assert.equal(s.freeStay, true);
   await A.page.goto(origin + "/admin/sejour.html?id=" + s.id);
   await A.page.locator("[data-free-chip]").waitFor({ timeout: 30000 });
@@ -589,7 +717,7 @@ test("A10 free stay 0 €: accepted, « Offert »", async () => {
 });
 
 test("A11 edit a stay: dates, guests, amount saved everywhere", async () => {
-  const s = (await adminGet({ action: "stays" })).stays.find((x) => x.nom === "E2E Offert");
+  const s = (await adminGet({ action: "stays" })).stays.find((x) => x.nom === NOM_OFFERT);
   await A.page.goto(origin + "/admin/nouveau.html?id=" + s.id);
   await A.page.locator("main h1:has-text('Modifier')").waitFor({ timeout: 30000 });
   await setField(A.page, "[name='departure']", "2028-10-05");
@@ -633,7 +761,7 @@ test("S4 slow network: no double send, clear message", async () => {
   const n = b.demandes().length;
   await G.page.click("[data-menage-form] button[type='submit']");
   await G.page.click("[data-menage-form] button[type='submit']").catch(() => {});
-  await G.page.locator("[data-send-status].is-ok").waitFor({ timeout: 30000 });
+  await sent(G.page);
   assert.equal(b.demandes().length, n + 1, "one row");
   await shot(G.page, "S4-lent");
 });
@@ -647,4 +775,10 @@ test("S5 phone: no zoom on fields (16 px), bottom bar present", async () => {
   await G.page.focus("#allergies");
   await shot(G.page, "S5-clavier");
   assert.deepEqual(G.errors, []);
+});
+
+test("Z staging: no request reached the production /exec", async () => {
+  if (!REAL) return;
+  if (envIssues.length) console.log("VZENV: " + JSON.stringify(envIssues));
+  assert.deepEqual(prodHits, [], "requests aimed at the production /exec (aborted by the suite); /api/vz-env issues: " + JSON.stringify(envIssues));
 });

@@ -9,6 +9,7 @@ const path = require("node:path");
 const root = path.join(__dirname, "..", "..");
 let pass = 0, fail = 0;
 const failed = [];
+const blocked = new Set();
 for (const device of (process.env.E2E_DEVICES || "16,se").split(",")) {
   const r = spawnSync(process.execPath, ["--test", "--test-concurrency=1", "--test-timeout=240000", "--test-reporter=tap", "tests/e2e/staging.e2e.test.js"], {
     cwd: root, env: Object.assign({}, process.env, { E2E_DEVICE: device }), encoding: "utf8", maxBuffer: 64 * 1024 * 1024, timeout: 3000000, killSignal: "SIGKILL",
@@ -19,8 +20,11 @@ for (const device of (process.env.E2E_DEVICES || "16,se").split(",")) {
   pass += p; fail += f;
   console.log(("iPhone " + device).padEnd(14) + " pass " + String(p).padStart(3) + "  fail " + String(f).padStart(3));
   for (const m of out.matchAll(/^not ok \d+ - (.+)$/gm)) failed.push(device + ": " + m[1]);
+  for (const m of out.matchAll(/^#?\s*BLOCKED: (.+)$/gm)) blocked.add(device + ": " + m[1]);
+  for (const m of out.matchAll(/^#?\s*RESET: (.+)$/gm)) console.log("  reset: " + m[1]);
   if (process.env.E2E_VERBOSE) console.log(out);
 }
 console.log("TOTAL".padEnd(14) + " pass " + String(pass).padStart(3) + "  fail " + String(fail).padStart(3) + (process.env.E2E_BASE_URL ? "  (staging)" : "  (local, mocked /exec)"));
 if (failed.length) console.log("Failed:\n  " + failed.join("\n  "));
+if (blocked.size) console.log("Blocked (not proved, missing staging setting):\n  " + Array.from(blocked).join("\n  "));
 process.exit(fail ? 1 : 0);

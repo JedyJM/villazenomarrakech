@@ -185,6 +185,13 @@ function staffMessages(id) {
 async function context(kind) {
   const ctx = await browser.newContext(Object.assign({}, DEVICE, { locale: "fr-FR", timezoneId: "Africa/Casablanca" }));
   if (vercelCookies.length) await ctx.addCookies(vercelCookies);
+  // The Vercel preview toolbar (<vercel-live-feedback>, preview only, not the
+  // app) floats over the page and can intercept taps on a small screen (SE).
+  if (REAL) await ctx.addInitScript(() => {
+    const css = "vercel-live-feedback{display:none!important;pointer-events:none!important}";
+    const add = () => { const st = document.createElement("style"); st.textContent = css; (document.head || document.documentElement).appendChild(st); };
+    if (document.documentElement) add(); else document.addEventListener("DOMContentLoaded", add);
+  });
   const wa = [];
   const errors = [];
   await ctx.route("**/*", async (route) => {

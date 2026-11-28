@@ -204,7 +204,8 @@
   // else Zen'O stays from action=stays. Never sample data.
   function allStays() {
     var list = state.statsStays && state.statsStays.length ? state.statsStays : (state.remoteStays || []);
-    return realOnly(list);
+    // « Famille Démo » (demo / test stay) never counts, whatever its origine.
+    return realOnly(list).filter(function (row) { return !row.demo; });
   }
   function stays() { return allStays(); }
   function mergedExpenses() {
@@ -240,7 +241,7 @@
   function selection(bien) { return bien === "Tous" || !bien ? BIENS.slice() : [bien]; }
   function emptySource() { return { count: 0, nights: 0, brut: 0, frais: 0, net: 0, cur: {} }; }
   function curBucket(holder, cur) {
-    if (!holder.cur[cur]) holder.cur[cur] = { count: 0, nights: 0, brut: 0, frais: 0, net: 0, adr: 0, revpar: 0 };
+    if (!holder.cur[cur]) holder.cur[cur] = { count: 0, nights: 0, paidNights: 0, brut: 0, frais: 0, net: 0, adr: 0, revpar: 0 };
     return holder.cur[cur];
   }
   // Pure. KPIs of confirmed stays over a period, for the properties in sel.
@@ -292,9 +293,11 @@
       by[key].nights += part;
       // A stub with no amount and no night (Booking à compléter) opens no currency.
       if (!brut && !frais && !net && !part && !stay.devise) return;
+      if (stay.free) r.free = (r.free || 0) + 1;
       [curBucket(r, cur), curBucket(by[key], cur)].forEach(function (b) {
         b.count += 1;
         b.nights += part;
+        if (!stay.free) b.paidNights += part;
         b.brut += brut;
         b.frais += frais;
         b.net += net;
@@ -307,7 +310,9 @@
     r.rate = Math.round(r.occupancy * 100);
     Object.keys(r.cur).forEach(function (c) {
       var b = r.cur[c];
-      b.adr = b.nights ? Math.round(b.brut / b.nights) : 0;
+      // ADR over paid nights: a free stay (« Offert », 0 €) adds nights and
+      // occupancy, never a fake low price per night.
+      b.adr = b.paidNights ? Math.round(b.brut / b.paidNights) : 0;
       b.revpar = r.available ? Math.round(b.brut / r.available) : 0;
     });
     SOURCES.forEach(function (k) {
@@ -408,7 +413,7 @@
       + (sel.length > 1 ? bienCard(list, period) : "")
       + (state.sMonth ? "" : monthCard(list, sel))
       + (notes.length ? '<p class="stat-note">' + esc(notes.join(" ")) + "</p>" : "")
-      + '<p class="stat-note">Nuits réparties par mois, futures comprises ; séjours annulés exclus. Tous les montants en euros ; dirhams convertis à 1\u00A0€ = 10\u00A0DH. Occupation = nuits / (jours × biens). ADR = brut / nuits, RevPAR = brut / nuits disponibles. Brut = total payé par le voyageur (total_voyageur) ; à défaut, frais de chambre − réduction (Airbnb), montant (Booking), tarif (direct). Frais plateformes = brut − net versé (Airbnb : frais voyageur et hôte), commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net. Version admin ' + esc(BUILD) + ".</p>";
+      + '<p class="stat-note">Nuits réparties par mois, futures comprises ; séjours annulés exclus. Tous les montants en euros ; dirhams convertis à 1\u00A0€ = 10\u00A0DH. Occupation = nuits / (jours × biens). ADR = brut / nuits payées (séjours offerts : nuits et occupation comptées, 0 € de revenu), RevPAR = brut / nuits disponibles. Brut = total payé par le voyageur (total_voyageur) ; à défaut, frais de chambre − réduction (Airbnb), montant (Booking), tarif (direct). Frais plateformes = brut − net versé (Airbnb : frais voyageur et hôte), commission + frais bancaires (Booking). La taxe de séjour Booking est encaissée à part et n’entre pas dans le net. Version admin ' + esc(BUILD) + ".</p>";
   }
   function serviceSums(book) {
     var repas = book.repas.reduce(function (s, n) { return s + n; }, 0);
@@ -678,7 +683,8 @@
       // Sheet cell is empty); an older deployment does not send it at all.
       brutSource: stay.portal === false ? "" : (!("totalVoyageur" in stay) ? "absent" : (Number(stay.totalVoyageur) > 0 ? "total" : "vide")), statut: stay.statut || "", a_completer: stay.a_completer || "", confirmed: true,
       poolDays: stay.poolDays || 0, poolRate: stay.poolRate || 0, jacuzziDays: stay.jacuzziDays || 0, jacuzziRate: stay.jacuzziRate || 0,
-      encaisse_le: stay.encaisse_le || "", offerts: stay.offerts || "", origine: String(stay.origine || "")
+      encaisse_le: stay.encaisse_le || "", offerts: stay.offerts || "", origine: String(stay.origine || ""),
+      free: !!stay.freeStay, demo: !!stay.demo || String(stay.nom || "").toLowerCase() === "famille démo" || stay.id === "FAMDEMO2812"
     };
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

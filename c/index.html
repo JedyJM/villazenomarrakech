@@ -20,7 +20,7 @@
   .api-retry { margin-top: 14px; min-height: 40px; padding: 0 1.1rem; border: 1px solid #8c3f2a; border-radius: 999px; background: transparent; color: #8c3f2a; font: inherit; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 0.95rem; touch-action: manipulation; }
   [hidden] { display: none !important; }
 </style>
-<script src="/js/vz-api.js?v=20261125n"></script>
+<script src="/js/vz-api.js?v=20261128d"></script>
 </head>
 <body>
 <main data-confirm-page>
@@ -67,7 +67,11 @@
     document.body.setAttribute("data-state", ok ? "ok" : "message");
   }
   function legacy(found) {
-    location.replace(window.VZApi.URL + "?action=confirm&id=" + encodeURIComponent(found.id) + "&t=" + encodeURIComponent(found.token));
+    window.VZApi.urlReady.then(function (base) {
+      // No /exec on a preview (/api/vz-env did not answer): stay here.
+      if (!base) { show("Confirmation impossible pour le moment.", "", "", false); window.VZApi.showError($("status"), { kind: "unavailable" }, ask); return; }
+      location.replace(base + "?action=confirm&id=" + encodeURIComponent(found.id) + "&t=" + encodeURIComponent(found.token));
+    });
   }
   var found = parts();
   if (!found.id || !found.token || !window.VZApi) {

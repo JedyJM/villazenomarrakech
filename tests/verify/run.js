@@ -5,23 +5,26 @@
 //   2. Vercel relay test (wa-webhook);
 //   3. browser journeys (iPhone 15 WebKit, local server, /exec mocked):
 //      guest, admin + link, cross-cutting.
-// Env: VZ_GAS_CODE (default /workspace/sec/Code.v19.gs), VZ_SHOTS.
+// Env: VZ_GAS_CODE (default /workspace/sec/Code.v21.gs), VZ_SHOTS.
 "use strict";
 const { spawnSync } = require("node:child_process");
 const path = require("node:path");
 const fs = require("node:fs");
 const root = path.join(__dirname, "..", "..");
-const code = process.env.VZ_GAS_CODE || "/workspace/sec/Code.v19.gs";
+const code = process.env.VZ_GAS_CODE || "/workspace/sec/Code.v21.gs";
 if (!fs.existsSync(code)) {
-  console.error("Missing Apps Script file: " + code + " (set VZ_GAS_CODE). The suite needs Code.v19.gs.");
+  console.error("Missing Apps Script file: " + code + " (set VZ_GAS_CODE). The suite needs the Apps Script under test (Code.v21.gs candidate).");
   process.exit(2);
 }
 const groups = [
-  ["script (Code.v19.gs)", ["tests/guest-link.test.js", "tests/hardening.test.js", "tests/verify/fields.test.js", "tests/verify/gas.test.js", "tests/verify/prod-shape.test.js"]],
+  ["script (Code v21)", ["tests/guest-link.test.js", "tests/hardening.test.js", "tests/verify/fields.test.js", "tests/verify/gas.test.js", "tests/verify/prod-shape.test.js", "tests/verify/func.test.js"]],
   ["relay (api/wa-webhook.js)", ["tests/wa-webhook.test.mjs"]],
   ["guest journey", ["tests/verify/guest.e2e.test.js"]],
   ["admin journey + link", ["tests/verify/admin.e2e.test.js", "tests/verify/admin-google.e2e.test.js"]],
-  ["cross-cutting", ["tests/verify/cross.e2e.test.js"]],
+  ["cross-cutting", ["tests/verify/cross.e2e.test.js", "tests/verify/preview-env.e2e.test.js"]],
+  ["functional 2026-11-27 (items 1–6)", ["tests/verify/func.e2e.test.js", "tests/verify/recap-mode.e2e.test.js"]],
+  ["audit design 2026-11-28", ["tests/verify/audit-1128.test.js", "tests/verify/audit-1128.e2e.test.js"]],
+  ["nouveau design 2026-11-28", ["tests/verify/design-1128.test.js", "tests/verify/design-1128.e2e.test.js"]],
 ];
 let pass = 0, fail = 0;
 const rows = [];

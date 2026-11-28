@@ -122,8 +122,12 @@
   // Shared normalizer (AdminShell.demandeFromApi, js/vz-fields.js).
   function fromApi(raw) {
     var item = shell.demandeFromApi(raw);
-    item.price = raw.total === "" || raw.total == null ? "" : euroText(raw.total);
-    item.dh = item.price && raw.total ? (Math.round(Number(raw.total)) + "\u00A0DH") : "";
+    // Meals: total in euros (Sheet total_dh holds € for restauration); other
+    // services: dirhams. Review 2026-11-27: a 50 € breakfast showed « 5 € · 50 DH ».
+    var meal = String(raw.service || "").toLowerCase() === "restauration";
+    var dhValue = raw.total === "" || raw.total == null ? null : (meal ? Number(raw.total) * 10 : Number(raw.total));
+    item.price = dhValue == null ? "" : euroText(dhValue);
+    item.dh = item.price && dhValue ? (Math.round(dhValue) + "\u00A0DH") : "";
     return item;
   }
   function dayKey(item) { return isoDay(item.when); }
@@ -132,10 +136,15 @@
   function toConfirm(items) {
     return items.filter(function (item) { return item.status === "Envoyée" && isFutureDay(item); });
   }
+  // Guests: adults, then children 4–11 and under 4 (meal counters, v21);
+  // older demandes only have a children total.
   function paxOf(item) {
     var bits = [];
     if (item.adults) bits.push(item.adults + " ad.");
-    if (item.children) bits.push(item.children + " enf.");
+    if (item.kids_4_11 || item.kids_under_4) {
+      if (item.kids_4_11) bits.push(item.kids_4_11 + " enf. 4–11");
+      if (item.kids_under_4) bits.push(item.kids_under_4 + " < 4 ans");
+    } else if (item.children) bits.push(item.children + " enf.");
     return bits;
   }
   // Full title, used in the WhatsApp relance text.
@@ -167,7 +176,7 @@
     return "depuis " + Math.round(hours / 24) + "\u00A0j";
   }
   function metaOf(item) {
-    var text = [item.guest].concat(paxOf(item)).filter(Boolean).join(" · ") + " · " + whenLabel(item);
+    var text = [item.guest].concat(paxOf(item)).concat([whenLabel(item)]).filter(Boolean).join(" · ");
     if (item.status === "Envoyée") text += " · " + since(item);
     return text;
   }
@@ -247,6 +256,7 @@
       + icon(item.kind)
       + '<span class="req-title">' + esc(rowTitleOf(item)) + '</span>'
       + '<span class="req-meta">' + esc(metaOf(item)) + '</span>'
+      + (item.extras ? '<span class="req-meta" data-extras>Suppléments : ' + esc(item.extras) + '</span>' : '')
       + (confirmedLine(item) ? '<span class="req-meta req-confirmed">' + esc(confirmedLine(item)) + '</span>' : '')
       + '<span class="req-foot">' + price + staff + '</span>'
       + '<span class="req-chip status-chip ' + chipClass(item.status) + '">' + esc(item.status) + '</span>'
@@ -375,36 +385,87 @@
       if (event.target.closest("[data-sheet-close]") || event.target.hasAttribute("data-sheet-back")) closeSheet(root);
     });
     if (staffConfirmDemo()) { paint(root); return; }
-    load(root);
+    var sync = root.querySelector("[data-sync]");
+    if (sync) sync.addEventListener("click", function (event) {
+      if (event.target.closest("[data-refresh]")) load(root, true);
+    });
+    load(root, false);
   }
-  // Demandes + stays (current stays), both awaited; an error is shown with « Réessayer ».
-  function load(root) {
+  // A local status patch is only needed until the script answers with it:
+  // once the fresh list agrees, the patch is dropped (fresher server
+  // changes, e.g. a staff « Confirmer », are then shown).
+  function dropSyncedPatches(items) {
+    var patches = readPatches();
+    var changed = false;
+    items.forEach(function (item) {
+      var p = patches[item.id];
+      if (p && p.status === item.status && !!p.offert === !!item.offert) { delete patches[item.id]; changed = true; }
+    });
+    if (changed) { try { sessionStorage.setItem(STORE, JSON.stringify(patches)); } catch (e) {} }
+  }
+  /* Demandes + stays (current stays). The cached copy is painted at once,
+     then both feeds are read again on EVERY open and on « Actualiser »
+     (AdminShell.cachedGet: one call per feed at a time, never stacked).
+     An error is shown with « Réessayer », the cached list stays. */
+  var busy = 0;
+  var ats = {};
+  function stamp(root) {
+    var list = Object.keys(ats).map(function (k) { return ats[k]; });
+    if (shell.paintSync) shell.paintSync(root.querySelector("[data-sync]"), list.length ? Math.min.apply(Math, list) : 0, busy > 0);
+  }
+  function load(root, force) {
+    if (busy) return;
     var note = root.querySelector("[data-req-loading]");
     if (!note) {
       note = document.createElement("p");
       note.className = "empty";
       note.setAttribute("data-req-loading", "");
-      root.insertBefore(note, root.firstChild);
+      var list = root.querySelector("[data-list]");
+      list.parentNode.insertBefore(note, list);
     }
-    note.hidden = false;
-    note.textContent = "Chargement des demandes…";
-    var slow = window.setTimeout(function () { note.textContent = "Chargement des demandes… le serveur met du temps à répondre."; }, 8000);
-    Promise.all([shell.api.get({ action: "demandes" }), shell.api.get({ action: "stays" })]).then(function (pair) {
-      window.clearTimeout(slow);
-      note.hidden = true;
-      if (!pair[0].ok) {
-        shell.loadError(pair[0], function () { load(root); });
-        paint(root);
-        return;
+    if (remoteItems === null) {
+      note.hidden = false;
+      note.textContent = "Chargement des demandes…";
+    }
+    var slow = window.setTimeout(function () { if (remoteItems === null) note.textContent = "Chargement des demandes… le serveur met du temps à répondre."; }, 8000);
+    if (!shell.cachedGet) return;
+    busy = 2;
+    stamp(root);
+    var doneReq = false;
+    var doneStays = false;
+    shell.cachedGet("demandes", "action=demandes", function (data, meta) {
+      var final = !(meta && meta.cached && !meta.error);
+      if (meta && meta.at) ats.demandes = meta.at;
+      if (data && data.ok) {
+        remoteItems = (data.items || []).map(fromApi);
+        note.hidden = true;
+        if (!(meta && meta.cached)) dropSyncedPatches(remoteItems);
       }
-      shell.loadError(null);
-      remoteItems = ((pair[0].data && pair[0].data.items) || []).map(fromApi);
-      var todayIso = isoDay(today());
-      remoteCurrentIds = ((pair[1].ok && pair[1].data.stays) || []).filter(function (stay) {
-        return stay.arrival && stay.departure && stay.arrival <= todayIso && todayIso < stay.departure;
-      }).map(function (stay) { return stay.id; });
+      if (final && !doneReq) {
+        doneReq = true;
+        busy -= 1;
+        window.clearTimeout(slow);
+        if (meta && meta.error) {
+          if (remoteItems === null) note.hidden = true;
+          shell.loadError(meta.result, function () { load(root, true); });
+        } else shell.loadError(null);
+      }
+      stamp(root);
       paint(root);
-    });
+    }, { force: !!force });
+    shell.cachedGet("stays", "action=stays", function (data, meta) {
+      var final = !(meta && meta.cached && !meta.error);
+      if (data && data.ok) {
+        var todayIso = isoDay(today());
+        remoteCurrentIds = (data.stays || []).filter(function (stay) {
+          return stay.arrival && stay.departure && stay.arrival <= todayIso && todayIso < stay.departure;
+        }).map(function (stay) { return stay.id; });
+      }
+      if (meta && meta.at) ats.stays = meta.at;
+      if (final && !doneStays) { doneStays = true; busy -= 1; }
+      stamp(root);
+      paint(root);
+    }, { force: !!force });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

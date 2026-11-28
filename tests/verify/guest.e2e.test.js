@@ -42,24 +42,33 @@ test("private link: /guest/?stay=&k= → home with the real name and stay dates"
   await shot(page, "guest-home.png");
 });
 
-test("restauration: breakfast before 9h = +10 € (100 DH) per table, real name in the Sheet", async () => {
+test("restauration: breakfast at the fixed 9 h 30 set-up time (Jedy 28/11 17:01), no early supplement, real name in the Sheet", async () => {
   const page = P.page;
   await page.goto(srv.origin + "/guest/restauration.html");
   await stayReady(page);
   await page.click("[data-meal='breakfast']");
   await setField(page, "[name='date']", TOMORROW);
-  await page.selectOption("[name='time']", "08:00");
-  for (let i = 0; i < 3; i++) await page.click("[data-people-kind='adults'][data-dir='1']");
+  // Heure fixe : une seule option, présélectionnée (petit-déjeuner 9 h 30).
+  assert.deepEqual(await page.locator("[name='time'] option").evaluateAll((o) => o.map((x) => x.value)), ["09:30"]);
+  assert.equal(await page.inputValue("[name='time']"), "09:30");
+  assert.equal(await page.locator("[data-meal-hours]").innerText(), "Mise en place à 9\u00a0h\u00a030.");
+  // Guests prefilled from the booking (2 adults), « Modifier » → 3 adults.
+  await page.locator("[data-guests-summary]:not([hidden])").waitFor();
+  assert.match(await page.locator("[data-guests-text]").innerText(), /2 adultes/);
+  await page.click("[data-guests-edit]");
+  await page.click("[data-people-kind='adults'][data-dir='1']");
+  await page.click("[data-bf-tab='oeufs']");
+  await page.click("[data-egg='dur'][data-dir='1']");
   await page.click("[data-meal-form] button[type='submit']");
   await sentOk(page);
   const rows = await page.locator("[data-confirm-list]").innerText();
-  assert.match(rows, /Supplément[\s\S]*10\s€/);
-  assert.match(rows, /Total[\s\S]*3 personnes · 40\s€/, "3 × 10 € + 10 € per table");
+  assert.doesNotMatch(rows, /Supplément/);
+  assert.match(rows, /Total[\s\S]*3 personnes · 30\s€/, "3 × 10 €, no early supplement at 9 h 30");
   const row = lastRow();
   assert.equal(row.service, "restauration");
   assert.equal(row.nom_client, "Léa Bernard");
-  assert.equal(row.details.supplement_dh, 10);
-  assert.equal(row.details.time, "08:00");
+  assert.ok(!row.details.supplement_dh, "no early supplement");
+  assert.equal(row.details.time, "09:30");
   assert.doesNotMatch(row.details.resume, /€|DH/, "staff summary has no price");
 });
 
@@ -112,6 +121,9 @@ test("transfert aéroport: guest WhatsApp with the real name, the time and the C
   const row = lastRow();
   assert.equal(row.service, "transfert");
   assert.ok(text.includes(srv.origin + "/c/" + row.id + "-" + row.details.token), "compact Confirmer link");
+  // Décision 28/11 16:03 : phrase exacte juste avant le lien, sur sa propre ligne.
+  assert.ok(text.includes("\n\nMerci de confirmer en cliquant sur le lien :\n" + srv.origin + "/c/" + row.id + "-" + row.details.token), "phrase before the link");
+  assert.doesNotMatch(text, /\nConfirmer :\n/);
   // The generated text rendered on a page (evidence).
   const view = await P.ctx.newPage();
   await view.setContent("<meta name=viewport content='width=device-width'><body style='font:16px -apple-system,sans-serif;padding:16px;background:#e7ffdb'><p style='color:#555'>Texte WhatsApp généré (transfert aéroport)</p><pre style='white-space:pre-wrap;background:#fff;padding:12px;border-radius:10px'></pre></body>");
@@ -161,7 +173,7 @@ test("transfert ville, location, massage: real name, times, Confirmer link", asy
   text = lastWa();
   assert.match(text, /Nom : Léa Bernard/);
   assert.match(text, /Heure : 11:00/);
-  assert.match(text, /\/c\/[0-9a-z]+-[0-9a-z]+/);
+  assert.match(text, /\n\nMerci de confirmer en cliquant sur le lien :\nhttps?:\/\/[^\s]+\/c\/[0-9a-z]+-[0-9a-z]+/);
   assert.equal(lastRow().service, "massage");
   P.wa.forEach((u) => assert.doesNotMatch(waText(u), /Invité/, "no « Invité » in any WhatsApp text"));
 });

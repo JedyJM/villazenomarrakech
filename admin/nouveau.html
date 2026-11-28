@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/admin.css?v=20261125n">
+<link rel="stylesheet" href="css/admin.css?v=20261128d">
 </head>
 <body data-page="nouveau" data-tab="sejours">
 <header class="site-header">
@@ -34,9 +34,10 @@
 </section>
 <section class="block">
 <div class="step-row"><span>Adultes</span><span class="stepper"><button type="button" data-step="adults" data-dir="-1" aria-label="Moins d’adultes">−</button><output data-adults>2</output><button type="button" data-step="adults" data-dir="1" aria-label="Plus d’adultes">+</button></span></div>
-<div class="step-row"><span>Enfants</span><span class="stepper"><button type="button" data-step="children" data-dir="-1" aria-label="Moins d’enfants">−</button><output data-children>0</output><button type="button" data-step="children" data-dir="1" aria-label="Plus d’enfants">+</button></span></div>
+<div class="step-row"><span>Enfants 4–11 ans</span><span class="stepper"><button type="button" data-step="kids4to11" data-dir="-1" aria-label="Moins d’enfants de 4 à 11 ans">−</button><output data-kids4to11>0</output><button type="button" data-step="kids4to11" data-dir="1" aria-label="Plus d’enfants de 4 à 11 ans">+</button></span></div>
+<div class="step-row"><span>Moins de 4 ans</span><span class="stepper"><button type="button" data-step="kidsUnder4" data-dir="-1" aria-label="Moins d’enfants de moins de 4 ans">−</button><output data-kids-under4>0</output><button type="button" data-step="kidsUnder4" data-dir="1" aria-label="Plus d’enfants de moins de 4 ans">+</button></span></div>
 <div data-ages></div>
-<p class="note">Moins de 12 ans&nbsp;: repas à 50&nbsp;%. Moins de 4 ans&nbsp;: repas offert.</p>
+<p class="note">4–11 ans&nbsp;: repas à 50&nbsp;%. Moins de 4 ans&nbsp;: repas offert. 12 ans et plus&nbsp;: comptés comme adultes. Montant 0&nbsp;: séjour offert.</p>
 </section>
 <section class="block" data-price></section>
 <section class="block">
@@ -51,10 +52,10 @@
 <button type="submit" class="primary" data-save>Enregistrer</button>
 </form>
 </main>
-<script src="../js/vz-fields.js?v=20261125n"></script>
-<script src="../js/vz-api.js?v=20261125n"></script>
-<script src="js/calc.js?v=20261125n"></script>
-<script src="js/shell.js?v=20261125n"></script>
-<script src="js/stays.js?v=20261125n"></script>
+<script src="../js/vz-fields.js?v=20261128d"></script>
+<script src="../js/vz-api.js?v=20261128d"></script>
+<script src="js/calc.js?v=20261128d"></script>
+<script src="js/shell.js?v=20261128d"></script>
+<script src="js/stays.js?v=20261128d"></script>
 </body>
 </html>

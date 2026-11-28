@@ -1,0 +1,30 @@
+/* Loisirs v3d (maquette validée par Jedy le 28/11/2026, 16 h 26) : règles de page et grille .tiles / .tile / .tile.close de v3d.css.
+   Piste B (.menu, .mrow) et pastille « à compléter » non reprises. */
+.screen{overflow:hidden}
+.page.fix{justify-content:flex-start;gap:var(--s3);padding:var(--s3) var(--m) var(--s3)}
+:root{--pad:var(--s4);--pic:44px;--wpic:40px}
+@media (max-height:700px){:root{--pad:12px;--pic:36px;--wpic:36px}}
+@media (min-height:780px){:root{--pad:20px;--pic:48px;--wpic:52px}}
+
+/* ---------- Loisirs, piste A : grille de cartes égales ---------- */
+.tiles{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:var(--gut)}
+.tile{min-width:0;min-height:0;overflow:hidden;background:var(--lin);border:var(--line);border-radius:var(--r);padding:var(--s3);display:flex;flex-direction:column;justify-content:flex-start;gap:var(--s3);align-items:flex-start}
+.tile .pic{width:var(--pic);height:var(--pic);flex:none;display:grid;place-items:center}
+.tile .pic .plume{width:100%;height:100%;color:var(--encre)}
+.tile h2{font:var(--t-h3);white-space:nowrap}
+.tile p{text-wrap:balance}
+.tile p{font:var(--t-note);font-size:13px;line-height:1.3;color:var(--taupe);margin-top:2px}
+.tile.close{background:transparent;border:1px dashed var(--sable);justify-content:center;align-items:center;text-align:center;gap:0}
+.tile.close p{font:var(--t-note);font-size:13px;line-height:1.3;color:var(--taupe);margin:0}
+@media (max-height:700px){.tiles{gap:6px}.tile{padding:8px 10px;gap:4px}.tile p,.tile.close p{font-size:12px;line-height:1.2}}
+@media (min-height:780px){.tile{padding:14px;gap:10px}.tile p,.tile.close p{font-size:13px}.tile h2{font-size:19px}}
+
+/* Écran plus court que l'iPhone SE de référence (Safari iOS réel : 375×549, RUN 8).
+   Le texte ne doit jamais être rogné : les cartes prennent la hauteur de leur contenu
+   (toujours égales entre elles), et l'écran défile. Rendu validé inchangé au-dessus de 600 px. */
+@media (max-height:600px){
+  .screen{overflow:auto;-webkit-overflow-scrolling:touch}
+  .page.fix{flex:none;min-height:auto}
+  .tiles{flex:none;grid-auto-rows:1fr}
+  .tile{overflow:visible}
+}

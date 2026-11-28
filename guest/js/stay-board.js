@@ -49,7 +49,9 @@
     var frac = dhCents % 100;
     var text = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");
     if (frac) text += "," + (frac < 10 ? "0" : "") + frac;
-    return (neg ? "−" : "") + text + "\u00A0DH";
+    // Récap: euros with the MAD equivalent (decisions 2026-11-28 08:18 / 08:46).
+    // The English page (not reworked yet) keeps its DH wording.
+    return (neg ? "−" : "") + text + (isEn() ? "\u00A0DH" : "\u00A0MAD");
   }
   function pad(n) { return (n < 10 ? "0" : "") + n; }
   // Local date (+ time when given). hasTime is false when there is no
@@ -387,11 +389,12 @@
     var month = (isEn() ? MONTHS_EN : MONTHS)[Number(parts[1]) - 1] || "";
     return Number(parts[2]) + (isEn() ? " " : "\u00A0") + month;
   }
+  // Payment method name only: the Sheet stores « Espèces € » / « Espèces DH »
+  // (admin Encaissement needs the currency), but on the récap header the
+  // currency belongs to the amount alone → « Espèces · 137,50 € ».
   function modeName(mode) {
-    var value = String(mode || "");
-    if (!isEn()) return value;
-    if (value === "Espèces €") return "Cash €";
-    if (value === "Espèces DH") return "Cash DH";
+    var value = String(mode || "").replace(/\s*(€|eur|euros?|dh|dhs|mad|dirhams?)\s*$/i, "").trim();
+    if (isEn() && /^esp[eè]ces$/i.test(value)) return "Cash";
     return value;
   }
   function showSettled(root, stay, linesHtml, due) {
@@ -399,10 +402,12 @@
     var billCard = root.querySelector("[data-bill-card]");
     var dock = root.querySelector("[data-pay-dock]");
     if (!card) return false;
+    var choice = dock ? dock.querySelector(".pay-choice") : null;
     if (!stay || !stay.encaisse_le) {
       card.hidden = true;
       if (billCard) billCard.hidden = false;
       if (dock) dock.hidden = false;
+      if (choice) choice.hidden = false;
       return false;
     }
     var title = card.querySelector("[data-settled-title]");
@@ -413,10 +418,15 @@
     if (line) {
       line.textContent = text("Réglé le ", "Paid on ") + paidWhen(stay.encaisse_le) + " · " + modeName(stay.encaisse_mode) + " · " + euros(amount);
     }
-    if (list) list.innerHTML = linesHtml;
+    // Settled (2026-11-27 review): the banner says so, and the detail stays
+    // visible: « À régler à la villa » lines with « Total réglé », « Déjà
+    // réglé aux prestataires », and the 1 € = 10 DH rate. Only the payment
+    // buttons go away.
+    if (list) { list.innerHTML = ""; list.hidden = true; }
     card.hidden = false;
-    if (billCard) billCard.hidden = true;
-    if (dock) dock.hidden = true;
+    if (billCard) billCard.hidden = false;
+    if (dock) dock.hidden = false;
+    if (choice) choice.hidden = true;
     return true;
   }
   function heatingRow(label, heat) {
@@ -475,8 +485,8 @@
         return "<li>" + iconSvg(kindOf(item)) + "<span><strong>" + esc(guestName(item)) + "</strong><em>" + esc(detailLine(item)) + "</em></span><b>" + esc(euros(eurosOf(item))) + "<small>RÉGLÉ</small></b></li>";
       }).join("");
     }
-    function paintTotal(mode) {
-      var paypal = mode === "paypal";
+    function paintTotal(mode, settledNow) {
+      var paypal = mode === "paypal" && !settledNow;
       var grand = due;
       var fee = 0;
       if (paypal) {
@@ -487,7 +497,7 @@
         ? '<li class="recap-fee-line"><span>' + esc(text("Frais PayPal (4,4\u00A0% + 0,35\u00A0€)", "PayPal fee (4.4% + €0.35)")) + "</span><b>" + esc(euros(fee)) + "</b></li>"
         : "";
       bill.innerHTML = linesHtml + feeHtml
-        + '<li class="recap-sum"><span>' + esc(text("Total à régler", "Total due")) + "</span><b><strong>" + esc(euros(grand)) + "</strong><small>" + esc(text("soit ", "or ") + dirhams(grand)) + "</small></b></li>";
+        + '<li class="recap-sum" data-recap-total="' + grand + '"><span>' + esc(settledNow ? text("Total réglé", "Total settled") : text("Total à régler", "Total due")) + "</span><b><strong>" + esc(euros(grand)) + "</strong><small>" + esc(text("soit ", "or ") + dirhams(grand)) + "</small></b></li>";
       if (feeNode) feeNode.hidden = true;
       if (payBtn) {
         var testPay = window.GuestRequests && window.GuestRequests.TEST_MODE;
@@ -505,7 +515,8 @@
       if (cashBtn) cashBtn.setAttribute("aria-pressed", paypal ? "false" : "true");
       if (payBtn) payBtn.setAttribute("aria-pressed", paypal ? "true" : "false");
     }
-    if (!showSettled(root, data.stay, linesHtml, due)) paintTotal("cash");
+    var settledNow = showSettled(root, data.stay, linesHtml, due);
+    paintTotal("cash", settledNow);
     root.__paintTotal = paintTotal;
     if (root.__payBound) return;
     root.__payBound = true;
@@ -553,7 +564,8 @@
     if (name === "loading") { node.textContent = text("Chargement de vos demandes…", "Loading your requests…"); return; }
     if (name === "updating") { node.textContent = text("Mise à jour…", "Updating…"); return; }
     window.VZApi.showError(node, (snap && snap.error) || { kind: name === "invalid" ? "invalid_link" : name === "expired" ? "expired" : "network" }, retry, {
-      text: name === "error" ? text("Impossible de charger vos demandes. Vérifiez le réseau, puis réessayez.", "Your requests could not be loaded. Check your connection, then try again.") : ""
+      // A preview without /exec keeps the « contretemps » message (VZApi.message).
+      text: name === "error" && !(snap && snap.error && snap.error.kind === "unavailable") ? text("Impossible de charger vos demandes. Vérifiez le réseau, puis réessayez.", "Your requests could not be loaded. Check your connection, then try again.") : ""
     });
   }
 

@@ -336,7 +336,7 @@ body.is-locked .bottom-nav { display: none; }
 }
 .card > div:first-child .req-row { border-top: 0; }
 .req-ico {
-  grid-row: 1 / span 3; align-self: center; display: grid; place-items: center; width: 32px; height: 32px;
+  grid-row: 1 / span 5; align-self: center; display: grid; place-items: center; width: 32px; height: 32px;
   border-radius: 9px; background: #efe6d8; color: #6b3022;
 }
 .req-ico svg { width: 16px; height: 16px; }
@@ -345,13 +345,16 @@ body.is-locked .bottom-nav { display: none; }
   font-size: 13px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* Each extra line (meta, suppléments, « Confirmée le … », foot) gets its own
+   row: no fixed grid-row, so two lines can never be drawn on top of each
+   other (2026-11-27 review). */
 .req-meta {
-  grid-column: 2; grid-row: 2; min-width: 0;
+  grid-column: 2 / 4; grid-row: auto; min-width: 0;
   font-size: 11.5px; line-height: 1.25; color: var(--muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .req-foot {
-  grid-column: 2 / 4; grid-row: 3; min-width: 0;
+  grid-column: 2 / 4; grid-row: auto; min-width: 0;
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
 }
 .req-price { flex: 0 1 auto; min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -818,3 +821,7 @@ input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, t
 .api-retry { display: inline-block; margin-left: 8px; min-height: 32px; padding: 0 12px; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font-size: 14px; white-space: nowrap; touch-action: manipulation; }
 .form-ok { color: #1d6b3a; font-size: 13px; }
 .load-error { color: var(--terracotta); font-size: 14px; padding: 12px 4px; }
+
+/* Séjours: « Importer depuis Gmail » (2026-11-27, same look as the other buttons). */
+.import-row { display: grid; gap: 6px; margin: 0 0 14px; }
+.import-row [data-import] { width: 100%; }

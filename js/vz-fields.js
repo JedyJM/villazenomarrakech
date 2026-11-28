@@ -1,6 +1,6 @@
 /* Villa Zen'O shared field model (site <-> Apps Script).
    The block between BEGIN VZ_FIELDS and END VZ_FIELDS is copied VERBATIM
-   into the Apps Script (Code.v19.gs). tests/verify/fields.test.js fails
+   into the Apps Script (Code.v21.gs). tests/verify/fields.test.js fails
    when the two copies differ. ES5 only, no DOM, no Apps Script service:
    it runs in the browser, in Node (tests, mock /exec) and in Apps Script.
 
@@ -15,9 +15,9 @@
 var VZF_MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
 var VZF_PLACEHOLDER_NAMES = { "": 1, "invite": 1, "guest": 1, "exemple": 1 };
 // Public stay fields answered to a valid guest link (action=list).
-var VZF_STAY_FIELDS = ["id", "prenom", "nom", "arrival", "departure", "lien_actif", "lien_expire_le", "pool", "jacuzzi", "source", "adults", "children", "encaisse_total_eur", "encaisse_mode", "encaisse_le", "offerts"];
+var VZF_STAY_FIELDS = ["id", "prenom", "nom", "arrival", "departure", "lien_actif", "lien_expire_le", "pool", "jacuzzi", "source", "adults", "children", "children_4_11", "under_4", "encaisse_total_eur", "encaisse_mode", "encaisse_le", "offerts"];
 // Mes demandes item fields (action=list items[]).
-var VZF_ITEM_FIELDS = ["id", "date_creation", "service", "sous_type", "nom_client", "total", "unit", "status", "offert", "when_date", "when_time", "date_confirmation", "meal", "people", "supplement", "bill", "dish", "activity", "activity_label", "scope", "trip_type", "destination", "car_type"];
+var VZF_ITEM_FIELDS = ["id", "date_creation", "service", "sous_type", "nom_client", "total", "unit", "status", "offert", "when_date", "when_time", "date_confirmation", "meal", "people", "supplement", "bill", "dish", "activity", "activity_label", "scope", "trip_type", "destination", "car_type", "adults", "kids_4_11", "kids_under_4", "extras"];
 
 function vzfPad_(n) { return (n < 10 ? "0" : "") + n; }
 
@@ -203,6 +203,60 @@ function vzfHeat_(r, prefix) {
   };
 }
 
+/* Children of a stay, 3 counters (v21): r = { enfants, enfants_4_11,
+   enfants_moins_4, ages_enfants }. Old rows only have enfants + ages
+   ("8,3"): under 4 -> moins_4, 4 to 11 -> de_4_a_11, 12 and over are
+   counted as adults for meals (plus_12). Children without a known age
+   are counted 4-11 (the safe guess for meals). */
+function vzfStayKids_(r) {
+  r = r || {};
+  var n411 = r.enfants_4_11;
+  var n4 = r.enfants_moins_4;
+  var set = (n411 !== "" && n411 != null) || (n4 !== "" && n4 != null);
+  if (set && (Number(n411) || Number(n4) || !Number(r.enfants))) {
+    return { de_4_a_11: Number(n411) || 0, moins_4: Number(n4) || 0, plus_12: 0 };
+  }
+  var out = { de_4_a_11: 0, moins_4: 0, plus_12: 0 };
+  var ages = String(r.ages_enfants == null ? "" : r.ages_enfants).split(",");
+  var known = 0;
+  for (var i = 0; i < ages.length; i++) {
+    var text = ages[i].replace(/\s+/g, "");
+    if (text === "" || isNaN(Number(text))) continue;
+    var age = Number(text);
+    known += 1;
+    if (age < 4) out.moins_4 += 1;
+    else if (age < 12) out.de_4_a_11 += 1;
+    else out.plus_12 += 1;
+  }
+  var total = Number(r.enfants) || 0;
+  if (total > known) out.de_4_a_11 += total - known;
+  return out;
+}
+
+/* Children of a meal demande (details_json). v21 rows: enfants_4_11 /
+   enfants_moins_4 counters. Older rows: children_ages object
+   { plus_12, de_4_a_11, moins_4 } (still read). */
+function vzfMealKids_(d) {
+  d = d || {};
+  if (d.enfants_4_11 != null || d.enfants_moins_4 != null) {
+    return { de_4_a_11: Number(d.enfants_4_11) || 0, moins_4: Number(d.enfants_moins_4) || 0, plus_12: 0 };
+  }
+  var a = d.children_ages && typeof d.children_ages === "object" ? d.children_ages : {};
+  return { de_4_a_11: Number(a.de_4_a_11) || 0, moins_4: Number(a.moins_4) || 0, plus_12: Number(a.plus_12) || 0 };
+}
+
+/* Breakfast extras (v21), French, for the admin and the guest:
+   d.extras = { fruit_bowl: true, tajine_eggs: 2 } ->
+   "Coupe de fruits frais · 2 œufs façon tajine". "" when none. */
+function vzfExtrasText_(d) {
+  var x = (d && d.extras) || {};
+  var bits = [];
+  if (x.fruit_bowl === true || String(x.fruit_bowl) === "true") bits.push("Coupe de fruits frais");
+  var eggs = Number(x.tajine_eggs) || 0;
+  if (eggs > 0) bits.push(eggs + (eggs > 1 ? " œufs façon tajine" : " œuf façon tajine"));
+  return bits.join(" · ");
+}
+
 /* Public stay record for a valid guest link. r = one Réservations row as
    { header: value } (lowercase headers). Same keys for every stay, test
    rows included (they are reached only with their own key). */
@@ -213,6 +267,7 @@ function vzfPublicStay_(r) {
   var offerts = String(r.offerts == null ? "" : r.offerts).split(",");
   var list = [];
   for (var i = 0; i < offerts.length; i++) if (offerts[i].replace(/\s+/g, "")) list.push(offerts[i].replace(/\s+/g, ""));
+  var kids = vzfStayKids_(r);
   return {
     id: String(r.booking_id || r.id || ""),
     prenom: prenom,
@@ -226,6 +281,8 @@ function vzfPublicStay_(r) {
     source: String(r.source || ""),
     adults: Number(r.adultes || r.adults) || 0,
     children: Number(r.enfants || r.children) || 0,
+    children_4_11: kids.de_4_a_11,
+    under_4: kids.moins_4,
     encaisse_total_eur: r.encaisse_total_eur === "" || r.encaisse_total_eur == null ? "" : Number(r.encaisse_total_eur) || 0,
     encaisse_mode: String(r.encaisse_mode || ""),
     encaisse_le: vzfIso_(r.encaisse_le),
@@ -263,7 +320,11 @@ function vzfListItem_(row, nowMs) {
     scope: String(d.scope || ""),
     trip_type: String(d.trip_type || ""),
     destination: String(d.destination || ""),
-    car_type: String(d.car_type || "")
+    car_type: String(d.car_type || ""),
+    adults: Number(d.adults) || 0,
+    kids_4_11: vzfMealKids_(d).de_4_a_11,
+    kids_under_4: vzfMealKids_(d).moins_4,
+    extras: vzfExtrasText_(d)
   };
 }
 // END VZ_FIELDS
@@ -275,7 +336,8 @@ function vzfListItem_(row, nowMs) {
     confirmedAt: vzfConfirmedAt_, confirmedText: vzfConfirmedText_,
     canonStatus: vzfCanonStatus_, pastGrace: vzfPastGrace_, shownStatus: vzfShownStatus_,
     serviceName: vzfServiceName_, confirmSummary: vzfConfirmSummary_,
-    publicStay: vzfPublicStay_, listItem: vzfListItem_
+    publicStay: vzfPublicStay_, listItem: vzfListItem_,
+    stayKids: vzfStayKids_, mealKids: vzfMealKids_, extrasText: vzfExtrasText_
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.VZFields = api;

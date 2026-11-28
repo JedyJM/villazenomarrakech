@@ -23,15 +23,15 @@
   function realOnly(list) {
     return shell.realOnly ? shell.realOnly(list || []) : (list || []).filter(function (row) { return String((row && row.origine) || "").toLowerCase() !== "test"; });
   }
-  // Daily cache (AdminShell.cachedGet): done may run twice, first with the
-  // cached answer, then with the network one. meta: { at, cached, stale }.
+  // Cache (AdminShell.cachedGet): done may run twice, first with the cached
+  // answer, then with the network one (every open). meta: { at, cached, error }.
   var loadMeta = { at: 0 };
   function loadStays(done, force) {
     shell.cachedGet("stays", "action=stays", function (data, meta) {
       remote = (data && data.ok && data.stays) || remote || [];
       if (meta && meta.at) loadMeta = meta;
       if (shell.loadError) shell.loadError(meta && meta.error ? meta.result : null, function () { loadStays(done, true); });
-      done(loadMeta);
+      done(Object.assign({}, loadMeta, meta || {}));
     }, { force: !!force, valid: hasKeys });
   }
   // Zen'O rows must carry totalVoyageur (Stats brut); a cached answer from
@@ -72,8 +72,9 @@
     { value: "Autre agence", label: "Autre agence", kind: "direct", askName: true }
   ];
 
+  // The Gmail import writes « Booking.com » (the label): same source.
   function sourceInfo(value) {
-    for (var i = 0; i < SOURCES.length; i++) if (SOURCES[i].value === value) return SOURCES[i];
+    for (var i = 0; i < SOURCES.length; i++) if (SOURCES[i].value === value || SOURCES[i].label === value) return SOURCES[i];
     return null;
   }
 
@@ -162,7 +163,10 @@
       source: stay.source,
       agence_nom: sourceInfo(stay.source) && sourceInfo(stay.source).askName ? (stay.agency || "") : "",
       adultes: stay.adults,
-      enfants: stay.children,
+      enfants: (Number(stay.kids4to11) || 0) + (Number(stay.kidsUnder4) || 0) || stay.children || 0,
+      enfants_4_11: Number(stay.kids4to11) || 0,
+      enfants_moins_4: Number(stay.kidsUnder4) || 0,
+      sejour_offert: !!stay.freeStay,
       ages_enfants: (stay.ages || []).join(","),
       notes: stay.notes || "",
       lien_actif: stay.lien_actif !== false,
@@ -218,7 +222,7 @@
   function failureText(result) {
     if (result.kind === "session") return MSG_SESSION;
     if (result.kind === "server") return MSG_SERVER;
-    if (result.kind === "busy" && window.VZApi) return window.VZApi.message(result);
+    if ((result.kind === "busy" || result.kind === "unavailable") && window.VZApi) return window.VZApi.message(result);
     return MSG_NETWORK;
   }
   // Fills a role="alert" node with the failure (shared error box: message,
@@ -230,6 +234,13 @@
     node.textContent = failureText(result);
   }
 
+  // Children: 4-11 and under 4 (v21 counters; old rows from their ages).
+  function kidsOf(stay) {
+    if (stay.kids4to11 != null || stay.kidsUnder4 != null) return { a: Number(stay.kids4to11) || 0, b: Number(stay.kidsUnder4) || 0 };
+    var f = window.VZFields;
+    var k = f && f.stayKids ? f.stayKids({ enfants: stay.children, ages_enfants: (stay.ages || []).join(",") }) : { de_4_a_11: stay.children || 0, moins_4: 0 };
+    return { a: k.de_4_a_11, b: k.moins_4 };
+  }
   function peopleBits(stay) {
     var bits = [stay.adults + " ad."];
     if (stay.children) bits.push(stay.children + " enf.");
@@ -239,11 +250,10 @@
 
   function composition(stay) {
     var text = stay.adults + " adulte" + (stay.adults > 1 ? "s" : "");
-    if (stay.children) {
-      text += " · " + stay.children + " enfant" + (stay.children > 1 ? "s" : "");
-      var ages = (stay.ages || []).filter(function (age) { return age !== "" && age != null; });
-      if (ages.length) text += " · " + ages.map(function (age) { return age + " ans"; }).join(" et ");
-    }
+    var k = kidsOf(stay);
+    if (k.a) text += " · " + k.a + " enfant" + (k.a > 1 ? "s" : "") + " 4–11 ans";
+    if (k.b) text += " · " + k.b + " moins de 4 ans";
+    if (!k.a && !k.b && stay.children) text += " · " + stay.children + " enfant" + (stay.children > 1 ? "s" : "");
     return text;
   }
 
@@ -428,7 +438,7 @@
           + '<span class="stay-top"><span class="stay-name">' + esc(stay.nom) + '</span>'
           + '<span class="chip ' + chipClass(status) + '">' + chipLabel(status) + '</span></span>'
           + '<span class="stay-sub"><span class="stay-meta">' + esc(calc.rangeLabel(stay.arrival, stay.departure) + " · " + peopleBits(stay)) + '</span>'
-          + '<span class="stay-source">' + esc(sourceLabel(stay)) + '</span></span>'
+          + '<span class="stay-source">' + esc(sourceLabel(stay) + (stay.freeStay ? " · Offert" : "")) + '</span></span>'
           + '<span class="chev" aria-hidden="true">›</span></a>';
       }).join("");
     }
@@ -557,6 +567,41 @@
       loadStays(one, true);
       loadOthers(one, true);
     });
+    /* « Importer depuis Gmail »: one manual import (no trigger). Waits for
+       the script (Gmail search + Sheet), up to 3 minutes; the button stays
+       disabled meanwhile (never two imports). Then the stays are re-read. */
+    var importBtn = root.querySelector("[data-import]");
+    var importNote = root.querySelector("[data-import-note]");
+    var importing = false;
+    function plural(n, word) { return n + "\u00A0" + word + (n > 1 ? "s" : ""); }
+    if (importBtn) importBtn.addEventListener("click", function () {
+      if (importing || !shell.api) return;
+      importing = true;
+      importBtn.disabled = true;
+      importBtn.setAttribute("aria-busy", "true");
+      importBtn.textContent = "Import en cours…";
+      importNote.textContent = "Lecture des e-mails Airbnb et Booking.com…";
+      shell.api.post({ action: "import-gmail" }, { timeout: 180000 }).then(function (result) {
+        importing = false;
+        importBtn.disabled = false;
+        importBtn.removeAttribute("aria-busy");
+        importBtn.textContent = "Importer depuis Gmail";
+        if (!result.ok) {
+          var gmail = result.data && result.data.error === "gmail";
+          if (shell.showError) shell.showError(importNote, result, function () { importBtn.click(); }, "save");
+          if (gmail) importNote.firstChild.textContent = "Gmail n’a pas pu être lu (autorisation du script). Prévenez Jedy.";
+          return;
+        }
+        var d = result.data || {};
+        importNote.setAttribute("data-import-done", "");
+        var created = Number(d.created) || 0;
+        importNote.textContent = "Import terminé : " + created + (created > 1 ? "\u00A0séjours créés" : "\u00A0séjour créé")
+          + " · " + (Number(d.updated) || 0) + "\u00A0mis à jour · " + plural(Number(d.cancelled) || 0, "annulé") + ".";
+        if (shell.invalidate) shell.invalidate("stays");
+        loadStays(paint, true);
+        loadOthers(paint, true);
+      });
+    });
     paint();
     loadStays(paint);
     loadOthers(function () {
@@ -568,7 +613,7 @@
   function blank() {
     return {
       nom: "", telephone: "", arrival: "", departure: "", source: "Airbnb", agency: "",
-      adults: 2, children: 0, ages: [], notes: "",
+      adults: 2, children: 0, kids4to11: 0, kidsUnder4: 0, ages: [], notes: "", freeStay: false,
       room: 0, reduction: 0, hostFee: 0,
       total: 0, commission: 0, bank: 0,
       tarif: 0, deposit: 0, depositDate: "", depositMode: "Virement",
@@ -583,6 +628,15 @@
     if (!form) return;
     var model = blank();
     if (existing) Object.keys(model).forEach(function (key) { if (existing[key] !== undefined) model[key] = existing[key]; });
+    if (existing) {
+      var k0 = kidsOf(existing);
+      model.kids4to11 = k0.a;
+      model.kidsUnder4 = k0.b;
+      model.children = k0.a + k0.b;
+      // Gmail writes « Booking.com »: the form button is « Booking ».
+      var info0 = sourceInfo(model.source);
+      if (info0) model.source = info0.value;
+    }
     var agesBox = form.querySelector("[data-ages]");
     var price = form.querySelector("[data-price]");
     var save = form.querySelector("[data-save]");
@@ -627,10 +681,8 @@
       model.poolRate = calc.cents(field("poolRate").value);
       model.jacuzziDays = Number(field("jacuzziDays").value) || 0;
       model.jacuzziRate = calc.cents(field("jacuzziRate").value);
-      model.ages = [];
-      agesBox.querySelectorAll("input").forEach(function (input) {
-        model.ages.push(input.value === "" ? "" : Number(input.value));
-      });
+      // Ages are no longer typed (3 counters); old ages are kept as they were.
+      model.children = (model.kids4to11 || 0) + (model.kidsUnder4 || 0);
     }
 
     function readPrice() {
@@ -640,6 +692,9 @@
         var box = price.querySelector("[name='" + name + "']");
         if (box) model[name] = box.checked;
       });
+      var main = price.querySelector("[name='" + (kind === "airbnb" ? "room" : (kind === "booking" ? "total" : "tarif")) + "']");
+      // A typed 0 is a free stay (« Offert »); an empty field is a missing amount.
+      model.mainTyped = !!(main && String(main.value).replace(/\s|\u00A0/g, "") !== "");
       if (kind === "airbnb") {
         model.room = calc.cents(price.querySelector("[name='room']").value);
         model.reduction = calc.cents(price.querySelector("[name='reduction']").value);
@@ -669,6 +724,7 @@
 
     function amountInput(name, label, value, negative) {
       var shown = amountText(value);
+      if (!shown && model.freeStay && (name === "room" || name === "total" || name === "tarif")) shown = "0";
       return '<label class="money-row"><span class="lbl">' + label + '</span><span class="amount">'
         + (negative ? '<i>−</i>' : '')
         + '<input class="amt" name="' + name + '" inputmode="decimal" autocomplete="off" value="' + esc(shown) + '">'
@@ -676,6 +732,8 @@
     }
 
     function paintAges() {
+      agesBox.innerHTML = "";
+      return;
       var html = "";
       for (var i = 0; i < model.children; i++) {
         var value = model.ages[i] == null ? "" : model.ages[i];
@@ -778,7 +836,8 @@
 
     function paintSteps() {
       form.querySelector("[data-adults]").textContent = String(model.adults);
-      form.querySelector("[data-children]").textContent = String(model.children);
+      form.querySelector("[data-kids4to11]").textContent = String(model.kids4to11 || 0);
+      form.querySelector("[data-kids-under4]").textContent = String(model.kidsUnder4 || 0);
       form.querySelector("[data-pool-days]").textContent = String(model.poolDays);
       form.querySelector("[data-jacuzzi-days]").textContent = String(model.jacuzziDays);
       field("poolDays").value = String(model.poolDays);
@@ -836,10 +895,10 @@
         var key = step.getAttribute("data-step");
         var dir = Number(step.getAttribute("data-dir"));
         if (key === "adults") model.adults = Math.max(1, Math.min(16, model.adults + dir));
-        if (key === "children") {
+        if (key === "kids4to11" || key === "kidsUnder4") {
           readCommon();
-          model.children = Math.max(0, Math.min(8, model.children + dir));
-          paintAges();
+          model[key] = Math.max(0, Math.min(8, (model[key] || 0) + dir));
+          model.children = (model.kids4to11 || 0) + (model.kidsUnder4 || 0);
         }
         if (key === "poolDays") {
           var poolNights = calc.nights(model.arrival, model.departure);
@@ -896,7 +955,9 @@
     });
     form.addEventListener("focusout", function (event) {
       if (!event.target.classList || !event.target.classList.contains("amt")) return;
-      event.target.value = amountText(calc.cents(event.target.value));
+      var typed = String(event.target.value).replace(/\s|\u00A0/g, "");
+      // A typed 0 stays visible (free stay); empty stays empty.
+      event.target.value = typed !== "" && !calc.cents(typed) ? "0" : amountText(calc.cents(event.target.value));
     });
     // Field to scroll to and focus for a validation message.
     function badField(message) {
@@ -935,14 +996,18 @@
       var nights = calc.nights(model.arrival, model.departure);
       var message = "";
       if (!model.nom) message = "Indiquez le nom.";
-      else if (!model.telephone) message = "Indiquez le téléphone WhatsApp.";
+      // Editing (e.g. a Gmail stay without phone): the phone may stay empty.
+      else if (!model.telephone && !existing) message = "Indiquez le téléphone WhatsApp.";
       else if (!model.arrival || !model.departure || nights < 1) message = "Indiquez des dates d’arrivée et de départ.";
       else if (sourceInfo(model.source) && sourceInfo(model.source).askName && !model.agency) message = AGENCY_ERROR;
-      else if (sourceKind(model.source) === "airbnb" && !model.room) message = "Indiquez les frais de chambre.";
-      else if (sourceKind(model.source) === "booking" && !model.total) message = "Indiquez le montant total.";
-      else if (sourceKind(model.source) === "direct" && !model.tarif) message = "Indiquez le tarif total.";
+      else if (sourceKind(model.source) === "airbnb" && !model.room && !model.mainTyped) message = "Indiquez les frais de chambre.";
+      else if (sourceKind(model.source) === "booking" && !model.total && !model.mainTyped) message = "Indiquez le montant total.";
+      else if (sourceKind(model.source) === "direct" && !model.tarif && !model.mainTyped) message = "Indiquez le tarif total.";
       else if ((model.poolOffert || model.jacuzziOffert) && nights < 1) message = "Indiquez les dates pour le chauffage offert.";
       if (message) { showError(message); return; }
+      // Amount 0 typed on purpose: free stay, shown « Offert » (Stats: nights, no revenue).
+      var mainCents = sourceKind(model.source) === "airbnb" ? model.room : (sourceKind(model.source) === "booking" ? model.total : model.tarif);
+      model.freeStay = !!model.mainTyped && !mainCents;
       syncOffers();
       error.textContent = "";
       if (!stayId) stayId = calc.newId();
@@ -992,6 +1057,11 @@
   function priceBlock(stay) {
     var nights = stay.nights;
     var kind = sourceKind(stay.source);
+    if (stay.freeStay) {
+      return '<section class="block" data-free-stay><p class="kicker">Tarif</p>'
+        + '<p class="money-row"><span class="lbl">Séjour</span><strong>Offert</strong></p>'
+        + offersBlock(stay) + '</section>';
+    }
     if (kind === "airbnb") {
       return '<section class="block"><p class="kicker">Revenus Airbnb</p>'
         + moneyRow("Frais de chambre pour " + nights + " nuits", stay.room)
@@ -1070,7 +1140,7 @@
     var url = portalUrl(stay);
     if (!url) askKey(stay, bootFiche);
     root.innerHTML = '<a class="back" href="sejours.html">‹ Séjours</a>'
-      + '<div class="who"><h1>' + esc(stay.nom) + '</h1><span class="chips"><span class="chip ' + chipClass(status) + '">' + chipLabel(status) + '</span><span class="chip is-source">' + esc(sourceLabel(stay)) + '</span></span></div>'
+      + '<div class="who"><h1>' + esc(stay.nom) + '</h1><span class="chips"><span class="chip ' + chipClass(status) + '">' + chipLabel(status) + '</span><span class="chip is-source">' + esc(sourceLabel(stay)) + '</span>' + (stay.freeStay ? '<span class="chip is-paye" data-free-chip>Offert</span>' : '') + '</span></div>'
       + '<p class="meta-line">' + esc(calc.dayText(stay.arrival, true) + " → " + calc.dayText(stay.departure, true)) + '</p>'
       + '<p class="meta-line">' + esc(composition(stay) + " · " + stay.nights + " nuits") + '</p>'
       + priceBlock(stay)

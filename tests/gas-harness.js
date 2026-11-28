@@ -51,6 +51,7 @@ class FakeSheet {
   }
   appendRow(values) { this.rows.push(values.slice()); if (this.rows.length > this.maxRows) this.maxRows = this.rows.length; }
   insertRowBefore(r) { this.rows.splice(r - 1, 0, []); this.maxRows += 1; }
+  insertRowsAfter(r, n) { this.maxRows += n; }
   setFrozenRows() {}
   deleteRow(r) { this.rows.splice(r - 1, 1); this.maxRows -= 1; }
 }
@@ -101,7 +102,7 @@ function makeSandbox(opts) {
       },
     },
     SpreadsheetApp: {
-      openById: () => ss,
+      openById: (id) => { calls.openById = (calls.openById || []).concat([id]); return ss; },
       newDataValidation: () => { const b = { requireValueInList: () => b, setAllowInvalid: () => b, build: () => ({}) }; return b; },
     },
     ContentService: {
@@ -114,7 +115,23 @@ function makeSandbox(opts) {
     },
     MailApp: { sendEmail: () => { calls.mail++; } },
     UrlFetchApp: { fetch: (url, o) => { calls.fetch.push(url); return opts.fetch ? opts.fetch(url, o) : { getResponseCode: () => 500, getContentText: () => "{}" }; } },
-    Logger: { log() {} },
+    Logger: { log(m) { calls.log = calls.log || []; calls.log.push(String(m)); } },
+    // Gmail (import button): opts.gmail = [{ id, from, subject, date, body }].
+    // search() returns one thread per matching message (by sender).
+    GmailApp: {
+      search: (q, start) => {
+        if (start) return [];
+        const list = (opts.gmail || []).filter((m) => (/airbnb/.test(q) ? /airbnb/i.test(m.from) : /booking/i.test(m.from)));
+        calls.gmail = (calls.gmail || 0) + 1;
+        return list.map((m) => ({ getMessages: () => [{ getId: () => m.id, getFrom: () => m.from, getSubject: () => m.subject, getDate: () => new Date(m.date), getPlainBody: () => m.body }] }));
+      },
+    },
+    // Triggers (installRecapTrigger / stagingCheck); nothing runs.
+    ScriptApp: {
+      getProjectTriggers: () => (calls.triggers || []).map((fn) => ({ getHandlerFunction: () => fn })),
+      deleteTrigger: (t) => { calls.triggers = (calls.triggers || []).filter((fn) => fn !== t.getHandlerFunction()); },
+      newTrigger: (fn) => { const b = { timeBased: () => b, everyDays: () => b, everyHours: () => b, atHour: () => b, inTimezone: () => b, create: () => { calls.triggers = (calls.triggers || []).concat([fn]); } }; return b; },
+    },
   };
   vm.createContext(ctx);
   vm.runInContext(opts.source || fs.readFileSync(opts.code || CODE, "utf8"), ctx, { filename: "Code.gs" });

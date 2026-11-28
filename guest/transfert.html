@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/portal.css?v=20261125n">
+<link rel="stylesheet" href="css/portal.css?v=20261128d">
 </head>
 <body class="page-request">
 <a class="skip-link" href="#contenu">Aller au contenu</a>
@@ -64,9 +64,9 @@
 <div class="field"><label for="origin" data-origin-label>Ville de provenance</label><input id="origin" name="origin_city" placeholder="Paris" autocomplete="off" required></div>
 </div>
 <div class="baby-row">
-<span>Siège bébé</span>
-<span class="baby-controls"><span class="stepper" data-baby-step hidden><button type="button" data-step="baby" data-dir="-1" aria-label="Moins de sièges bébé">−</button><span data-baby-count>1</span><button type="button" data-step="baby" data-dir="1" aria-label="Plus de sièges bébé">+</button></span><label class="switch"><input type="checkbox" name="baby_seat"><i></i></label></span>
-<input type="hidden" name="baby_seats" value="1">
+<span>Siège bébé<small class="baby-hint">50 MAD le siège</small></span>
+<span class="baby-controls"><span class="stepper" data-baby-step><button type="button" data-step="baby" data-dir="-1" aria-label="Moins de sièges bébé">−</button><span data-baby-count aria-live="polite">0</span><button type="button" data-step="baby" data-dir="1" aria-label="Plus de sièges bébé">+</button></span></span>
+<input type="hidden" name="baby_seats" value="0">
 </div>
 <button type="button" class="comment-toggle" data-comment-toggle>Ajouter un commentaire</button>
 <div class="field" data-comment hidden><textarea id="comment" name="comment" rows="2" aria-label="Commentaire"></textarea></div>
@@ -76,7 +76,7 @@
 <p class="price-break" data-price-break></p>
 <p class="vehicle-split" data-vehicle-split hidden></p>
 </div>
-<button class="request-submit" type="submit" data-transfer-submit><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.41-.14-.95-.32-1.64-.63-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.16-1.54-1.16-2.94s.73-2.08 1-2.37c.24-.26.64-.38.85-.38h.61c.2 0 .46-.04.72.55.27.64.9 2.2.98 2.36.08.16.13.35.03.56-.1.21-.15.34-.3.52-.14.18-.3.4-.43.53-.14.14-.29.3-.12.58.16.28.73 1.2 1.57 1.95 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.17-.19.7-.81.89-1.09.19-.28.38-.23.64-.14.26.09 1.66.78 1.94.92.28.14.47.21.54.33.07.12.07.68-.17 1.36z"/></svg>Envoyer la demande</button>
+<button class="request-submit" type="submit" data-transfer-submit><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.41-.14-.95-.32-1.64-.63-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.16-1.54-1.16-2.94s.73-2.08 1-2.37c.24-.26.64-.38.85-.38h.61c.2 0 .46-.04.72.55.27.64.9 2.2.98 2.36.08.16.13.35.03.56-.1.21-.15.34-.3.52-.14.18-.3.4-.43.53-.14.14-.29.3-.12.58.16.28.73 1.2 1.57 1.95 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.17-.19.7-.81.89-1.09.19-.28.38-.23.64-.14.26.09 1.66.78 1.94.92.28.14.47.21.54.33.07.12.07.68-.17 1.36z"/></svg>Envoyer ma demande</button>
 </form>
 </section>
 <section data-panel="city" hidden>
@@ -94,7 +94,7 @@
 </div>
 <div class="field"><label for="city-destination">Destination</label><input id="city-destination" name="destination" autocomplete="off" required></div>
 </div>
-<button class="request-submit" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.41-.14-.95-.32-1.64-.63-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.16-1.54-1.16-2.94s.73-2.08 1-2.37c.24-.26.64-.38.85-.38h.61c.2 0 .46-.04.72.55.27.64.9 2.2.98 2.36.08.16.13.35.03.56-.1.21-.15.34-.3.52-.14.18-.3.4-.43.53-.14.14-.29.3-.12.58.16.28.73 1.2 1.57 1.95 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.17-.19.7-.81.89-1.09.19-.28.38-.23.64-.14.26.09 1.66.78 1.94.92.28.14.47.21.54.33.07.12.07.68-.17 1.36z"/></svg>Envoyer la demande</button>
+<button class="request-submit" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.41-.14-.95-.32-1.64-.63-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.16-1.54-1.16-2.94s.73-2.08 1-2.37c.24-.26.64-.38.85-.38h.61c.2 0 .46-.04.72.55.27.64.9 2.2.98 2.36.08.16.13.35.03.56-.1.21-.15.34-.3.52-.14.18-.3.4-.43.53-.14.14-.29.3-.12.58.16.28.73 1.2 1.57 1.95 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.17-.19.7-.81.89-1.09.19-.28.38-.23.64-.14.26.09 1.66.78 1.94.92.28.14.47.21.54.33.07.12.07.68-.17 1.36z"/></svg>Envoyer ma demande</button>
 </form>
 </section>
 <section data-panel="rental" hidden>
@@ -136,7 +136,7 @@
 <button type="button" class="comment-toggle" data-comment-toggle>Ajouter un commentaire</button>
 <div class="field" data-comment hidden><textarea id="rental-comment" name="comment" rows="2" aria-label="Commentaire"></textarea></div>
 </div>
-<button class="request-submit" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.41-.14-.95-.32-1.64-.63-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.16-1.54-1.16-2.94s.73-2.08 1-2.37c.24-.26.64-.38.85-.38h.61c.2 0 .46-.04.72.55.27.64.9 2.2.98 2.36.08.16.13.35.03.56-.1.21-.15.34-.3.52-.14.18-.3.4-.43.53-.14.14-.29.3-.12.58.16.28.73 1.2 1.57 1.95 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.17-.19.7-.81.89-1.09.19-.28.38-.23.64-.14.26.09 1.66.78 1.94.92.28.14.47.21.54.33.07.12.07.68-.17 1.36z"/></svg>Envoyer la demande</button>
+<button class="request-submit" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.83c0 1.74.46 3.44 1.34 4.94L2 22l5.39-1.4a10 10 0 0 0 4.65 1.18h.01c5.46 0 9.89-4.4 9.89-9.83C21.94 6.4 17.5 2 12.04 2zm5.76 13.95c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.81-.11-.41-.14-.95-.32-1.64-.63-2.88-1.24-4.76-4.14-4.9-4.33-.14-.19-1.16-1.54-1.16-2.94s.73-2.08 1-2.37c.24-.26.64-.38.85-.38h.61c.2 0 .46-.04.72.55.27.64.9 2.2.98 2.36.08.16.13.35.03.56-.1.21-.15.34-.3.52-.14.18-.3.4-.43.53-.14.14-.29.3-.12.58.16.28.73 1.2 1.57 1.95 1.08.96 1.99 1.26 2.27 1.4.28.14.44.12.6-.07.17-.19.7-.81.89-1.09.19-.28.38-.23.64-.14.26.09 1.66.78 1.94.92.28.14.47.21.54.33.07.12.07.68-.17 1.36z"/></svg>Envoyer ma demande</button>
 </form>
 </section>
 <section class="confirm" data-confirm hidden>
@@ -150,12 +150,12 @@
 </section>
 </div>
 </main>
-<script src="js/guest-shell.js?v=20261125n" data-home="./"></script>
+<script src="js/guest-shell.js?v=20261128d" data-home="./"></script>
 <script src="../js/config.js"></script>
-<script src="js/portal.js?v=20261125n"></script>
-<script src="../js/vz-fields.js?v=20261125n"></script>
-<script src="../js/vz-api.js?v=20261125n"></script>
-<script src="js/guest-stay.js?v=20261125n"></script>
-<script src="js/requests.js?v=20261125n"></script>
+<script src="js/portal.js?v=20261128d"></script>
+<script src="../js/vz-fields.js?v=20261128d"></script>
+<script src="../js/vz-api.js?v=20261128d"></script>
+<script src="js/guest-stay.js?v=20261128d"></script>
+<script src="js/requests.js?v=20261128d"></script>
 </body>
 </html>

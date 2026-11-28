@@ -208,7 +208,12 @@ test("LINK: Encaisser marked paid in admin → guest Récapitulatif shows it set
   await g.goto(srv.origin + "/guest/recap.html");
   await g.locator("[data-settled]:not([hidden])").waitFor({ timeout: 15000 });
   assert.match(await g.locator("[data-settled]").innerText(), /Réglé à la villa[\s\S]*Réglé le/);
-  assert.equal(await g.locator("[data-bill-card]").isHidden(), true, "nothing left to pay");
+  // Settled: the detail stays visible (pool heating 3 × 60 € = 180 €), « Total réglé », rate; no payment buttons.
+  const bill = await g.locator("[data-bill-card]").innerText();
+  assert.match(bill, /À RÉGLER À LA VILLA[\s\S]*Chauffage piscine[\s\S]*180\s€[\s\S]*Total réglé[\s\S]*180\s€/);
+  assert.equal(await g.locator(".pay-choice").isHidden(), true, "no payment buttons once settled");
+  assert.match(await g.locator(".recap-rate").innerText(), /1\s€ = 10\sMAD/); // audit 28/11 point 8
+  assert.match(await g.locator("[data-settled]").innerText(), /180\s€/);
   await shot(g, "recap-after-encaissement.png");
 });
 

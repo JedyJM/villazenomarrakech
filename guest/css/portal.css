@@ -799,7 +799,7 @@ html.is-keyboard .bottom-nav {
 }
 
 .page-request { padding-bottom: calc(var(--nav-space) + 16px); }
-.page-meal { padding-bottom: calc(var(--nav-space) + 92px); }
+.page-meal { padding-bottom: calc(var(--nav-space) + 132px); }
 .meal-dock {
   position: fixed;
   left: 0;
@@ -1258,7 +1258,7 @@ html.is-kb-open body { padding-bottom: calc(var(--kb-space, 0px) + 24px) !import
   line-height: 22px;
 }
 .page-meal .meal-allergies textarea::placeholder { color: var(--muted); font-family: var(--sans); font-size: 16px; opacity: 1; }
-.meal-dock { padding: 0 0 8px; background: var(--bg); }
+.meal-dock { padding: 8px 0 8px; background: var(--bg); border-top: 1px solid rgba(28, 25, 22, 0.08); }
 .meal-dock .meal-send { width: calc(100% - 24px); margin: 8px 12px 0; }
 .page-meal .meal-send { height: 48px; margin-top: 0; border-radius: 16px; background: #6b3022; font-size: 0.86rem; white-space: nowrap; }
 .page-meal .meal-send .meal-arrow { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -1527,6 +1527,7 @@ input, select, textarea,
   border-top: 1px solid rgba(28, 25, 22, 0.08);
 }
 .baby-row > span:first-child { font-size: 0.92rem; }
+.baby-row .baby-hint { display: block; margin-top: 0.1rem; font-size: 0.74rem; color: var(--muted); }
 .baby-controls { display: flex; align-items: center; gap: 0.55rem; margin-left: auto; }
 [data-baby-step][hidden] { display: none !important; }
 .stepper { display: flex; align-items: center; gap: 0.35rem; }
@@ -1761,7 +1762,7 @@ a.request-submit:active { color: var(--paper); text-decoration: none; }
 }
 .confirm-list div:first-child { border-top: 0; }
 .confirm-list dt { margin: 0; color: var(--muted); font-weight: 400; flex: none; }
-.confirm-list dd { margin: 0; min-width: 0; color: var(--ink); font-weight: 500; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.confirm-list dd { margin: 0; min-width: 0; color: var(--ink); font-weight: 500; text-align: right; overflow-wrap: anywhere; }
 .heating {
   margin: 0 0 10px;
   padding: 12px 14px;
@@ -2075,7 +2076,7 @@ a.guide-row .ext { margin-left: auto; width: 13px; height: 13px; color: var(--mu
 }
 .recap-sum b small { font-family: var(--sans); }
 .recap-lines strong,
-.recap-lines em { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recap-lines em { display: block; overflow-wrap: anywhere; }
 .recap-lines strong { font-size: 0.75rem; font-weight: 600; font-style: normal; line-height: 1.25; }
 .recap-lines em { color: var(--muted); font-size: 0.66rem; font-style: normal; line-height: 1.25; }
 .recap-card.is-paid .recap-lines em { color: #8a8178; }
@@ -2954,3 +2955,109 @@ input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, t
 .demand-state[data-api-error], .send-status.is-error { color: #8c3f2a; }
 .send-status.is-ok { color: #1d6b3a; }
 .api-retry { display: inline-block; margin-left: 0.5rem; min-height: 36px; padding: 0 0.9rem; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font: inherit; font-size: 0.9rem; white-space: nowrap; cursor: pointer; touch-action: manipulation; }
+
+/* Restauration (2026-11-27, logic only, current style): breakfast tabs,
+   extras, guests summary + « Modifier », total line. */
+.bf-tabs.segments { margin: 0 0 10px; }
+.bf-extras { display: grid; gap: 10px; }
+.meal-guests .meal-edit { border: 0; background: transparent; padding: 4px 2px; font: inherit; font-weight: 600; color: var(--bronze, #8a6a43); text-decoration: underline; text-underline-offset: 2px; }
+.meal-total { margin: 0 0 6px; text-align: center; font-weight: 600; }
+
+/* Spa brochure (Massages & soins): button under the notes, full-screen viewer
+   (maquette ms-brochure, audit 2026-11-28 point 6). */
+.brochure-notes { position: relative; }
+.brochure-open {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--terracotta);
+  font: 500 0.78rem/1 var(--sans, inherit);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.brochure-open svg { width: 15px; height: 15px; flex: none; }
+.brochure-open .stroke { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.brochure-notes .segment-notes { padding-bottom: 0; }
+html.is-brochure, html.is-brochure body { overflow: hidden; }
+.brochure {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #1e1a17;
+  color: #f5efe6;
+  overscroll-behavior: contain;
+}
+.brochure[open] { display: flex; flex-direction: column; }
+.brochure::backdrop { background: #1e1a17; }
+.brochure-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+}
+.brochure-head h2 { margin: 0; font-family: "Playfair Display", Georgia, serif; font-weight: 400; font-size: 1.2rem; color: #f5efe6; }
+.brochure-close {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: #e2c9a6;
+  font: 500 0.85rem/1 inherit;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.brochure-pages {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0 16px;
+  list-style: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.brochure-pages::-webkit-scrollbar { display: none; }
+.brochure-pages:focus { outline: none; }
+.brochure-page { flex: none; width: calc(100vw - 32px); max-width: 100%; scroll-snap-align: center; scroll-snap-stop: always; }
+.brochure-page img { display: block; width: 100%; height: auto; max-height: calc(100dvh - 150px); object-fit: contain; border-radius: 4px; background: #2a2420; }
+.brochure-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 10px 0 calc(14px + env(safe-area-inset-bottom));
+}
+.brochure-arrow {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(226, 201, 166, 0.45);
+  border-radius: 50%;
+  background: none;
+  color: #e2c9a6;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.brochure-arrow:disabled { opacity: 0.3; cursor: default; }
+.brochure-dots { display: flex; gap: 7px; }
+.brochure-dots i { width: 6px; height: 6px; border-radius: 50%; background: #5a5048; }
+.brochure-dots i.is-on { background: #e2c9a6; }

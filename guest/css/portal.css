@@ -1527,6 +1527,7 @@ input, select, textarea,
   border-top: 1px solid rgba(28, 25, 22, 0.08);
 }
 .baby-row > span:first-child { font-size: 0.92rem; }
+.baby-row .baby-hint { display: block; margin-top: 0.1rem; font-size: 0.74rem; color: var(--muted); }
 .baby-controls { display: flex; align-items: center; gap: 0.55rem; margin-left: auto; }
 [data-baby-step][hidden] { display: none !important; }
 .stepper { display: flex; align-items: center; gap: 0.35rem; }

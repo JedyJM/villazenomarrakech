@@ -34,3 +34,24 @@ test("audit 28/11 point 4: French contacts match the validated mock (no landline
     assert.deepEqual(shown, numbers, name);
   }
 });
+
+test("audit 28/11 point 8: service pages show MAD instead of DH, prices unchanged; € pages untouched", () => {
+  const massage = read("guest/massage.html");
+  const activites = read("guest/activites.html");
+  for (const [name, html] of [["massage", massage], ["activites", activites], ["transfert", read("guest/transfert.html")], ["recap", read("guest/recap.html")]]) {
+    assert.doesNotMatch(html, /\bDH\b/, name + ": no DH left");
+  }
+  const soins = [...massage.matchAll(/<small>(?:[^<]*· )?(\d+) MAD<\/small>/g)].map((m) => Number(m[1]));
+  assert.deepEqual(soins, [300, 450, 450, 600, 450, 600, 500, 450, 450, 200, 250, 250, 300, 50, 150, 100, 150, 150, 100, 50, 80, 150], "massage prices unchanged");
+  // Every listed price equals the data-price used for the total.
+  const pairs = [...massage.matchAll(/data-price="(\d+)">\n<button[^>]*>.*?<small>(?:[^<]*· )?(\d+) MAD/g)];
+  assert.equal(pairs.length, 22);
+  for (const m of pairs) assert.equal(m[1], m[2]);
+  const exp = [...activites.matchAll(/<span class="(?:pick|mix)-price">(\d+) MAD<\/span>/g)].map((m) => Number(m[1]));
+  assert.deepEqual(exp, [300, 200, 300, 350, 200, 250], "experience prices unchanged");
+  assert.match(read("guest/recap.html"), /Taux appliqué&nbsp;: 1&nbsp;€ = 10&nbsp;MAD/);
+  assert.match(read("guest/transfert.html"), /Siège bébé<small class="baby-hint">50 MAD le siège<\/small>/);
+  const req = read("guest/js/requests.js");
+  assert.match(req, /babySeat: 50,/, "baby seat price unchanged");
+  assert.match(req, /bandSmall: 350,\s*bandLarge: 450,/, "transfer prices unchanged");
+});

@@ -49,7 +49,9 @@
     var frac = dhCents % 100;
     var text = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");
     if (frac) text += "," + (frac < 10 ? "0" : "") + frac;
-    return (neg ? "−" : "") + text + "\u00A0DH";
+    // Récap: euros with the MAD equivalent (decisions 2026-11-28 08:18 / 08:46).
+    // The English page (not reworked yet) keeps its DH wording.
+    return (neg ? "−" : "") + text + (isEn() ? "\u00A0DH" : "\u00A0MAD");
   }
   function pad(n) { return (n < 10 ? "0" : "") + n; }
   // Local date (+ time when given). hasTime is false when there is no

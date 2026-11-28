@@ -148,3 +148,47 @@ test("audit 28/11 point 2: the English page (untouched, switch) still sends its 
     assert.deepEqual(P.errors, []);
   } finally { await P.ctx.close(); }
 });
+
+test("audit 28/11 point 8: MAD on services (screen, WhatsApp), récap in € with the MAD equivalent, meals still in €", async () => {
+  const b = createBackend();
+  const P = await phone(srv.origin, b);
+  const page = P.page;
+  try {
+    // Transfer: 2 passengers + 1 seat.
+    await openTransfer(P, b, b.STAY_ID);
+    await page.click('[data-step="baby"][data-dir="1"]');
+    assert.equal(await page.textContent("[data-price-total]"), "Total 400 MAD");
+    assert.equal(await page.textContent("[data-price-break]"), "1 véhicule · 1–4 pers. 350 MAD + 1 siège bébé 50 MAD");
+    await fillAirport(page);
+    await page.click("[data-transfer-submit]");
+    await page.locator("[data-send-status].is-ok").waitFor({ timeout: 15000 });
+    assert.match(waText(P.wa[P.wa.length - 1]), /Total : 400 MAD/);
+    assert.match(await page.textContent("[data-confirm-list]"), /Total\s*400 MAD/);
+    assert.doesNotMatch(await page.textContent("main"), /\bDH\b/);
+    // Massages: listed and total in MAD.
+    await page.goto(srv.origin + "/guest/massage.html");
+    await page.click("[data-soin='decouverte'] .soin-pick");
+    assert.match(await page.textContent("[data-soin='decouverte']"), /300 MAD/);
+    assert.match(await page.textContent("[data-massage-form] [data-price-total]"), /Total 300 MAD/);
+    // Experiences.
+    await page.goto(srv.origin + "/guest/activites.html");
+    await page.locator("input[name='activity'][value='quad']").check({ force: true });
+    await page.click('[data-count="quad1"][data-dir="1"]');
+    assert.match(await page.textContent("[data-activity-form] [data-price-total]"), /Total 300 MAD/);
+    assert.doesNotMatch(await page.textContent("main"), /\bDH\b/);
+    // Meals unchanged: euros.
+    await page.goto(srv.origin + "/guest/restauration.html");
+    assert.match(await page.textContent("main"), /€/);
+    assert.doesNotMatch(await page.textContent("main"), /\bMAD\b|\bDH\b/);
+    // Récap: € amounts, « soit … MAD », rate in MAD (pool heating 3 × 60 € = 180 €).
+    await page.goto(srv.origin + "/guest/recap.html");
+    await page.locator("[data-bill] .recap-sum").waitFor({ timeout: 15000 });
+    const bill = await page.textContent("[data-bill]");
+    assert.match(bill, /180 €/);
+    assert.match(bill, /soit 1 800 MAD/);
+    assert.equal(await page.textContent(".recap-rate"), "Taux appliqué : 1 € = 10 MAD");
+    assert.doesNotMatch(await page.textContent("main"), /\bDH\b/);
+    await shot(page, "audit-p8-recap.png");
+    assert.deepEqual(P.errors, []);
+  } finally { await P.ctx.close(); }
+});

@@ -217,7 +217,7 @@
   }
 
   function money(amount) {
-    return amount + (isEn() ? "\u00A0MAD" : "\u00A0DH");
+    return amount + "\u00A0MAD"; // services in MAD (decisions 2026-11-28 08:17 / 08:46)
   }
 
   function todayISO() {
@@ -281,7 +281,7 @@
   }
 
   function moneyFr(amount) {
-    return amount + " DH";
+    return amount + " MAD";
   }
 
   function staffName(guest) {

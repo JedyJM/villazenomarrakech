@@ -24,7 +24,6 @@
   var T = isEn ? {
     title: "You found Zen'O… almost.",
     lead: "Breakfast is on us, for your whole group.",
-    dates: "Book by 31 December 2026 for a stay between 1 January and 28 February 2027.",
     how: "Direct, Airbnb or Booking.com: just send your code to us on WhatsApp.",
     codeLabel: "Your code:",
     copy: "Copy code",
@@ -36,7 +35,6 @@
   } : {
     title: "Zen'O se cache encore…",
     lead: "Le petit-déjeuner est offert à tout le groupe.",
-    dates: "Réservez jusqu'au 31 décembre 2026 pour un séjour entre le 1er janvier et le 28 février 2027.",
     how: "En direct, sur Airbnb ou sur Booking.com : envoyez-nous votre code sur WhatsApp.",
     codeLabel: "Votre code :",
     copy: "Copier le code",
@@ -173,8 +171,16 @@
   inner.appendChild(close);
   inner.appendChild(title);
   inner.appendChild(lead);
-  inner.appendChild(para("zeno-promo-text", T.dates, isEn ? "28 February 2027." : "et le 28 février 2027."));
-  inner.appendChild(el("p", "zeno-promo-text", T.how));
+  // Forced break after « Booking.com : » / « Booking.com: »; same characters, one <br>.
+  var how = el("p", "zeno-promo-text zeno-promo-how");
+  var mark = isEn ? "Booking.com:" : "Booking.com :";
+  var at = T.how.indexOf(mark);
+  var cut = at + mark.length;
+  if (T.how.charAt(cut) === " ") cut += 1; // keep the space in the first text node
+  how.appendChild(document.createTextNode(T.how.slice(0, cut)));
+  how.appendChild(document.createElement("br"));
+  how.appendChild(document.createTextNode(T.how.slice(cut)));
+  inner.appendChild(how);
   inner.appendChild(codeBox);
   inner.appendChild(cta);
   inner.appendChild(para("zeno-promo-small", T.small, isEn ? "stays from 01/01 to 28/02/2027." : "séjours du 01/01 au 28/02/2027."));

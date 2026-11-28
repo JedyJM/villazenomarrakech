@@ -25,7 +25,6 @@ const TEXTS = {
     lines: [
       "Zen'O se cache encore…",
       "Le petit-déjeuner est offert à tout le groupe.",
-      "Réservez jusqu'au 31 décembre 2026 pour un séjour entre le 1er janvier et le 28 février 2027.",
       "En direct, sur Airbnb ou sur Booking.com : envoyez-nous votre code sur WhatsApp.",
       "Votre code : ZENO2027",
       "Réservations jusqu'au 31/12/2026, séjours du 01/01 au 28/02/2027.",
@@ -44,7 +43,6 @@ const TEXTS = {
     lines: [
       "You found Zen'O… almost.",
       "Breakfast is on us, for your whole group.",
-      "Book by 31 December 2026 for a stay between 1 January and 28 February 2027.",
       "Direct, Airbnb or Booking.com: just send your code to us on WhatsApp.",
       "Your code: ZENO2027",
       "Bookings made by 31/12/2026, stays from 01/01 to 28/02/2027.",
@@ -128,6 +126,29 @@ async function layout(page) {
       }
       return tops.length;
     }
+    function lineTexts(el) {
+      if (!el) return [];
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const rows = [];
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const str = node.textContent;
+        for (let i = 0; i < str.length; i++) {
+          const range = document.createRange();
+          range.setStart(node, i);
+          range.setEnd(node, i + 1);
+          const b = range.getBoundingClientRect();
+          if (!b.width && !b.height && str[i] !== " ") continue;
+          const top = Math.round((b.height ? b.top : (rows.length ? rows[rows.length - 1].top : 0)));
+          let row = rows.find((x) => Math.abs(x.top - top) <= 2);
+          if (!row) { row = { top, text: "" }; rows.push(row); }
+          row.text += str[i];
+        }
+      }
+      return rows.map((x) => x.text.replace(/\s+/g, " ").trim()).filter(Boolean);
+    }
+    const howEl = d.querySelector(".zeno-promo-how");
+    const howParts = lineTexts(howEl);
     return {
       vw, vh,
       docScrollW: document.documentElement.scrollWidth,
@@ -137,6 +158,9 @@ async function layout(page) {
       outside: out, minFont, minFontEl, targets,
       titleLines: lines(d.querySelector("#zeno-promo-title")),
       leadLines: lines(d.querySelector(".zeno-promo-lead")),
+      howLines: lines(howEl),
+      howLine1: howParts[0] || "",
+      howLine2: howParts[1] || "",
     };
   });
 }
@@ -205,6 +229,10 @@ for (const lang of ["fr", "en"]) {
         assert.equal(lay.targets.length, 3, "close, copy, WhatsApp");
         assert.equal(lay.titleLines, 1, "title must fit on one line, got " + lay.titleLines);
         assert.equal(lay.leadLines, 1, "subtitle must fit on one line, got " + lay.leadLines);
+        assert.ok(!text.includes("Réservez jusqu'au 31 décembre 2026") && !text.includes("Book by 31 December 2026"), "long dates sentence must be gone");
+        assert.equal(lay.howLines, 2, "how must be two lines (break after Booking.com), got " + lay.howLines);
+        assert.equal(lay.howLine2, lang === "en" ? "just send your code to us on WhatsApp." : "envoyez-nous votre code sur WhatsApp.", "WhatsApp instruction must be alone on the second line, got " + JSON.stringify(lay.howLine2));
+        assert.ok(lay.howLine1.indexOf("Booking.com") !== -1, "first how line keeps Booking.com, got " + JSON.stringify(lay.howLine1));
 
         await shot(page, `${lang}-${device}-open.png`);
 

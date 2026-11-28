@@ -8,7 +8,7 @@ const path = require("node:path");
 const { webkit, devices } = require("playwright");
 const { createBackend, ROOT } = require("./backend");
 
-const TYPES = { ".html": "text/html; charset=utf-8", ".js": "application/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".json": "application/json", ".ico": "image/x-icon", ".woff2": "font/woff2", ".mp4": "video/mp4" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "application/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".json": "application/json", ".ico": "image/x-icon", ".woff2": "font/woff2", ".ttf": "font/ttf", ".mp4": "video/mp4" };
 const SHOTS = process.env.VZ_SHOTS || (fs.existsSync("/workspace/shots") ? "/workspace/shots/bugfix" : path.join(__dirname, "out"));
 fs.mkdirSync(SHOTS, { recursive: true });
 

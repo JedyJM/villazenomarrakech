@@ -1,0 +1,157 @@
+/* Villa Zen'O — Système commun « Pisé & Palmeraie » v2 (28/11/2026)
+   S'applique aux NOUVELLES pages et sert de référence de contrôle ; les pages validées gardent zeno.css.
+   Source unique des jetons : couleurs, typo, espacements, composants.
+   Règle : aucune valeur en dur dans une page ; tout passe par ces variables. */
+@font-face{font-family:"Cardo";src:url(fonts/Cardo-Regular.ttf) format("truetype");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Cardo";src:url(fonts/Cardo-Italic.ttf) format("truetype");font-weight:400;font-style:italic;font-display:swap}
+@font-face{font-family:"DM Sans";src:url(fonts/DMSans-var.ttf) format("truetype");font-weight:100 1000;font-style:normal;font-display:swap}
+:root{
+  /* Couleurs : les 7 de la DA validée, rien d'autre (opacités permises) */
+  --chaux:#F5EFE6; --lin:#FBF8F3; --sable:#E4D8C6; --pise:#9C4F33;
+  --palmeraie:#2F3B2F; --encre:#231F1B; --taupe:#73685D;
+  --pise-08:rgba(156,79,51,.08); --palmeraie-10:rgba(47,59,47,.10);
+  --serif:"Cardo",Georgia,serif; --sans:"DM Sans",system-ui,sans-serif;
+  /* Espacements : échelle unique de 4 */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px;
+  --m:20px;            /* marge latérale, partout */
+  --gut:8px;           /* gouttière de grille, partout */
+  --r:6px;             /* rayon unique */
+  --line:1px solid var(--sable);
+  /* Typo (taille/interligne) */
+  --t-display:italic 400 34px/1.05 var(--serif);
+  --t-h1:400 28px/1.05 var(--serif);
+  --t-h2:400 18px/1.15 var(--serif);
+  --t-h3:400 17px/1.1 var(--serif);
+  --t-total:400 22px/1 var(--serif);
+  --t-body:400 14px/1.45 var(--sans);
+  --t-input:400 16px/1.2 var(--sans);
+  --t-btn:500 15px/1 var(--sans);
+  --t-sub:400 13px/1.3 var(--sans);
+  --t-label:500 12px/1 var(--sans);
+  --t-nav:500 12px/1.1 var(--sans);
+  --t-note:400 12px/1.3 var(--sans);
+  /* Hauteurs */
+  --h-field:52px; --h-btn:48px; --h-row:48px; --h-tab:72px; --hit:44px; --ico:22px; --gap-in:8px; --h-nav:58px;
+}
+@media (max-height:700px){:root{
+  --t-display:italic 400 28px/1.05 var(--serif); --t-h1:400 24px/1.05 var(--serif);
+  --t-h2:400 16px/1.15 var(--serif); --t-h3:400 15px/1.1 var(--serif); --t-total:400 20px/1 var(--serif);
+  --t-sub:400 12px/1.3 var(--sans);
+  --h-field:46px; --h-btn:44px; --h-row:44px; --h-tab:64px; --ico:20px; --s4:12px;
+}}
+@media (max-height:600px){:root{--h-field:44px; --h-row:44px; --h-tab:44px; --h-btn:44px; --s4:8px; --s3:8px; --gap-in:4px}}
+@media (min-height:780px){:root{--h-field:56px; --h-row:56px; --h-tab:88px; --h-btn:52px; --gap-in:10px}}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--chaux);color:var(--encre);font:var(--t-body);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;touch-action:manipulation}
+.ico{width:var(--ico);height:var(--ico);flex:none}
+.one{white-space:nowrap;overflow:hidden;text-overflow:clip}
+
+/* Coquille : écran unique, barre du bas dans le flux */
+.app{height:100svh;display:grid;grid-template-rows:1fr auto;overflow:hidden}
+.screen{min-height:0;display:flex;flex-direction:column}
+
+/* En-tête de page de service */
+.page{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:space-between;gap:var(--s3);padding:var(--s3) var(--m) var(--s3)}
+.grp{display:flex;flex-direction:column;gap:var(--gap-in);flex:none}
+.head{display:grid;grid-template-columns:var(--hit) 1fr;column-gap:var(--s2);align-items:center;flex:none;margin-left:-4px}
+.back{width:var(--hit);height:var(--hit);display:grid;place-items:center;color:var(--encre)}
+.back span{width:36px;height:36px;border:var(--line);border-radius:50%;display:grid;place-items:center}
+.back .ico{width:20px;height:20px}
+.h1{font:var(--t-h1)}
+.lead{grid-column:2;font:var(--t-sub);color:var(--taupe);margin-top:2px}
+.lead b{color:var(--encre);font-weight:500}
+
+/* Étiquette petites capitales */
+.label{font:var(--t-label);letter-spacing:.12em;text-transform:uppercase;color:var(--taupe)}
+
+/* Onglets illustrés (3 maximum, égaux) */
+.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gut);flex:none}
+.tab{height:var(--h-tab);border:var(--line);border-radius:var(--r);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--encre)}
+.tab .plume{width:calc(var(--h-tab) - 40px);height:calc(var(--h-tab) - 40px);min-width:20px;min-height:20px}
+.tab strong{font:500 13px/1.1 var(--sans)}
+.tab small{font:var(--t-note);color:var(--taupe)}
+.tab[aria-selected=true]{background:var(--palmeraie);border-color:var(--palmeraie);color:var(--lin)}
+.tab[aria-selected=true] small{color:rgba(251,248,243,.78)}
+/* Segment (2 à 4 choix texte) */
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border-bottom:var(--line);flex:none}
+.seg button{height:var(--hit);font:500 13px/1 var(--sans);color:var(--taupe);position:relative}
+.seg button[aria-selected=true]{color:var(--encre)}
+.seg button[aria-selected=true]::after{content:"";position:absolute;left:25%;right:25%;bottom:-1px;height:2px;background:var(--pise)}
+
+/* Champs */
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:var(--gut);flex:none}
+.field{flex:none;height:var(--h-field);border:var(--line);border-radius:var(--r);background:var(--lin);display:flex;align-items:center;gap:10px;padding:0 12px;min-width:0}
+.field>div{min-width:0}
+.field .ico{color:var(--taupe);width:20px;height:20px}
+.field .label{display:block;margin-bottom:4px;white-space:nowrap;letter-spacing:.08em}
+.field .val{font:var(--t-input);white-space:nowrap;overflow:hidden}
+.field .val.ph{color:var(--taupe)}
+.field .edit{margin-left:auto;font:500 13px/1 var(--sans);color:var(--palmeraie);text-decoration:underline;text-underline-offset:3px;padding:14px 0 14px 8px}
+.field.err{border-color:var(--pise)}
+.err-msg{display:flex;gap:6px;align-items:center;font:var(--t-note);color:var(--pise);margin-top:4px}
+.err-msg .ico{width:16px;height:16px}
+textarea.note,input.note{width:100%;height:var(--h-field);border:var(--line);border-radius:var(--r);background:var(--lin);padding:0 12px;font:var(--t-input);color:var(--encre);flex:none}
+.note::placeholder{color:var(--taupe)}
+
+/* Compteur : cercle visible 32 px, zone tactile 44 px */
+.count{height:var(--h-row);border:var(--line);border-radius:var(--r);background:var(--lin);display:flex;align-items:center;justify-content:space-between;padding:0 0 0 12px;flex:none}
+.count .lbl{font:400 14px/1.15 var(--sans)}
+.count .lbl small{display:block;font:var(--t-note);color:var(--taupe)}
+.stepper{display:flex;align-items:center}
+.stepper button{width:var(--hit);height:var(--hit);display:grid;place-items:center;position:relative;font:300 19px/1 var(--sans);color:var(--encre)}
+.stepper button::before{content:"";position:absolute;width:32px;height:32px;left:6px;top:6px;border:var(--line);border-radius:50%}
+.stepper output{min-width:20px;text-align:center;font:400 17px/1 var(--serif);font-variant-numeric:tabular-nums}
+.stepper.on output{color:var(--pise)}
+.stepper button:disabled{color:var(--sable)}
+
+/* Pied d'action */
+.action{flex:none}
+.total{display:flex;align-items:baseline;justify-content:space-between;white-space:nowrap;margin-bottom:var(--s2)}
+.total strong{font:var(--t-total);font-variant-numeric:tabular-nums}
+.total em{font:var(--t-note);font-style:normal;color:var(--taupe);margin-left:6px}
+.btn{width:100%;height:var(--h-btn);border-radius:var(--r);background:var(--palmeraie);color:var(--lin);font:var(--t-btn);letter-spacing:.02em;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn.sec{background:transparent;color:var(--palmeraie);border:1px solid var(--palmeraie)}
+.btn:disabled{background:var(--sable);color:var(--taupe)}
+.pay{font:var(--t-note);color:var(--taupe);text-align:center;margin-top:var(--s2)}
+.pay span{display:block;white-space:nowrap}
+
+/* Barre du bas : 5 entrées égales */
+.nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--lin);border-top:var(--line);padding:6px 2px calc(4px + env(safe-area-inset-bottom))}
+.nav a{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;min-height:48px;padding-top:2px;text-decoration:none;color:var(--taupe);font:var(--t-nav);text-align:center;position:relative;white-space:nowrap}
+.nav a span{display:block}
+.nav .ico{width:22px;height:22px}
+.nav a[aria-current]{color:var(--encre)}
+.nav a[aria-current]::before{content:"";position:absolute;top:-7px;width:20px;height:2px;background:var(--pise);border-radius:2px}
+
+/* Accueil : NON redessiné. Référence = site/accueil-plume.html + zeno.css (validé par Jedy). */
+
+/* Cartes, alertes, statuts, récap */
+.card{background:var(--lin);border:var(--line);border-radius:var(--r);padding:12px}
+.alert{display:flex;gap:10px;align-items:flex-start;background:var(--pise-08);border:1px solid var(--pise);border-radius:var(--r);padding:10px 12px;color:var(--encre);font:var(--t-sub)}
+.alert .ico{color:var(--pise);width:20px;height:20px}
+.alert b{color:var(--pise);font-weight:600}
+.status{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font:500 12px/1 var(--sans);white-space:nowrap}
+.status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.st-attente{background:var(--sable);color:var(--encre)}
+.st-confirmee{background:var(--palmeraie);color:var(--lin)}
+.st-terminee{background:transparent;border:var(--line);color:var(--taupe)}
+.st-annulee{background:transparent;color:var(--taupe);text-decoration:line-through}
+.recap{display:flex;align-items:baseline;gap:8px;padding:10px 0;border-bottom:var(--line);font:var(--t-body)}
+.recap .what{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recap .what small{display:block;font:var(--t-note);color:var(--taupe)}
+.recap .amt{font:400 17px/1 var(--serif);font-variant-numeric:tabular-nums;white-space:nowrap}
+:focus-visible{outline:2px solid var(--pise);outline-offset:2px}
+
+/* Écran compact (iPhone SE dans Safari, < 600 px de haut) : composants */
+@media (max-height:600px){
+  .tab small{display:none} .tab .plume{width:20px;height:20px}
+  .page{gap:4px;padding:8px var(--m)} .nav a{min-height:46px;gap:2px} .nav .ico{width:20px;height:20px} .nav{padding-top:5px}
+  .pay{margin-top:4px;line-height:1.2}
+  .action{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;align-items:center}
+  .total{display:block;margin:0} .total .label{display:block;margin-bottom:3px} .total strong{font-size:20px}
+  .action .pay{grid-column:1/-1}
+  .nav a{min-height:44px} .nav{padding:4px 2px calc(2px + env(safe-area-inset-bottom))}
+}

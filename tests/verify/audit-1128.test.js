@@ -13,7 +13,7 @@ test("audit 28/11 point 5: every guest page turns off iOS phone-number detection
   for (const name of ["acces", "confirmation", "demandes", "expire", "recap"]) assert.ok(pages.includes("guest/" + name + ".html"), name);
   for (const p of pages) {
     const head = read(p).split("</head>")[0];
-    assert.match(head, /<meta name="format-detection" content="telephone=no">/, p);
+    assert.match(head, /<meta name="format-detection" content="telephone=no(, date=no, address=no, email=no)?">/, p);
   }
 });
 

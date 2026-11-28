@@ -111,3 +111,32 @@ test("Wi-Fi & TV v3c : textes mot pour mot, un seul bloc, pictos copiés, aucun 
   noSecret("guest/wifi.html", html.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<script>[\s\S]*?<\/script>/g, ""));
   assert.doesNotMatch(html, /api\.qrserver|chart\.googleapis|quickchart|qr-code-generator/i, "QR généré localement");
 });
+
+test("Loisirs v3d : huit cartes dans l'ordre, textes mot pour mot, pictos copiés, rien d'inventé", () => {
+  const html = read("guest/loisirs.html");
+  const t = strip(html);
+  assert.match(html, /<title>Loisirs \| Villa Zen’O<\/title>/);
+  assert.match(html, /<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">/);
+  assert.match(html, /<a class="back" href="\.\/" aria-label="Accueil">/);
+  assert.match(html, /<h1 class="h1 one" data-one>Loisirs<\/h1><p class="lead one" data-one>Profiter des jeux\.<\/p>/);
+  assert.match(html, /<section class="tiles" aria-label="Loisirs de la villa">/);
+  const cards = [...html.matchAll(/<article class="tile">[\s\S]*?<h2 data-one>([^<]+)<\/h2><p data-lines="3">([^<]+)<\/p>/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(cards, [
+    ["Baby-foot", "Pour vos parties" + NB + ": un geste en douceur, les verres à l’écart."],
+    ["Ping-pong", "Prête pour une partie. Balles et raquettes retrouvent leur place."],
+    ["PlayStation" + NB + "5", "Pour vos soirées. Un simple arrêt suffit, sans la débrancher."],
+    ["Jeux de société", "À partager" + NB + ": Monopoly, Scrabble, échecs, poker…"],
+    ["Livres", "Au bar" + NB + ": beaux livres sur le Maroc et reportages photo."],
+    ["Game" + NB + "Boy Color", "Pokémon Rouge, pour un moment à vous, à l’abri des verres."],
+    ["Tapis de yoga", "Pour un moment à vous. Le tapis retrouvera sa place."]]);
+  assert.match(html, /<article class="tile close"><p data-lines="2">Chaque chose retrouvera sa place\.<\/p><\/article>/);
+  const plumes = [...html.matchAll(/<svg class="plume" aria-hidden="true"[\s\S]*?<\/svg>/g)].map((m) => m[0]);
+  assert.equal(plumes.length, 7);
+  ["baby-foot", "ping-pong", "manette", "echecs", "livres", "gameboy", "yoga"].forEach((f, i) => {
+    assert.equal(plumes[i].trim(), read("guest/systeme/pictos/plume/" + f + ".svg").replace("<svg ", '<svg class="plume" aria-hidden="true" ').trim(), f);
+  });
+  assert.doesNotMatch(html, /<details|class="todo"|class="menu|class="mrow/);
+  assert.doesNotMatch(t, /\bMAD\b|\bDH\b|pièce|€|à ranger|éteignez|doucement|merci de tout remettre/i);
+  assert.doesNotMatch(read("guest/systeme/loisirs.css").replace(/\/\*[\s\S]*?\*\//g, ""), /\.menu|\.mrow|\.todo|Italic|italic/);
+  noSecret("guest/loisirs.html", html.replace(/<svg[\s\S]*?<\/svg>/g, ""));
+});

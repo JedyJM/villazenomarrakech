@@ -95,3 +95,30 @@ for (const [name, w, h] of [["iPhone 16", 390, 844], ["iPhone SE", 375, 667]]) {
     await ctx.close();
   });
 }
+
+for (const [name, w, h, size, lines] of [["iPhone 16", 390, 844, "171.0x165.5", [3, 3, 3, 3, 3, 3, 3, 2]], ["iPhone SE", 375, 667, "164.5x123.1", [3, 3, 3, 2, 3, 3, 3, 2]]]) {
+  test("Loisirs v3d " + name + " : un écran, huit cartes égales, corps ≤ 3 lignes, clôture en DM Sans taupe", async () => {
+    const { ctx, page, errors } = await open(w, h, "/guest/loisirs.html");
+    const m = await page.evaluate(() => {
+      const s = document.querySelector(".screen"), nav = document.querySelector(".nav").getBoundingClientRect();
+      let under = 0;
+      document.querySelectorAll(".screen *").forEach((e) => { const r = e.getBoundingClientRect(); if (r.width && r.height) under = Math.max(under, Math.round(r.bottom - nav.top)); });
+      const ty = (e) => { const c = getComputedStyle(e); return [c.fontFamily, c.fontSize, c.fontStyle, c.color].join("|"); };
+      return { scroll: s.scrollHeight - s.clientHeight, under: Math.max(0, under), x: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        sizes: [...new Set([...document.querySelectorAll(".tile")].map((t) => { const r = t.getBoundingClientRect(); return r.width.toFixed(1) + "x" + r.height.toFixed(1); }))],
+        lines: [...document.querySelectorAll(".tile p")].map((e) => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size; }),
+        clipped: [...document.querySelectorAll(".tile")].filter((t) => t.scrollHeight > t.clientHeight + 1).length,
+        h2: [...document.querySelectorAll(".screen h1, .screen h2, .screen .lead")].filter((e) => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size !== 1; }).map((e) => e.textContent),
+        body: ty(document.querySelector(".tile p")), close: ty(document.querySelector(".tile.close p")) };
+    });
+    assert.equal(m.scroll, 0); assert.equal(m.under, 0); assert.equal(m.x, 0);
+    assert.deepEqual(m.sizes, [size], "huit cartes égales");
+    assert.deepEqual(m.lines, lines, "lignes par carte (maquette)");
+    assert.equal(m.clipped, 0, "aucune carte rognée");
+    assert.deepEqual(m.h2, [], "titres sur une ligne");
+    assert.equal(m.close, m.body, "clôture = corps des cartes");
+    assert.match(m.body, /^DM Sans.*\|normal\|rgb\(115, 104, 93\)$/);
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+}

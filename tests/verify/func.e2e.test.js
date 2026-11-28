@@ -307,7 +307,7 @@ test("5. home: renamed tiles (verb + object), Wi-Fi & TV and Loisirs cards, « M
     assert.doesNotMatch(wifi, /mot de passe netflix|identifiant\s*:|login\s*:/i);
     await shot(page, "func-5-wifi-tv.png");
     await page.goto(srv.origin + "/guest/loisirs.html");
-    assert.match(await page.locator("main").innerText(), /Baby-foot[\s\S]*Ping-pong[\s\S]*PS5[\s\S]*Jeux de société[\s\S]*Livres[\s\S]*Game Boy[\s\S]*Tapis de yoga/);
+    assert.match(await page.locator("main").innerText(), /Baby-foot[\s\S]*Ping-pong[\s\S]*PlayStation\s5[\s\S]*Jeux de société[\s\S]*Livres[\s\S]*Game\sBoy Color[\s\S]*Tapis de yoga/); // Loisirs v3d
     await shot(page, "func-5-loisirs.png");
     // Another page: the shared bottom bar says « Mehdi » too.
     await page.goto(srv.origin + "/guest/menage.html");

@@ -140,3 +140,43 @@ test("Loisirs v3d : huit cartes dans l'ordre, textes mot pour mot, pictos copié
   assert.doesNotMatch(read("guest/systeme/loisirs.css").replace(/\/\*[\s\S]*?\*\//g, ""), /\.menu|\.mrow|\.todo|Italic|italic/);
   noSecret("guest/loisirs.html", html.replace(/<svg[\s\S]*?<\/svg>/g, ""));
 });
+
+test("Nos adresses v3b : sept sections, « Rester connecté », un seul bouton chauffeur, huit liens inchangés", () => {
+  const html = read("guest/marrakech.html");
+  const t = strip(html);
+  assert.match(html, /<title>Découvrir Marrakech \| Villa Zen’O<\/title>/);
+  assert.match(html, /<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">/);
+  assert.match(html, /<a class="back" href="\.\/" aria-label="Accueil">/);
+  assert.match(html, /<h1 class="h1 one" data-one>Découvrir Marrakech<\/h1><p class="lead one" data-one>Nos bonnes adresses, pour votre séjour\.<\/p>/);
+  const secs = [...html.matchAll(/<section class="acc" id="acc-([a-z]+)"><button type="button" class="acc-btn" id="btn-\1" aria-expanded="false" aria-controls="p-\1"><span class="pic">([\s\S]*?)<\/span><h2 data-one>([^<]+)<\/h2>/g)];
+  assert.deepEqual(secs.map((m) => [m[1], m[3]]), [["sim", "Rester connecté"], ["change", "Taux de change"], ["majorelle", "Jardin Majorelle"], ["medina", "La médina"],
+    ["diner", "Dîner et spectacle"], ["mavenue", "M" + NB + "Avenue"], ["courses", "Vos courses"]]);
+  ["rester-connecte", "enveloppe", "majorelle", "souk", "restaurant", "babouches", "panier-courses"].forEach((f, i) => {
+    assert.equal(secs[i][2].trim(), read("guest/systeme/pictos/plume/" + f + ".svg").replace("<svg ", '<svg class="plume" aria-hidden="true" ').trim(), f);
+  });
+  for (const id of ["sim", "change", "majorelle", "medina", "diner", "mavenue", "courses"]) assert.match(html, new RegExp('<div class="panel" id="p-' + id + '" role="region" aria-labelledby="btn-' + id + '" hidden>'));
+  assert.equal((html.match(/<div class="orn" aria-hidden="true"><i><\/i><\/div>/g) || []).length, 6);
+  assert.doesNotMatch(html, /Cartes SIM|<details|avion|koutoubia/);
+  assert.equal((html.match(/<a [^>]*href="transfert\.html#ville"/g) || []).length, 1, "un seul lien chauffeur");
+  assert.match(html, /<div class="action"><a class="btn" href="transfert\.html#ville">[\s\S]*?<span>Réserver un chauffeur<\/span><\/a><\/div>/);
+  assert.equal((t.match(/Réserver un chauffeur/g) || []).length, 1);
+  const links = [...html.matchAll(/<a class="chip" href="([^"]+)" target="_blank" rel="noopener noreferrer"><span data-one>([^<]+)<\/span>/g)].map((m) => [m[2], m[1]]);
+  assert.deepEqual(links, [["Billets uniquement en ligne", "https://www.jardinmajorelle.com/"], ["Le Jardin", "https://lejardinmarrakech.com/"], ["Nomad", "https://nomadmarrakech.com/"],
+    ["BÔ ZIN", "https://bo-zin.com/"], ["Dar Soukkar", "https://www.darsoukkar.com/"], ["Safran by Koya", "https://safranmarrakech.com/"],
+    ["Comptoir Darna", "https://www.comptoirmarrakech.com/"], ["M" + NB + "Avenue", "https://m-avenue.ma/"]]);
+  assert.equal((html.match(/<a [^>]*target="_blank"/g) || []).length, 8);
+  for (const s of [
+    "À la sortie de l’aéroport, prenez une puce 4G" + NB + ": elle vous est offerte, et vous pourrez appeler et utiliser internet pendant tout votre séjour.",
+    "Pour le meilleur taux, rendez-vous à l’Hôtel Ali, et pensez à toujours demander un reçu.",
+    "Les billets se réservent uniquement sur internet" + NB + ": pensez à les acheter avant de partir.",
+    "Demandez à votre chauffeur de vous déposer vers 10" + NB + "h rue Dar El Bacha.",
+    "Faites-vous déposer vers 18" + NB + "h place Jemaa" + NB + "el-Fna.",
+    "Pour une soirée avec musique et spectacle, nous vous recommandons BÔ ZIN, Dar Soukkar, Safran by Koya ou le Comptoir Darna.",
+    "À environ 25" + NB + "minutes de la villa, M" + NB + "Avenue réunit des boutiques",
+    "À 7" + NB + "minutes de la villa, sur la route de Fès, vous trouverez Atacadao, un grand supermarché.",
+    "À 5" + NB + "minutes, Petromin Al Baraka est le meilleur boucher du quartier"]) assert.ok(t.includes(s), "texte : " + s);
+  assert.deepEqual([...html.matchAll(/<h3 class="kicker" data-one>([^<]+)<\/h3>/g)].map((m) => m[1]), ["Le matin", "En début de soirée"]);
+  assert.match(html, /setOpen\(b\.getAttribute\('aria-expanded'\)==='true'\?null:b\)/);
+  assert.doesNotMatch(html, /function place\(/, "pas de place() de La Villa");
+  noSecret("guest/marrakech.html", html.replace(/<svg[\s\S]*?<\/svg>/g, ""));
+});

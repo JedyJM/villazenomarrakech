@@ -122,3 +122,43 @@ for (const [name, w, h, size, lines] of [["iPhone 16", 390, 844, "171.0x165.5", 
     await ctx.close();
   });
 }
+
+for (const [name, w, h, row] of [["iPhone 16", 390, 844, 74], ["iPhone SE", 375, 667, 56]]) {
+  test("Nos adresses v3b " + name + " : fermé sans défilement, une section à la fois, rien sous le bouton, chauffeur → En ville", async () => {
+    const { ctx, page, errors } = await open(w, h, "/guest/marrakech.html");
+    const measure = () => page.evaluate(() => {
+      const s = document.querySelector(".screen"), sr = s.getBoundingClientRect(), a = document.querySelector(".action").getBoundingClientRect();
+      let under = 0;
+      document.querySelectorAll(".screen *").forEach((e) => { const r = e.getBoundingClientRect(); if (r.width && r.height && r.top < sr.bottom && r.bottom > sr.top) under = Math.max(under, Math.round(Math.min(r.bottom, sr.bottom) - a.top)); });
+      return { scroll: s.scrollHeight - s.clientHeight, under: Math.max(0, under), x: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        rows: [...new Set([...document.querySelectorAll(".acc-btn")].map((b) => Math.round(b.getBoundingClientRect().height)))],
+        open: [...document.querySelectorAll(".acc-btn[aria-expanded=true]")].map((b) => b.id), shown: [...document.querySelectorAll(".panel:not([hidden])")].map((p) => p.id),
+        sticky: getComputedStyle(document.querySelector(".stick")).position,
+        multi: [...document.querySelectorAll(".screen h1, .screen .lead, .screen h2, .screen h3, .chip span")].filter((e) => e.getClientRects().length && (() => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1; })()).map((e) => e.textContent) };
+    });
+    let m = await measure();
+    assert.equal(m.scroll, 0, "fermé : aucun défilement");
+    assert.equal(m.under, 0); assert.equal(m.x, 0);
+    assert.deepEqual(m.rows, [row], "rangées égales");
+    assert.deepEqual(m.open, []); assert.equal(m.sticky, "static");
+    await page.click("#btn-medina");
+    m = await measure();
+    assert.deepEqual(m.open, ["btn-medina"]); assert.deepEqual(m.shown, ["p-medina"]);
+    assert.ok(m.scroll > 0, "ouvert : défilement permis"); assert.equal(m.sticky, "sticky");
+    assert.deepEqual(m.multi, [], "titres, intertitres, pastilles sur une ligne");
+    await page.evaluate(() => { const s = document.querySelector(".screen"); s.scrollTop = s.scrollHeight; });
+    m = await measure();
+    assert.equal(m.under, 0, "bas de défilement : rien sous le bouton"); assert.equal(m.x, 0);
+    await page.click("#btn-mavenue");
+    m = await measure();
+    assert.deepEqual(m.open, ["btn-mavenue"]); assert.deepEqual(m.shown, ["p-mavenue"], "un seul panneau");
+    await page.click("#btn-mavenue");
+    m = await measure();
+    assert.deepEqual(m.open, []); assert.equal(m.scroll, 0, "tout refermé : plus de défilement");
+    await page.click(".action a.btn");
+    await page.waitForURL(/\/guest\/transfert\.html#ville$/);
+    await page.locator('[data-show="city"][aria-selected="true"]').waitFor({ timeout: 5000 });
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+}

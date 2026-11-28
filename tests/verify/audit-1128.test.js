@@ -55,3 +55,21 @@ test("audit 28/11 point 8: service pages show MAD instead of DH, prices unchange
   assert.match(req, /babySeat: 50,/, "baby seat price unchanged");
   assert.match(req, /bandSmall: 350,\s*bandLarge: 450,/, "transfer prices unchanged");
 });
+
+test("audit 28/11 point 6: 4 brochure pages as light WebP, French alt, loaded on demand, no PDF in the repo", () => {
+  const html = read("guest/massage.html");
+  for (let i = 1; i <= 4; i++) {
+    const file = "guest/assets/brochure-spa-" + i + ".webp";
+    const buf = fs.readFileSync(path.join(root, file));
+    assert.equal(buf.slice(0, 4).toString(), "RIFF", file);
+    assert.equal(buf.slice(8, 12).toString(), "WEBP", file);
+    assert.ok(buf.length < 250 * 1024, file + " < 250 Ko (" + buf.length + ")");
+    assert.match(html, new RegExp('<img data-src="assets/brochure-spa-' + i + '\\.webp" alt="Brochure du spa, page ' + i + ' sur 4 : [^"]+"'));
+  }
+  assert.doesNotMatch(html, /<img src="assets\/brochure/, "never loaded with the page");
+  assert.match(html, /data-brochure-open[^>]*>.*Voir la brochure<\/button>/);
+  assert.match(html, /<script src="js\/brochure\.js\?v=/);
+  const { execSync } = require("node:child_process");
+  const tracked = execSync("git ls-files", { cwd: root, encoding: "utf8" });
+  assert.doesNotMatch(tracked, /brochure[^\n]*\.pdf/i, "the PDF is not committed");
+});

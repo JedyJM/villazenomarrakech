@@ -32,10 +32,13 @@
 <div class="wrap">
 <a class="request-back" href="./">Accueil</a>
 <h1>Massages &amp; soins</h1>
+<div class="brochure-notes">
 <ul class="segment-notes" data-segment-notes>
 <li><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="stroke" cx="12" cy="12" r="9"/><path class="stroke" d="M12 7v5l3 2"/></svg><span>À prévoir au moins 24 h à l’avance</span></li>
 <li><svg viewBox="0 0 24 24" aria-hidden="true"><rect class="stroke" x="3" y="6" width="18" height="12" rx="2"/><circle class="stroke" cx="12" cy="12" r="2.2"/></svg><span>Espèces, auprès du praticien</span></li>
 </ul>
+<button type="button" class="brochure-open" data-brochure-open aria-haspopup="dialog" aria-controls="brochure"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none"><path class="stroke" d="M3.5 5.5c2.8-1 5.6-1 8.5.8 2.9-1.8 5.7-1.8 8.5-.8v13c-2.8-1-5.6-1-8.5.8-2.9-1.8-5.7-1.8-8.5-.8z"/><path class="stroke" d="M12 6.3v13"/></svg>Voir la brochure</button>
+</div>
 <section data-panel="form">
 <form class="request-form" data-massage-form novalidate>
 <p class="form-error" data-errors hidden></p>
@@ -200,6 +203,24 @@
 </section>
 </div>
 </main>
+<dialog class="brochure" id="brochure" data-brochure aria-labelledby="brochure-title">
+<div class="brochure-head">
+<h2 id="brochure-title">Brochure du spa</h2>
+<button type="button" class="brochure-close" data-brochure-close>Fermer</button>
+</div>
+<ul class="brochure-pages" data-brochure-pages tabindex="0" aria-label="Pages de la brochure, balayez pour tourner">
+<li class="brochure-page"><img data-src="assets/brochure-spa-1.webp" alt="Brochure du spa, page 1 sur 4 : couverture « Le Spa » de la Villa Zen’O" width="1400" height="1400" decoding="async"></li>
+<li class="brochure-page"><img data-src="assets/brochure-spa-2.webp" alt="Brochure du spa, page 2 sur 4 : Escapade marocaine, gommages à sec de 50 et 80 minutes, et les produits naturels Natus" width="1400" height="1400" decoding="async"></li>
+<li class="brochure-page"><img data-src="assets/brochure-spa-3.webp" alt="Brochure du spa, page 3 sur 4 : massages, soins visage et corps, avec durées et prix" width="1400" height="1400" decoding="async"></li>
+<li class="brochure-page"><img data-src="assets/brochure-spa-4.webp" alt="Brochure du spa, page 4 sur 4 : manucure et pédicure, épilation, brushing, et conditions de réservation" width="1400" height="1400" decoding="async"></li>
+</ul>
+<div class="brochure-foot">
+<button type="button" class="brochure-arrow" data-brochure-go="-1" aria-label="Page précédente">‹</button>
+<span class="brochure-dots" aria-hidden="true"><i class="is-on"></i><i></i><i></i><i></i></span>
+<span class="visually-hidden" data-brochure-live aria-live="polite">Page 1 sur 4</span>
+<button type="button" class="brochure-arrow" data-brochure-go="1" aria-label="Page suivante">›</button>
+</div>
+</dialog>
 <script src="js/guest-shell.js?v=20261127c" data-home="./"></script>
 <script src="../js/config.js"></script>
 <script src="js/portal.js?v=20261127c"></script>
@@ -207,5 +228,6 @@
 <script src="../js/vz-api.js?v=20261127c"></script>
 <script src="js/guest-stay.js?v=20261127c"></script>
 <script src="js/requests.js?v=20261127c"></script>
+<script src="js/brochure.js?v=20261127c"></script>
 </body>
 </html>

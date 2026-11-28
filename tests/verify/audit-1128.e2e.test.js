@@ -192,3 +192,78 @@ test("audit 28/11 point 8: MAD on services (screen, WhatsApp), récap in € wit
     assert.deepEqual(P.errors, []);
   } finally { await P.ctx.close(); }
 });
+
+test("audit 28/11 point 6: spa brochure viewer (swipe/arrows, « Fermer », Escape, back) keeps the current selection", async () => {
+  const b = createBackend();
+  const P = await phone(srv.origin, b);
+  const page = P.page;
+  const fetched = [];
+  page.on("request", (r) => { if (/brochure-spa-\d\.webp/.test(r.url())) fetched.push(r.url()); });
+  try {
+    await page.goto(srv.origin + "/guest/massage.html?stay=" + b.STAY_ID + "&k=" + b.key);
+    await page.waitForFunction(() => window.GuestStay && window.GuestStay.snapshot().state === "ok", null, { timeout: 20000 });
+    // A selection in progress: Massage découverte × 2, a date, a note.
+    await page.click("[data-soin='decouverte'] .soin-pick");
+    await page.click("[data-soin='decouverte'] [data-soin-step='1']");
+    await setField(page, "[data-massage-form] [name='date']", day(3));
+    await page.click("[data-massage-form] [data-comment-toggle]");
+    await page.fill("[data-massage-form] [name='comment']", "Huile ambre");
+    const selection = async () => ({
+      picked: await page.getAttribute("[data-soin='decouverte'] .soin-pick", "aria-pressed"),
+      count: await page.textContent("[data-soin='decouverte'] [data-soin-count]"),
+      date: await page.inputValue("[data-massage-form] [name='date']"),
+      note: await page.inputValue("[data-massage-form] [name='comment']"),
+      total: await page.textContent("[data-massage-form] [data-price-total]"),
+      url: page.url(),
+    });
+    const before = await selection();
+    assert.deepEqual([before.picked, before.count, before.total], ["true", "2", "Total 600 MAD"]);
+    assert.equal(fetched.length, 0, "no brochure image with the page");
+    const dialog = page.locator("[data-brochure]");
+    // Open: full screen, 4 pages with French alt, page 1 of 4.
+    await page.click("[data-brochure-open]");
+    await dialog.waitFor({ state: "visible" });
+    const box = await dialog.boundingBox();
+    const vp = page.viewportSize();
+    assert.ok(box.width >= vp.width - 1 && box.height >= vp.height - 1, "full screen");
+    const alts = await page.locator("[data-brochure] img").evaluateAll((els) => els.map((e) => e.alt));
+    assert.equal(alts.length, 4);
+    alts.forEach((alt, i) => assert.match(alt, new RegExp("^Brochure du spa, page " + (i + 1) + " sur 4 : ")));
+    await page.waitForFunction(() => [...document.querySelectorAll("[data-brochure] img")].every((i) => i.complete && i.naturalWidth === 1400));
+    assert.equal(new Set(fetched).size, 4, "loaded on open");
+    assert.equal(await page.textContent("[data-brochure-live]"), "Page 1 sur 4");
+    assert.ok(await page.locator('[data-brochure-go="-1"]').isDisabled());
+    assert.match(page.url(), /#brochure$/);
+    // Arrows, then a swipe (horizontal scroll) to the last page.
+    await page.click('[data-brochure-go="1"]');
+    await page.waitForFunction(() => document.querySelector("[data-brochure-live]").textContent === "Page 2 sur 4");
+    await page.locator("[data-brochure-pages]").evaluate((el) => { el.scrollTo({ left: el.scrollWidth, behavior: "instant" }); });
+    await page.waitForFunction(() => document.querySelector("[data-brochure-live]").textContent === "Page 4 sur 4");
+    assert.ok(await page.locator('[data-brochure-go="1"]').isDisabled());
+    await shot(page, "audit-p6-viewer.png");
+    // « Fermer »: closed, same page, selection untouched.
+    await page.click("[data-brochure-close]");
+    await dialog.waitFor({ state: "hidden" });
+    assert.deepEqual(await selection(), before);
+    // Back gesture / button: closes the viewer, does not leave the page.
+    await page.click("[data-brochure-open]");
+    await dialog.waitFor({ state: "visible" });
+    await page.goBack();
+    await dialog.waitFor({ state: "hidden" });
+    assert.deepEqual(await selection(), before);
+    // Escape.
+    await page.click("[data-brochure-open]");
+    await dialog.waitFor({ state: "visible" });
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "hidden" });
+    assert.deepEqual(await selection(), before);
+    // No history left behind: one back now leaves the page as before.
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains("is-brochure")), false);
+    // The request still goes out with the selection.
+    await setField(page, "[data-massage-form] [name='time']", "17:00");
+    await page.click("[data-massage-form] [type='submit']");
+    await page.locator("[data-send-status].is-ok").waitFor({ timeout: 15000 });
+    assert.equal(Number(b.demandes()[b.demandes().length - 1].total_dh), 600);
+    assert.deepEqual(P.errors, []);
+  } finally { await P.ctx.close(); }
+});

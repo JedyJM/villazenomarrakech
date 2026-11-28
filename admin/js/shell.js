@@ -3,8 +3,10 @@
   "use strict";
 
   var TEST_MODE = true;
-  // One URL and one client for the whole site: js/vz-api.js.
-  var SCRIPT_URL = window.VZApi ? window.VZApi.URL : "";
+  // One URL and one client for the whole site: js/vz-api.js. Only a
+  // "client present" flag here: the /exec URL itself is never read
+  // synchronously (on a preview it is only known after /api/vz-env).
+  var SCRIPT_URL = window.VZApi ? "VZApi" : "";
   // Public OAuth web client ID (safe in the front-end). The script checks aud.
   var GOOGLE_CLIENT_ID = "971461193352-3kafun281dtmvorv1tpp2j7n9l2g8klf.apps.googleusercontent.com";
   var GIS_SRC = "https://accounts.google.com/gsi/client";
@@ -122,7 +124,8 @@
       }
       clearSession();
       if (!note) return;
-      if (result.kind === "network" || result.kind === "timeout" || result.kind === "busy") note.textContent = MSG_NETWORK;
+      if (result.kind === "unavailable") note.textContent = window.VZApi.message(result);
+      else if (result.kind === "network" || result.kind === "timeout" || result.kind === "busy") note.textContent = MSG_NETWORK;
       else note.textContent = result.error === "invalid_token" ? MSG_INVALID : MSG_DENIED;
     });
   }

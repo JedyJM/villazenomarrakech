@@ -222,7 +222,7 @@
   function failureText(result) {
     if (result.kind === "session") return MSG_SESSION;
     if (result.kind === "server") return MSG_SERVER;
-    if (result.kind === "busy" && window.VZApi) return window.VZApi.message(result);
+    if ((result.kind === "busy" || result.kind === "unavailable") && window.VZApi) return window.VZApi.message(result);
     return MSG_NETWORK;
   }
   // Fills a role="alert" node with the failure (shared error box: message,

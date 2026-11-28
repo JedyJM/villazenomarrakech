@@ -562,7 +562,8 @@
     if (name === "loading") { node.textContent = text("Chargement de vos demandes…", "Loading your requests…"); return; }
     if (name === "updating") { node.textContent = text("Mise à jour…", "Updating…"); return; }
     window.VZApi.showError(node, (snap && snap.error) || { kind: name === "invalid" ? "invalid_link" : name === "expired" ? "expired" : "network" }, retry, {
-      text: name === "error" ? text("Impossible de charger vos demandes. Vérifiez le réseau, puis réessayez.", "Your requests could not be loaded. Check your connection, then try again.") : ""
+      // A preview without /exec keeps the « contretemps » message (VZApi.message).
+      text: name === "error" && !(snap && snap.error && snap.error.kind === "unavailable") ? text("Impossible de charger vos demandes. Vérifiez le réseau, puis réessayez.", "Your requests could not be loaded. Check your connection, then try again.") : ""
     });
   }
 

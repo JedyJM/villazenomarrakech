@@ -68,6 +68,8 @@
   }
   function legacy(found) {
     window.VZApi.urlReady.then(function (base) {
+      // No /exec on a preview (/api/vz-env did not answer): stay here.
+      if (!base) { show("Confirmation impossible pour le moment.", "", "", false); window.VZApi.showError($("status"), { kind: "unavailable" }, ask); return; }
       location.replace(base + "?action=confirm&id=" + encodeURIComponent(found.id) + "&t=" + encodeURIComponent(found.token));
     });
   }

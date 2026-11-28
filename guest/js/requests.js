@@ -12,8 +12,9 @@
 
   /* Google Apps Script web app for the sheet “Villa Zen’O – Bookings”.
      An empty value skips the sheet and keeps the request in localStorage only. */
-  // One URL for the whole site: js/vz-api.js (VZApi.URL).
-  var APPS_SCRIPT_URL = window.VZApi ? window.VZApi.URL : "";
+  // One URL for the whole site: js/vz-api.js (VZApi, which picks the
+  // /exec per environment). Only a "client present" flag here.
+  var APPS_SCRIPT_URL = window.VZApi ? "VZApi" : "";
 
   /* While TEST_MODE is true, every staff WhatsApp opens the villa test number.
      Flip TEST_MODE to false to open the real recipients. Nothing is sent from this file. */
